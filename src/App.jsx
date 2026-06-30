@@ -20,6 +20,7 @@ import Statistics from '@/pages/Statistics';
 import Subscription from '@/pages/Subscription';
 import Admin from '@/pages/Admin';
 import AISignals from '@/pages/AISignals';
+import AIScanner from '@/pages/AIScanner';
 import Account from '@/pages/Account';
 
 const AuthenticatedApp = () => {
@@ -54,6 +55,7 @@ const AuthenticatedApp = () => {
           <Route path="/statistics" element={<Statistics />} />
           <Route path="/subscription" element={<Subscription />} />
           <Route path="/ai-signals" element={<AISignals />} />
+          <Route path="/ai-scanner" element={<AIScanner />} />
           <Route path="/account" element={<Account />} />
         </Route>
       </Route>

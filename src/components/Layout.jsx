@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/",            label: "Home",      icon: LayoutDashboard },
   { to: "/statistics",  label: "Statistics", icon: BarChart3 },
-  { to: "/ai-signals",  label: "AI Signals", icon: Zap },
+  { to: "/ai-scanner",  label: "Scanner",    icon: Zap },
   { to: "/settings",    label: "Settings",   icon: Settings },
   { to: "/account",     label: "Account",    icon: User },
 ];
