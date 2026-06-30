@@ -7,10 +7,10 @@ export default function ConnectionCard({ settings, onToggle }) {
   const connected = settings?.connection_status === "Connected";
 
   const fields = [
-    { label: "MT5 Server",   value: settings?.mt5_server  || "--" },
-    { label: "Broker",       value: settings?.broker_name || "--" },
-    { label: "Account #",    value: settings?.mt5_account || "--" },
-    { label: "Robot",        value: settings?.robot_version || "--" },
+    { label: "MT5 Server",   value: connected ? (settings?.mt5_server  || "--") : "--" },
+    { label: "Broker",       value: connected ? (settings?.broker_name || "--") : "--" },
+    { label: "Account #",    value: connected ? (settings?.mt5_account || "--") : "--" },
+    { label: "Robot",        value: connected ? (settings?.robot_version || "--") : "--" },
   ];
 
   return (

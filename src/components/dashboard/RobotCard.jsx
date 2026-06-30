@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Play, Square } from "lucide-react";
+import { Bot, Play, Square, Link as LinkIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 
 const STATUS_MAP = {
@@ -14,9 +15,10 @@ const STATUS_MAP = {
 };
 
 export default function RobotCard({ status, connected, onStart, onStop }) {
+  const navigate = useNavigate();
   const cfg = STATUS_MAP[status] || STATUS_MAP["Paused"];
   const running = status === "Running";
-  const active = running || status === "Scanning Market" || status === "Entering Trade" || status === "Managing Position";
+  const active = connected && (running || status === "Scanning Market" || status === "Entering Trade" || status === "Managing Position");
 
   return (
     <GlassCard className="relative overflow-hidden py-5">
@@ -88,35 +90,50 @@ export default function RobotCard({ status, connected, onStart, onStop }) {
       {/* Status Badge */}
       <div className="flex items-center justify-center gap-2 mb-5">
         <motion.div
-          className={`w-2 h-2 rounded-full ${cfg.dot}`}
+          className={`w-2 h-2 rounded-full ${connected ? cfg.dot : "bg-gray-500"}`}
           animate={active ? { scale: [1, 1.4, 1], opacity: [1, 0.4, 1] } : {}}
           transition={{ duration: 1.2, repeat: Infinity }}
         />
-        <span className={`font-heading text-sm tracking-[0.15em] uppercase ${cfg.color}`}>{status || "Paused"}</span>
+        <span className={`font-heading text-sm tracking-[0.15em] uppercase ${connected ? cfg.color : "text-muted-foreground"}`}>
+          {connected ? (status || "Paused") : "Waiting for MT5 connection"}
+        </span>
       </div>
 
       {/* Buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <motion.button
-          onClick={onStart}
-          disabled={!connected || running}
-          whileTap={{ scale: 0.95 }}
-          className="h-14 rounded-2xl bg-green-600 hover:bg-green-500 disabled:opacity-35 font-heading tracking-wider text-sm text-white flex items-center justify-center gap-2 transition-colors"
-          style={!connected || running ? {} : { boxShadow: "0 0 16px rgba(74,222,128,0.4)" }}
-        >
-          <Play className="w-4 h-4 fill-current" />
-          START
-        </motion.button>
-        <motion.button
-          onClick={onStop}
-          disabled={!running}
-          whileTap={{ scale: 0.95 }}
-          className="h-14 rounded-2xl border border-red-500/50 bg-red-600/15 hover:bg-red-600/30 disabled:opacity-35 font-heading tracking-wider text-sm text-red-400 flex items-center justify-center gap-2 transition-colors"
-          style={running ? { boxShadow: "0 0 16px rgba(239,68,68,0.4)" } : {}}
-        >
-          <Square className="w-4 h-4 fill-current" />
-          STOP
-        </motion.button>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <motion.button
+            onClick={onStart}
+            disabled={!connected || running}
+            whileTap={connected && !running ? { scale: 0.95 } : {}}
+            className="h-14 rounded-2xl bg-green-600 hover:bg-green-500 disabled:opacity-25 disabled:cursor-not-allowed font-heading tracking-wider text-sm text-white flex items-center justify-center gap-2 transition-colors"
+            style={connected && !running ? { boxShadow: "0 0 16px rgba(74,222,128,0.4)" } : {}}
+          >
+            <Play className="w-4 h-4 fill-current" />
+            START
+          </motion.button>
+          <motion.button
+            onClick={onStop}
+            disabled={!connected || !running}
+            whileTap={connected && running ? { scale: 0.95 } : {}}
+            className="h-14 rounded-2xl border border-red-500/50 bg-red-600/15 hover:bg-red-600/30 disabled:opacity-25 disabled:cursor-not-allowed font-heading tracking-wider text-sm text-red-400 flex items-center justify-center gap-2 transition-colors"
+            style={running ? { boxShadow: "0 0 16px rgba(239,68,68,0.4)" } : {}}
+          >
+            <Square className="w-4 h-4 fill-current" />
+            STOP
+          </motion.button>
+        </div>
+
+        {!connected && (
+          <motion.button
+            onClick={() => navigate("/connect-mt5")}
+            whileTap={{ scale: 0.97 }}
+            className="w-full h-12 rounded-2xl border border-red-500/40 bg-red-600/10 hover:bg-red-600/20 font-heading tracking-wider text-sm text-red-400 flex items-center justify-center gap-2 transition-colors"
+          >
+            <LinkIcon className="w-4 h-4" />
+            Connect MT5 Account
+          </motion.button>
+        )}
       </div>
     </GlassCard>
   );

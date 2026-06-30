@@ -87,16 +87,18 @@ export default function Home() {
       </header>
 
       {/* MT5 Account Selector */}
-      <Select value={settings.mt5_account || ""} onValueChange={(v) => patch({ mt5_account: v })}>
+      <Select value={connected ? (settings.mt5_account || "") : ""} onValueChange={(v) => patch({ mt5_account: v })}>
         <SelectTrigger className="bg-white/5 border-red-500/20 rounded-xl h-11 font-heading text-sm">
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-red-400"}`} />
-            <SelectValue placeholder="Select MT5 Live Account" />
+            <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-red-400/60"}`} />
+            <span className={connected ? "text-white" : "text-muted-foreground"}>
+              {connected && settings.mt5_account ? `${settings.broker_name || ""} · ${settings.mt5_account}` : "Connect MT5 Account"}
+            </span>
           </div>
         </SelectTrigger>
         <SelectContent>
           {accounts.length === 0 && (
-            <SelectItem value="none" disabled>No accounts added</SelectItem>
+            <SelectItem value="none" disabled>No accounts — go to Connect MT5</SelectItem>
           )}
           {accounts.map((a) => (
             <SelectItem key={a.id} value={a.account_number}>
