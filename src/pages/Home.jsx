@@ -11,12 +11,14 @@ import AIStrategyScore from "@/components/dashboard/AIStrategyScore";
 import TradesTable from "@/components/dashboard/TradesTable";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
 export default function Home() {
   const [settings, setSettings] = useState(null);
   const [trades, setTrades] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const load = async () => {
     const [list, tradeList, acctList] = await Promise.all([
@@ -87,26 +89,33 @@ export default function Home() {
       </header>
 
       {/* MT5 Account Selector */}
-      <Select value={connected ? (settings.mt5_account || "") : ""} onValueChange={(v) => patch({ mt5_account: v })}>
-        <SelectTrigger className="bg-white/5 border-red-500/20 rounded-xl h-11 font-heading text-sm">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-red-400/60"}`} />
-            <span className={connected ? "text-white" : "text-muted-foreground"}>
-              {connected && settings.mt5_account ? `${settings.broker_name || ""} · ${settings.mt5_account}` : "Connect MT5 Account"}
-            </span>
-          </div>
-        </SelectTrigger>
-        <SelectContent>
-          {accounts.length === 0 && (
-            <SelectItem value="none" disabled>No accounts — go to Connect MT5</SelectItem>
-          )}
-          {accounts.map((a) => (
-            <SelectItem key={a.id} value={a.account_number}>
-              {a.type} · {a.account_number} — {a.broker}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {!connected ? (
+        <button
+          onClick={() => navigate("/connect-mt5")}
+          className="w-full bg-white/5 border border-red-500/20 rounded-xl h-11 flex items-center gap-2 px-3 font-heading text-sm text-muted-foreground hover:bg-white/10 transition-colors"
+        >
+          <div className="w-2 h-2 rounded-full bg-red-400/60" />
+          Connect MT5 Account
+        </button>
+      ) : (
+        <Select value={settings.mt5_account || ""} onValueChange={(v) => patch({ mt5_account: v })}>
+          <SelectTrigger className="bg-white/5 border-red-500/20 rounded-xl h-11 font-heading text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-400" />
+              <span className="text-white">
+                {settings.broker_name ? `${settings.broker_name} · ${settings.mt5_account}` : settings.mt5_account}
+              </span>
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((a) => (
+              <SelectItem key={a.id} value={a.account_number}>
+                {a.type} · {a.account_number} — {a.broker}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* Connection Card */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
