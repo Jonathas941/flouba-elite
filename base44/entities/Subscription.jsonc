@@ -1,0 +1,29 @@
+{
+  "name": "Subscription",
+  "type": "object",
+  "properties": {
+    "plan": {
+      "type": "string",
+      "enum": [
+        "Starter",
+        "Pro",
+        "Elite"
+      ],
+      "default": "Starter"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Active",
+        "Inactive",
+        "Expired"
+      ],
+      "default": "Inactive"
+    },
+    "expires_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": []
+}

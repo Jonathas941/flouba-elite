@@ -1,0 +1,37 @@
+{
+  "name": "Trade",
+  "type": "object",
+  "properties": {
+    "pair": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "Buy",
+        "Sell"
+      ]
+    },
+    "lot": {
+      "type": "number"
+    },
+    "profit": {
+      "type": "number"
+    },
+    "pattern": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Open",
+        "Closed"
+      ],
+      "default": "Closed"
+    }
+  },
+  "required": [
+    "pair",
+    "direction"
+  ]
+}

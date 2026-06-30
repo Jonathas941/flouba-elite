@@ -1,0 +1,30 @@
+{
+  "name": "MT5Account",
+  "type": "object",
+  "properties": {
+    "account_number": {
+      "type": "string"
+    },
+    "broker": {
+      "type": "string"
+    },
+    "server": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Live",
+        "Demo"
+      ],
+      "default": "Live"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "account_number"
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "name": "BotSettings",
+  "type": "object",
+  "properties": {
+    "trading_mode": {
+      "type": "string",
+      "enum": [
+        "Conservative",
+        "Normal",
+        "Aggressive"
+      ],
+      "default": "Normal"
+    },
+    "lot_size_mode": {
+      "type": "string",
+      "enum": [
+        "Fixed",
+        "Auto Risk"
+      ],
+      "default": "Auto Risk"
+    },
+    "risk_percentage": {
+      "type": "number",
+      "default": 1
+    },
+    "max_daily_trades": {
+      "type": "number",
+      "default": 5
+    },
+    "daily_profit_target": {
+      "type": "number",
+      "default": 100
+    },
+    "daily_loss_limit": {
+      "type": "number",
+      "default": 50
+    },
+    "break_even": {
+      "type": "boolean",
+      "default": true
+    },
+    "trailing_stop": {
+      "type": "boolean",
+      "default": false
+    },
+    "news_filter": {
+      "type": "boolean",
+      "default": true
+    },
+    "london_session": {
+      "type": "boolean",
+      "default": true
+    },
+    "new_york_session": {
+      "type": "boolean",
+      "default": true
+    },
+    "robot_status": {
+      "type": "string",
+      "enum": [
+        "Running",
+        "Paused",
+        "Locked"
+      ],
+      "default": "Paused"
+    },
+    "connection_status": {
+      "type": "string",
+      "enum": [
+        "Connected",
+        "Disconnected"
+      ],
+      "default": "Disconnected"
+    },
+    "active_pair": {
+      "type": "string",
+      "enum": [
+        "XAUUSD",
+        "EURUSD",
+        "GBPUSD",
+        "US30",
+        "NAS100"
+      ],
+      "default": "XAUUSD"
+    },
+    "mt5_account": {
+      "type": "string",
+      "default": ""
+    },
+    "balance": {
+      "type": "number",
+      "default": 10000
+    },
+    "equity": {
+      "type": "number",
+      "default": 10000
+    },
+    "profit_today": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": []
+}
