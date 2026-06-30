@@ -3,16 +3,16 @@ import { motion } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
 
 const STRATEGIES = [
-  { name: "Market Structure",        score: 82 },
-  { name: "Order Block",             score: 71 },
-  { name: "Supply & Demand",         score: 68 },
-  { name: "Liquidity Sweep",         score: 75 },
-  { name: "Candlestick Confirmation",score: 89 },
-  { name: "Fibonacci",               score: 63 },
-  { name: "Trendline",               score: 77 },
-  { name: "Psychological Level",     score: 85 },
-  { name: "Volume",                  score: 72 },
-  { name: "News Filter",             score: 90 },
+  { name: "Price Action",             score: 91 },
+  { name: "Smart Money Concept",      score: 84 },
+  { name: "Market Structure",         score: 82 },
+  { name: "Supply & Demand Zones",    score: 78 },
+  { name: "Order Blocks",             score: 75 },
+  { name: "Liquidity Sweep",          score: 69 },
+  { name: "Fibonacci 50% / 61.8%",   score: 73 },
+  { name: "Trendline Confirmation",   score: 77 },
+  { name: "Psychological Levels",     score: 85 },
+  { name: "Candlestick Patterns",     score: 88 },
 ];
 
 const overall = Math.round(STRATEGIES.reduce((a, s) => a + s.score, 0) / STRATEGIES.length);
