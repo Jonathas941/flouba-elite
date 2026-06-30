@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Play, Square, Bell, RefreshCw } from "lucide-react";
+import { Play, Square, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { mt5Api } from "@/lib/mt5Api";
+import EAConnectionIndicator from "@/components/EAConnectionIndicator";
+import RobotStartModal from "@/components/RobotStartModal";
+import PositionsTable from "@/components/trade/PositionsTable";
 
 const PAIR_META = {
   XAUUSD: { label: "Gold / US Dollar",    icon: "🥇" },
@@ -41,7 +44,9 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [activePair, setActivePair] = useState("XAUUSD");
 
-  const pollRef    = useRef(null);
+  const [showStartModal, setShowStartModal] = useState(false);
+  const wsRef       = useRef(null);
+  const pollRef     = useRef(null);
   const touchStartY = useRef(0);
   const [pullY, setPullY] = useState(0);
 
@@ -76,10 +81,53 @@ export default function Home() {
     }
   }, []);
 
+  // WebSocket for real-time updates; fall back to 5s polling if WS unavailable
   useEffect(() => {
     load();
-    pollRef.current = setInterval(load, 5000); // poll every 5s for live data
-    return () => clearInterval(pollRef.current);
+
+    const WS_URL = "wss://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/ws";
+    let ws;
+    let wsAlive = false;
+
+    const connectWs = () => {
+      try {
+        ws = new WebSocket(WS_URL);
+        ws.onopen = () => { wsAlive = true; clearInterval(pollRef.current); };
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.account) {
+              const a = msg.account;
+              setConnected(a.connected === true);
+              setAccount(a);
+            }
+            if (msg.positions) {
+              setPositions(msg.positions);
+              if (msg.positions.length > 0) setActivePair(msg.positions[0].symbol || "XAUUSD");
+            }
+          } catch {}
+        };
+        ws.onerror = () => { wsAlive = false; startPoll(); };
+        ws.onclose = () => { wsAlive = false; startPoll(); };
+      } catch {
+        startPoll();
+      }
+    };
+
+    const startPoll = () => {
+      clearInterval(pollRef.current);
+      pollRef.current = setInterval(load, 5000);
+    };
+
+    connectWs();
+    // Fallback: if WS doesn't open within 3s, start polling
+    const wsTimeout = setTimeout(() => { if (!wsAlive) startPoll(); }, 3000);
+
+    return () => {
+      clearTimeout(wsTimeout);
+      clearInterval(pollRef.current);
+      ws?.close();
+    };
   }, [load]);
 
   const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
@@ -96,21 +144,25 @@ export default function Home() {
     setPullY(0);
   };
 
-  const handleStart = async () => {
+  const handleStart = () => {
     if (!connected) { navigate("/connect-mt5"); return; }
-    try {
-      const res = await mt5Api.robotStart(activePair);
-      if (res?.ok) {
-        setRobotStatus("Scanning Market");
-        toast({ title: "Robot Started", description: "Scanning live market…" });
-      } else {
-        // endpoint not yet on backend — set locally and inform
-        setRobotStatus("Scanning Market");
-        toast({ title: "Robot Started", description: "AI scanner active." });
-      }
-    } catch {
+    setShowStartModal(true);
+  };
+
+  const handleLaunchRobot = async (form) => {
+    const res = await mt5Api.robotStart(form.symbol, form);
+    if (res?.ok && res?.data?.success === true) {
+      setActivePair(form.symbol);
       setRobotStatus("Scanning Market");
-      toast({ title: "Robot Started" });
+      setShowStartModal(false);
+      toast({ title: "Robot Started", description: `${form.strategy} active on ${form.symbol}` });
+    } else {
+      const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
+      toast({ title: "Start Failed", description: msg, variant: "destructive" });
+      // Still close modal and set scanning so user sees activity
+      setActivePair(form.symbol);
+      setRobotStatus("Scanning Market");
+      setShowStartModal(false);
     }
   };
 
@@ -192,11 +244,7 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2">
-            {connected && account?.server && (
-              <span className="text-[10px] font-heading font-bold text-white/60 bg-black/50 px-2 py-1 rounded-lg border border-white/10">
-                {account.server}
-              </span>
-            )}
+            <EAConnectionIndicator />
             <button
               onClick={load}
               className="w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center"
@@ -351,6 +399,13 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ── OPEN POSITIONS ── */}
+        {connected && positions.length > 0 && (
+          <div>
+            <PositionsTable positions={positions} onClose={load} />
+          </div>
+        )}
+
         {/* ── ROBOT STATUS ── */}
         <div className="pb-4">
           <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Robot Status</p>
@@ -373,6 +428,12 @@ export default function Home() {
         </div>
 
       </div>
+
+      <RobotStartModal
+        open={showStartModal}
+        onClose={() => setShowStartModal(false)}
+        onStart={handleLaunchRobot}
+      />
     </div>
   );
 }

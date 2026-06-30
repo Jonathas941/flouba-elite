@@ -34,11 +34,12 @@ export default function LiveTradeCard({ trade, onClose }) {
   const handleClose = async () => {
     try {
       const res = await mt5Api.close(ticket);
-      if (res?.ok) {
+      if (res?.ok && res?.data?.success === true) {
         toast({ title: "Position Closed", description: `${pair} closed successfully.` });
         onClose?.();
       } else {
-        toast({ title: "Close Failed", description: res?.data?.message || "Could not close position.", variant: "destructive" });
+        const msg = res?.error || res?.data?.message || res?.data?.detail || "Could not close position";
+        toast({ title: "Close Failed", description: msg, variant: "destructive" });
       }
     } catch (e) {
       toast({ title: "Error", description: e.message, variant: "destructive" });

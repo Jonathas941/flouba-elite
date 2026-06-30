@@ -3,17 +3,20 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { WifiOff, Activity, BarChart3, Shield, RefreshCw, Stethoscope } from "lucide-react";
+import { WifiOff, Activity, BarChart3, Shield, RefreshCw, Stethoscope, Clock } from "lucide-react";
 import LiveTradeCard from "@/components/trade/LiveTradeCard";
+import PositionsTable from "@/components/trade/PositionsTable";
+import TradeHistoryTable from "@/components/trade/TradeHistoryTable";
 import PerformancePanel from "@/components/trade/PerformancePanel";
 import PanicButton from "@/components/trade/PanicButton";
 import TradingDiagnostics from "@/components/trade/TradingDiagnostics";
 
 const TABS = [
-  { id: "live",   label: "Live",        icon: Activity },
-  { id: "perf",   label: "Performance", icon: BarChart3 },
-  { id: "manage", label: "Protection",  icon: Shield },
-  { id: "diag",   label: "Diagnostics", icon: Stethoscope },
+  { id: "live",    label: "Live",        icon: Activity },
+  { id: "history", label: "History",     icon: Clock },
+  { id: "perf",    label: "Performance", icon: BarChart3 },
+  { id: "manage",  label: "Protection",  icon: Shield },
+  { id: "diag",    label: "Diagnostics", icon: Stethoscope },
 ];
 
 function computeStats(trades) {
@@ -226,30 +229,15 @@ export default function Statistics() {
                   <p className="text-[11px] text-white/20">The robot is scanning the market…</p>
                 </div>
               ) : (
-                openTrades.map((trade) => <LiveTradeCard key={trade.id} trade={trade} onClose={load} />)
+                <PositionsTable positions={openTrades} onClose={load} />
               )}
+            </motion.div>
+          )}
 
-              {/* Recent closed */}
-              {trades.filter((t) => t.status === "Closed").slice(0, 5).length > 0 && (
-                <div>
-                  <p className="text-[9px] uppercase tracking-[0.25em] text-white/25 font-heading mb-2">Recent Closed</p>
-                  {trades.filter((t) => t.status === "Closed").slice(0, 5).map((trade) => (
-                    <div key={trade.id} className="flex items-center justify-between py-2 px-3 rounded-xl mb-1.5"
-                      style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-heading font-bold text-xs text-white/60">{trade.pair}</span>
-                        <span className={`text-[9px] font-bold ${trade.direction === "Buy" ? "text-green-400/60" : "text-red-400/60"}`}>{trade.direction?.toUpperCase()}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {trade.close_reason && <span className="text-[9px] text-white/25 font-heading">{trade.close_reason}</span>}
-                        <span className={`font-heading font-bold text-xs ${(trade.profit ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {(trade.profit ?? 0) >= 0 ? "+" : ""}{(trade.profit ?? 0).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* TRADE HISTORY */}
+          {tab === "history" && (
+            <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <TradeHistoryTable />
             </motion.div>
           )}
 

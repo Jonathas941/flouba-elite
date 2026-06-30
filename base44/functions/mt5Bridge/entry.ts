@@ -32,13 +32,23 @@ Deno.serve(async (req) => {
       sell:         ["POST", "/trade/sell"],
       close:        ["POST", "/trade/close"],
       close_all:    ["POST", "/trade/close_all"],
+      history:      ["GET",  "/history"],
+      scanner_status: ["GET", "/scanner/status"],
     };
 
     const route = ROUTES[action];
     if (!route) return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
 
     const [method, path] = route;
-    const url = `${BASE}${path}`;
+
+    // For GET requests, append params as query string
+    let url = `${BASE}${path}`;
+    if (method === "GET" && Object.keys(params).length > 0) {
+      const qs = new URLSearchParams(
+        Object.entries(params).map(([k, v]) => [k, String(v)])
+      ).toString();
+      url = `${url}?${qs}`;
+    }
 
     const fetchOpts = {
       method,
@@ -47,9 +57,16 @@ Deno.serve(async (req) => {
     };
 
     const res = await fetch(url, fetchOpts);
-    const data = await res.json();
+    let data;
+    try { data = await res.json(); } catch { data = { raw: await res.text() }; }
 
-    return Response.json({ ok: res.ok, status: res.status, data }, { status: 200 });
+    // Surface 400/401/422 errors with a clear message
+    if (!res.ok) {
+      const errMsg = data?.detail || data?.message || data?.error || `HTTP ${res.status}`;
+      return Response.json({ ok: false, status: res.status, data, error: errMsg }, { status: 200 });
+    }
+
+    return Response.json({ ok: true, status: res.status, data }, { status: 200 });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }

@@ -42,4 +42,10 @@ export const mt5Api = {
 
   /** Close all open positions */
   closeAll: () => call("close_all"),
+
+  /** Trade history (closed trades from MT5) */
+  history: (limit = 50) => call("history", { limit }),
+
+  /** Scanner status */
+  scannerStatus: () => call("scanner_status"),
 };
