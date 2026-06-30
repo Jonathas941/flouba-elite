@@ -10,6 +10,7 @@ import AIDashboard from "@/components/analysis/AIDashboard";
 import SessionNewsFilter from "@/components/analysis/SessionNewsFilter";
 import DrawdownProtection from "@/components/analysis/DrawdownProtection";
 import { getBestOpportunity } from "@/lib/marketAnalysis";
+import LiveDebugPanel from "@/components/scanner/LiveDebugPanel";
 
 const TABS = [
   { id: "dashboard", label: "AI Dashboard", icon: Brain },
@@ -36,7 +37,7 @@ function SectionHeader({ icon: Icon, title, subtitle }) {
 
 export default function AIScanner() {
   const [tab, setTab] = useState("dashboard");
-  const [scanData, setScanData] = useState(null);  // { results, best, session, tick }
+  const [scanData, setScanData] = useState(null);  // { results, best, session, tick, debugLog }
   const [filterState, setFilterState] = useState({ sessionAllowed: true, newsBlocked: false, newsEvent: null, currentSession: "--" });
 
   const handleScanUpdate = useCallback((data) => {
@@ -82,13 +83,21 @@ export default function AIScanner() {
 
       {/* LiveScannerEngine always runs in background when on scanner/dashboard tabs */}
       <div className={tab === "scanner" ? "px-4 pb-6" : "hidden"}>
-        <LiveScannerEngine onScanUpdate={handleScanUpdate} />
+        <LiveScannerEngine
+          onScanUpdate={handleScanUpdate}
+          newsBlocked={filterState.newsBlocked}
+          sessionAllowed={filterState.sessionAllowed}
+        />
       </div>
 
-      {/* Background runner (hidden) to keep scan data fresh on other tabs */}
+      {/* Background runner — keeps scan data & debug log fresh on other tabs */}
       {tab !== "scanner" && (
         <div className="hidden">
-          <LiveScannerEngine onScanUpdate={handleScanUpdate} />
+          <LiveScannerEngine
+            onScanUpdate={handleScanUpdate}
+            newsBlocked={filterState.newsBlocked}
+            sessionAllowed={filterState.sessionAllowed}
+          />
         </div>
       )}
 
@@ -107,6 +116,7 @@ export default function AIScanner() {
               sessionAllowed={filterState.sessionAllowed}
               session={filterState.currentSession}
             />
+            <LiveDebugPanel debugLog={scanData?.debugLog ?? []} />
           </motion.div>
         )}
 
