@@ -22,6 +22,7 @@ import Admin from '@/pages/Admin';
 import AISignals from '@/pages/AISignals';
 import AIScanner from '@/pages/AIScanner';
 import Account from '@/pages/Account';
+import ConnectMT5 from '@/pages/ConnectMT5';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
           <Route path="/ai-signals" element={<AISignals />} />
           <Route path="/ai-scanner" element={<AIScanner />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/connect-mt5" element={<ConnectMT5 />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
