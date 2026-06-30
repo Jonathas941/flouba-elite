@@ -1,6 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, XCircle, AlertTriangle, Zap } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, Zap, Brain } from "lucide-react";
+
+const STRATEGY_COLORS = {
+  "Momentum Scalping": "text-green-400",
+  "Range Breakout":    "text-sky-400",
+  "Volatility Spike":  "text-amber-400",
+  "Hybrid Manual":     "text-purple-400",
+};
 
 /**
  * Live Debug Panel — shows exactly why the robot did or did not enter a trade.
@@ -46,6 +53,9 @@ export default function LiveDebugPanel({ debugLog = [] }) {
                   : <XCircle className="w-3.5 h-3.5 text-red-400/60" />}
                 <span className="font-heading font-black text-xs text-white">{entry.pair}</span>
                 <span className="text-[9px] text-white/30">{entry.tf}</span>
+                {entry.strategy && (
+                  <span className={`text-[9px] font-heading font-bold ${STRATEGY_COLORS[entry.strategy] || "text-white/30"}`}>· {entry.strategy}</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-heading font-black text-xs ${

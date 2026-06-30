@@ -4,12 +4,11 @@ import GlassCard from "@/components/GlassCard";
 import { base44 } from "@/api/base44Client";
 import {
   TrendingUp, TrendingDown, Zap, Radio, WifiOff,
-  Target, AlertTriangle,
+  Target, AlertTriangle, Brain,
 } from "lucide-react";
 import {
   PAIRS, TIMEFRAMES, MODE_THRESHOLD,
-  computeAnalysis, getBestOpportunity,
-  isSessionAllowed, getCurrentSession,
+  computeAnalysis, getBestOpportunity, getCurrentSession,
 } from "@/lib/marketAnalysis";
 
 function ScoreBar({ label, val, max, ok }) {
@@ -41,16 +40,23 @@ function SignalBadge({ direction }) {
   );
 }
 
+const STRATEGY_COLORS = {
+  "Momentum Scalping": "text-green-400",
+  "Range Breakout":    "text-sky-400",
+  "Volatility Spike":  "text-amber-400",
+  "Hybrid Manual":     "text-purple-400",
+};
+
 export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, sessionAllowed = true }) {
-  const [connected, setConnected]         = useState(false);
-  const [botRunning, setBotRunning]       = useState(false);
-  const [tradingMode, setTradingMode]     = useState("Balanced");
-  const [dailyTrades, setDailyTrades]     = useState(0);
+  const [connected, setConnected]           = useState(false);
+  const [botRunning, setBotRunning]         = useState(false);
+  const [tradingMode, setTradingMode]       = useState("Balanced");
   const [maxDailyTrades, setMaxDailyTrades] = useState(5);
-  const [selectedTf, setSelectedTf]       = useState("M1");
-  const [scanResults, setScanResults]     = useState({});
-  const [lastScanTime, setLastScanTime]   = useState(null);
-  const [signalAlerts, setSignalAlerts]   = useState([]);
+  const [dailyTrades, setDailyTrades]       = useState(0);
+  const [selectedTf, setSelectedTf]         = useState("M1");
+  const [scanResults, setScanResults]       = useState({});
+  const [lastScanTime, setLastScanTime]     = useState(null);
+  const [signalAlerts, setSignalAlerts]     = useState([]);
 
   const intervalRef    = useRef(null);
   const settingsIdRef  = useRef(null);
@@ -93,7 +99,7 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
     return unsub;
   }, []);
 
-  // 1-second OnTick scan loop
+  // ── 1-second OnTick scan loop ─────────────────────────────────────────────
   useEffect(() => {
     clearInterval(intervalRef.current);
     if (!connected || !botRunning) return;
@@ -113,41 +119,72 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
         TIMEFRAMES.forEach((tf) => {
           const data = computeAnalysis(pair, tf, t);
 
-          const scoreOk   = data.total >= threshold;
-          const sessionOk = sessionOkRef.current;
           const newsOk    = !newsBlockedRef.current;
+          const sessOk    = sessionOkRef.current;
+          const scoreOk   = data.total >= threshold;
           const dailyOk   = !dailyLimitHit;
 
-          const allPass = data.rsiOk && data.atrOk && data.spreadOk && scoreOk && sessionOk && newsOk && dailyOk;
-          data.isValid = allPass;
+          // Strategy-aware validity
+          let stratValid = false;
+          if (data.strategy === "Momentum Scalping") {
+            stratValid = data.momentumOk && scoreOk && newsOk && sessOk && dailyOk;
+          } else if (data.strategy === "Range Breakout") {
+            stratValid = data.rangeBreakoutReady && newsOk && dailyOk;
+          } else if (data.strategy === "Volatility Spike") {
+            stratValid = data.volatilitySpikeOk && newsOk && sessOk && dailyOk;
+          }
+
+          data.isValid = stratValid;
           results[pair][tf] = data;
 
+          // Debug log for M1 only
           if (tf === "M1") {
-            const checks = [
-              { label: `EMA20 ${data.ema20AbovEma50 ? ">" : "<"} EMA50 → ${data.direction}`, ok: true },
-              { label: `RSI ${data.rsi.toFixed(1)} — ${data.rsiOk ? "✓ passes" : data.direction === "BUY" ? "✗ need >55" : "✗ need <45"}`, ok: data.rsiOk },
-              { label: `ATR ${data.atrVal} — ${data.atrOk ? "✓ volatility ok" : "✗ too low"}`, ok: data.atrOk },
-              { label: `Spread ${data.spread} — ${data.spreadOk ? "✓ ok" : "✗ too high"}`, ok: data.spreadOk },
-              { label: `Score ${data.total}/100 — ${scoreOk ? `✓ ≥${threshold}` : `✗ need ≥${threshold}`}`, ok: scoreOk },
-              { label: newsOk ? "✓ News filter: clear" : "✗ News filter: BLOCKED", ok: newsOk },
-              { label: sessionOk ? "✓ Session: allowed" : "✗ Session: outside hours", ok: sessionOk },
-              { label: dailyOk ? `✓ Daily trades: ${dailyTrades}/${maxDailyTrades}` : `✗ Max daily trades reached`, ok: dailyOk },
-            ];
+            let checks = [];
+            if (data.strategy === "Momentum Scalping") {
+              checks = [
+                { label: `EMA20 ${data.ema20AbovEma50 ? ">" : "<"} EMA50 → ${data.direction}`, ok: true },
+                { label: `ADX ${data.adx?.toFixed(1)} ${data.adxOk ? "✓ > 20" : "✗ < 20"}`, ok: data.adxOk },
+                { label: `RSI ${data.rsi?.toFixed(1)} ${data.rsiOk ? "✓" : data.direction === "BUY" ? "✗ need >55" : "✗ need <45"}`, ok: data.rsiOk },
+                { label: `ATR ${data.atrVal} ${data.atrOk ? "✓ ok" : "✗ too low"}`, ok: data.atrOk },
+                { label: `Spread ${data.spread} ${data.spreadOk ? "✓ ok" : "✗ too high"}`, ok: data.spreadOk },
+                { label: `Score ${data.total}/100 ${scoreOk ? `✓ ≥${threshold}` : `✗ need ≥${threshold}`}`, ok: scoreOk },
+                { label: newsOk ? "✓ News: clear" : "✗ News: BLOCKED", ok: newsOk },
+                { label: `Daily trades: ${dailyTrades}/${maxDailyTrades} ${dailyOk ? "✓" : "✗ limit reached"}`, ok: dailyOk },
+              ];
+            } else if (data.strategy === "Range Breakout") {
+              checks = [
+                { label: `Session: ${session} ${session === "Asian" ? "✓ Asian" : "✗ need Asian"}`, ok: session === "Asian" },
+                { label: `Buy Stop: above ${data.asianHigh}`, ok: true },
+                { label: `Sell Stop: below ${data.asianLow}`, ok: true },
+                { label: `Spread ${data.spread} ${data.spreadOk ? "✓ ok" : "✗ too high"}`, ok: data.spreadOk },
+                { label: newsOk ? "✓ News: clear" : "✗ News: BLOCKED", ok: newsOk },
+              ];
+            } else if (data.strategy === "Volatility Spike") {
+              checks = [
+                { label: `ATR ${data.atrVal} vs Avg ${data.atrAvgVal} ${data.atrSpike ? "✓ SPIKE" : "✗ no spike"}`, ok: data.atrSpike },
+                { label: `20-candle breakout ${data.price20CandleBreak ? "✓ confirmed" : "✗ not yet"}`, ok: data.price20CandleBreak },
+                { label: `Spread ${data.spread} ${data.spreadOk ? "✓ ok" : "✗ too high"}`, ok: data.spreadOk },
+                { label: newsOk ? "✓ News: clear" : "✗ News: BLOCKED", ok: newsOk },
+              ];
+            }
+
             debugEntries.push({
               pair, tf,
               score: data.total,
               direction: data.direction,
-              decision: allPass ? "PENDING" : "BLOCKED",
+              strategy: data.strategy,
+              marketCondition: data.marketCondition,
+              decision: stratValid ? "PENDING" : "BLOCKED",
               reasons: checks,
               time: new Date().toLocaleTimeString(),
             });
           }
 
           const key = `${pair}-${tf}`;
-          if (allPass && !prevSignalsRef.current[key]) {
-            newAlerts.push({ pair, tf, direction: data.direction, score: data.total, time: new Date() });
+          if (stratValid && !prevSignalsRef.current[key]) {
+            newAlerts.push({ pair, tf, direction: data.direction, score: data.total, strategy: data.strategy, time: new Date() });
           }
-          prevSignalsRef.current[key] = allPass;
+          prevSignalsRef.current[key] = stratValid;
         });
       });
 
@@ -160,6 +197,7 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
         if (b.decision === "PENDING" && a.decision !== "PENDING") return 1;
         return b.score - a.score;
       });
+
       onScanUpdate?.({ results, best, session, tick: t, debugLog: sortedDebug });
 
       if (newAlerts.length > 0) {
@@ -200,13 +238,14 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
 
   return (
     <div className="space-y-3">
+
       {/* Status bar */}
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-2">
           <motion.div className="w-1.5 h-1.5 rounded-full bg-green-400"
             animate={{ scale:[1,1.6,1], opacity:[1,0.3,1] }}
             transition={{ duration:1, repeat:Infinity }} />
-          <span className="text-xs text-green-400 font-bold font-heading">SCANNING LIVE — OnTick 1s</span>
+          <span className="text-xs text-green-400 font-bold font-heading">SCANNING — OnTick 1s</span>
         </div>
         <span className="text-[10px] text-muted-foreground">{lastScanTime?.toLocaleTimeString() ?? "--"}</span>
       </div>
@@ -240,7 +279,7 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
                 <Zap className={`w-4 h-4 ${alert.direction === "BUY" ? "text-green-400" : "text-red-400"}`} />
                 <div>
                   <p className="font-heading font-black text-white text-sm">SIGNAL — {alert.pair}</p>
-                  <p className="text-[10px] text-muted-foreground">{alert.tf} · Score {alert.score}/100 · {alert.time.toLocaleTimeString()}</p>
+                  <p className="text-[10px] text-muted-foreground">{alert.tf} · {alert.strategy} · Score {alert.score}/100</p>
                 </div>
               </div>
               <SignalBadge direction={alert.direction} />
@@ -253,7 +292,7 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
       {Object.keys(scanResults).length > 0 && !PAIRS.some((p) => scanResults[p]?.[selectedTf]?.isValid) && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/3 border border-white/5">
           <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-          <p className="text-[11px] text-muted-foreground">No valid signal — continuing live scan…</p>
+          <p className="text-[11px] text-muted-foreground">No valid signal — AI scanning live…</p>
         </div>
       )}
 
@@ -262,11 +301,12 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
         const data = scanResults[pair]?.[selectedTf];
         const score = data?.total ?? 0;
         const { label, color, border, bg } = getScoreStyle(score, data?.isValid);
+        const stratColor = data?.strategy ? STRATEGY_COLORS[data.strategy] || "text-white/40" : "text-white/40";
 
         return (
           <motion.div key={pair} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.02 }}>
             <GlassCard className={`border ${border} ${bg}`}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${data?.isValid ? "bg-green-500/15 border border-green-500/30" : "bg-white/5"}`}>
                     <span className={`font-heading text-xs font-black ${data?.isValid ? "text-green-400" : "text-muted-foreground/50"}`}>{pair.slice(0,3)}</span>
@@ -274,9 +314,12 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
                   <div>
                     <p className="font-heading font-black text-white text-sm">{pair}</p>
                     <p className={`text-[10px] font-bold ${color}`}>{label}</p>
-                    {data && !data.rsiOk    && <p className="text-[9px] text-amber-400/80">RSI condition failed</p>}
-                    {data && !data.atrOk    && <p className="text-[9px] text-orange-400/80">ATR too low</p>}
-                    {data && !data.spreadOk && <p className="text-[9px] text-red-400/80">Spread too high</p>}
+                    {data?.strategy && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Brain className={`w-2.5 h-2.5 ${stratColor}`} />
+                        <p className={`text-[9px] font-heading font-bold ${stratColor}`}>{data.strategy}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -290,20 +333,20 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
 
               {data && (
                 <div className="grid grid-cols-4 gap-1.5 mb-2">
-                  <ScoreBar label="TREND"  val={data.trend_score}  max={20} />
-                  <ScoreBar label="MOM"    val={data.mom_score}    max={15} />
-                  <ScoreBar label="RSI"    val={data.rsi_score}    max={10} ok={data.rsiOk} />
-                  <ScoreBar label="ATR"    val={data.atr_score}    max={10} ok={data.atrOk} />
+                  <ScoreBar label="TREND" val={data.trend_score}  max={20} />
+                  <ScoreBar label="ADX"   val={data.adx_score}    max={15} ok={data.adxOk} />
+                  <ScoreBar label="RSI"   val={data.rsi_score}    max={10} ok={data.rsiOk} />
+                  <ScoreBar label="ATR"   val={data.atr_score}    max={10} ok={data.atrOk} />
                 </div>
               )}
 
               {data && (
                 <div className="grid grid-cols-4 gap-1 pt-2 border-t border-white/5">
                   {[
-                    { label:"Trend",  val: data.trend,             col: data.trend==="Uptrend" ? "text-green-400" : "text-red-400" },
-                    { label:"RSI",    val: data.rsi?.toFixed(1),   col: data.rsiOk ? "text-white" : "text-amber-400" },
-                    { label:"ATR",    val: data.atrVal,            col: data.atrOk ? "text-white" : "text-orange-400" },
-                    { label:"Spread", val: data.spread,            col: data.spreadOk ? "text-white" : "text-red-400" },
+                    { label: "ADX",    val: data.adx?.toFixed(1),          col: data.adxOk ? "text-white" : "text-amber-400" },
+                    { label: "ATR",    val: data.atrVal,                   col: data.atrOk ? "text-white" : "text-orange-400" },
+                    { label: "RSI",    val: data.rsi?.toFixed(1),          col: data.rsiOk ? "text-white" : "text-amber-400" },
+                    { label: "Spread", val: data.spread,                   col: data.spreadOk ? "text-white" : "text-red-400" },
                   ].map(({ label: lbl, val, col }) => (
                     <div key={lbl} className="flex flex-col gap-0.5">
                       <span className="text-[9px] text-muted-foreground/60 uppercase">{lbl}</span>
