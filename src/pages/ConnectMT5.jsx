@@ -120,7 +120,7 @@ export default function ConnectMT5() {
 
       {/* ── 2. BROKER SELECTION ── */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
-        <GlassCard className="p-0 overflow-visible">
+        <GlassCard className="p-0 overflow-visible" style={{ zIndex: 50, position: "relative" }}>
           <div className="px-4 pt-4 pb-1">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Broker</p>
           </div>
