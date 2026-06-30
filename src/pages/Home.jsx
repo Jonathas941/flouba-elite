@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
-import { Bell, User, ChevronDown } from "lucide-react";
+import { Bell, User } from "lucide-react";
 import Logo from "@/components/Logo";
 import ConnectionCard from "@/components/dashboard/ConnectionCard";
 import RobotCard from "@/components/dashboard/RobotCard";
@@ -9,9 +9,7 @@ import AccountOverview from "@/components/dashboard/AccountOverview";
 import MarketWatch from "@/components/dashboard/MarketWatch";
 import AIStrategyScore from "@/components/dashboard/AIStrategyScore";
 import TradesTable from "@/components/dashboard/TradesTable";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function Home() {
@@ -42,13 +40,13 @@ export default function Home() {
 
   const handleStart = async () => {
     await patch({ robot_status: "Scanning Market" });
-    toast({ title: "🤖 Robot started", description: `Scanning ${settings.active_pair || "XAUUSD"}…` });
+    toast({ title: "Robot started", description: "Scanning market…" });
     setTimeout(() => patch({ robot_status: "Running" }), 2000);
   };
 
   const handleStop = async () => {
     await patch({ robot_status: "Paused" });
-    toast({ title: "⏸ Robot paused", description: "All positions are safe." });
+    toast({ title: "Robot paused" });
   };
 
   if (!settings) {
@@ -56,7 +54,7 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto" />
-          <p className="font-heading text-xs uppercase tracking-[0.2em] text-muted-foreground">Connecting…</p>
+          <p className="font-heading text-xs uppercase tracking-[0.2em] text-muted-foreground">Loading…</p>
         </div>
       </div>
     );
@@ -81,7 +79,6 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <button className="relative glass w-9 h-9 rounded-xl flex items-center justify-center">
             <Bell className="w-4 h-4 text-red-400" />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
           </button>
           <div className="w-9 h-9 glass rounded-xl flex items-center justify-center border border-red-500/20">
             <User className="w-4 h-4 text-muted-foreground" />
@@ -98,7 +95,9 @@ export default function Home() {
           </div>
         </SelectTrigger>
         <SelectContent>
-          {accounts.length === 0 && <SelectItem value="5012984">MT5 Live · 5012984</SelectItem>}
+          {accounts.length === 0 && (
+            <SelectItem value="none" disabled>No accounts added</SelectItem>
+          )}
           {accounts.map((a) => (
             <SelectItem key={a.id} value={a.account_number}>
               {a.type} · {a.account_number} — {a.broker}
@@ -127,22 +126,22 @@ export default function Home() {
 
       {/* Account Overview */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        <AccountOverview settings={settings} />
+        <AccountOverview settings={settings} connected={connected} />
       </motion.div>
 
       {/* Market Watch */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <MarketWatch />
+        <MarketWatch connected={connected} />
       </motion.div>
 
       {/* AI Strategy Score */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <AIStrategyScore />
+        <AIStrategyScore connected={connected} />
       </motion.div>
 
       {/* Recent Trades */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <TradesTable trades={trades} />
+        <TradesTable trades={trades} connected={connected} />
       </motion.div>
 
     </div>

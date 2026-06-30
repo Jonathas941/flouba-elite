@@ -89,52 +89,40 @@
       "default": "XAUUSD"
     },
     "mt5_account": {
-      "type": "string",
-      "default": ""
+      "type": "string"
     },
     "mt5_server": {
-      "type": "string",
-      "default": "Flouba-Live01"
+      "type": "string"
     },
     "broker_name": {
-      "type": "string",
-      "default": "Flouba Broker"
+      "type": "string"
     },
     "robot_version": {
-      "type": "string",
-      "default": "v2.4.1"
+      "type": "string"
     },
     "balance": {
-      "type": "number",
-      "default": 10000
+      "type": "number"
     },
     "equity": {
-      "type": "number",
-      "default": 10234.5
+      "type": "number"
     },
     "margin": {
-      "type": "number",
-      "default": 1250
+      "type": "number"
     },
     "free_margin": {
-      "type": "number",
-      "default": 8984.5
+      "type": "number"
     },
     "profit_today": {
-      "type": "number",
-      "default": 234.5
+      "type": "number"
     },
     "daily_drawdown": {
-      "type": "number",
-      "default": 2.1
+      "type": "number"
     },
     "win_rate": {
-      "type": "number",
-      "default": 72
+      "type": "number"
     },
     "total_trades": {
-      "type": "number",
-      "default": 147
+      "type": "number"
     }
   },
   "required": []

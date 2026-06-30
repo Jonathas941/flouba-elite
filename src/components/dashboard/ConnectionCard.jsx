@@ -6,6 +6,13 @@ import GlassCard from "@/components/GlassCard";
 export default function ConnectionCard({ settings, onToggle }) {
   const connected = settings?.connection_status === "Connected";
 
+  const fields = [
+    { label: "MT5 Server",   value: settings?.mt5_server  || "--" },
+    { label: "Broker",       value: settings?.broker_name || "--" },
+    { label: "Account #",    value: settings?.mt5_account || "--" },
+    { label: "Robot",        value: settings?.robot_version || "--" },
+  ];
+
   return (
     <GlassCard className="relative overflow-hidden">
       <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-10 pointer-events-none ${connected ? "bg-green-500" : "bg-red-600"}`} />
@@ -18,7 +25,7 @@ export default function ConnectionCard({ settings, onToggle }) {
             transition={{ duration: 1.8, repeat: Infinity }}
           />
           <span className={`font-heading text-xs tracking-[0.2em] uppercase font-bold ${connected ? "text-green-400" : "text-red-400"}`}>
-            {settings?.connection_status || "Disconnected"}
+            {connected ? "Connected" : "Not Connected"}
           </span>
         </div>
         <button onClick={onToggle} className="glass w-9 h-9 rounded-xl flex items-center justify-center">
@@ -27,15 +34,12 @@ export default function ConnectionCard({ settings, onToggle }) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-        {[
-          { label: "MT5 Server", value: settings?.mt5_server || "Flouba-Live01" },
-          { label: "Broker", value: settings?.broker_name || "Flouba Broker" },
-          { label: "Account #", value: settings?.mt5_account || "5012984" },
-          { label: "Robot", value: settings?.robot_version || "v2.4.1" },
-        ].map((item) => (
+        {fields.map((item) => (
           <div key={item.label}>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{item.label}</p>
-            <p className="text-sm font-semibold text-white mt-0.5 truncate">{item.value}</p>
+            <p className={`text-sm font-semibold mt-0.5 truncate ${item.value === "--" ? "text-muted-foreground/40" : "text-white"}`}>
+              {item.value}
+            </p>
           </div>
         ))}
       </div>
@@ -43,7 +47,7 @@ export default function ConnectionCard({ settings, onToggle }) {
       <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-white/5">
         <RefreshCw className="w-3 h-3 text-muted-foreground" />
         <span className="text-xs text-muted-foreground">
-          Last sync: {connected ? "2 seconds ago" : "N/A"}
+          Last sync: {connected ? "Live" : "N/A"}
         </span>
       </div>
     </GlassCard>
