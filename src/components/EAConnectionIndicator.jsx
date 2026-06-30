@@ -15,9 +15,12 @@ export default function EAConnectionIndicator() {
         if (cancelled) return;
         if (res?.ok && res?.data) {
           const d = res.data;
-          const connected = d.connected ?? d.ea_connected ?? d.status === "ok" ?? res.ok;
+          // New shape: { bridge: { connected: bool, ea_version, seconds_since_heartbeat }, ea_version, version }
+          const bridge = d.bridge;
+          const connected = bridge ? bridge.connected === true : (d.connected ?? d.ea_connected ?? false);
+          const version = bridge?.ea_version ?? d.ea_version ?? d.version ?? null;
           setStatus(connected);
-          setDetail(d.version ? `v${d.version}` : d.message || "");
+          setDetail(version ? `v${version}` : "");
         } else {
           setStatus(false);
           setDetail(res?.error || "Bridge offline");
