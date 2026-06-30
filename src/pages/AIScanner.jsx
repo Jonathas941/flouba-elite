@@ -1,18 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
-import { base44 } from "@/api/base44Client";
 import {
-  TrendingUp, TrendingDown, Zap, Shield, Target,
-  BarChart3, AlertTriangle, CheckCircle, Clock,
-  Activity, Layers, Filter, Gauge, WifiOff, Radio,
+  TrendingUp, TrendingDown, Zap, Shield,
+  BarChart3, AlertTriangle,
+  Activity, Layers, Filter, Gauge,
 } from "lucide-react";
+import LiveScannerEngine from "@/components/scanner/LiveScannerEngine";
 
-const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
-const TABS  = ["scanner", "structure", "smc", "filters", "patterns"];
-const TIMEFRAMES = ["M1", "M5"];
-
-const MODE_THRESHOLD = { Conservative: 85, Balanced: 70, Aggressive: 60 };
+const TABS = ["scanner", "structure", "smc", "filters", "patterns"];
 
 function SectionHeader({ icon: Icon, title, subtitle }) {
   return (
@@ -28,77 +24,9 @@ function SectionHeader({ icon: Icon, title, subtitle }) {
   );
 }
 
-function NotConnectedState() {
-  return (
-    <GlassCard className="py-14 flex flex-col items-center gap-4 text-center">
-      <WifiOff className="w-10 h-10 text-muted-foreground/30" />
-      <p className="font-heading text-sm uppercase tracking-widest text-muted-foreground">Waiting for MT5 connection</p>
-      <p className="text-xs text-muted-foreground/60 max-w-xs">Connect your MT5 account from the dashboard to enable live scanning.</p>
-    </GlassCard>
-  );
-}
-
-// Simulates a signal score calculation per pair/timeframe (no fake trade data — scores only)
-function calcSignalScore(pair, tf) {
-  const seed = (pair + tf + Date.now()).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const rand = (min, max) => { const r = ((seed * 9301 + 49297) % 233280) / 233280; return Math.floor(r * (max - min + 1) + min); };
-  const ema  = rand(0, 30);
-  const rsi  = rand(0, 25);
-  const atr  = rand(0, 20);
-  const dir  = rand(0, 25);
-  return { ema, rsi, atr, dir, total: ema + rsi + atr + dir };
-}
 
 export default function AIScanner() {
   const [tab, setTab] = useState("scanner");
-  const [connected, setConnected] = useState(false);
-  const [botRunning, setBotRunning] = useState(false);
-  const [tradingMode, setTradingMode] = useState("Balanced");
-  const [scanResults, setScanResults] = useState({});
-  const [scanTick, setScanTick] = useState(0);
-  const [selectedTf, setSelectedTf] = useState("M1");
-  const intervalRef = useRef(null);
-
-  useEffect(() => {
-    (async () => {
-      const list = await base44.entities.BotSettings.list();
-      const s = list[0];
-      if (s) {
-        setConnected(s.connection_status === "Connected");
-        setBotRunning(["Running", "Scanning Market", "Entering Trade", "Managing Position"].includes(s.robot_status));
-        setTradingMode(s.trading_mode || "Balanced");
-      }
-    })();
-  }, []);
-
-  // 1-second scanner when bot is running
-  useEffect(() => {
-    if (connected && botRunning) {
-      intervalRef.current = setInterval(() => {
-        const results = {};
-        PAIRS.forEach((pair) => {
-          results[pair] = {};
-          TIMEFRAMES.forEach((tf) => {
-            results[pair][tf] = calcSignalScore(pair, tf);
-          });
-        });
-        setScanResults(results);
-        setScanTick((t) => t + 1);
-      }, 1000);
-    } else {
-      clearInterval(intervalRef.current);
-    }
-    return () => clearInterval(intervalRef.current);
-  }, [connected, botRunning]);
-
-  const threshold = MODE_THRESHOLD[tradingMode] || 70;
-
-  const getSignalLabel = (score) => {
-    if (score >= 85) return { label: "STRONG SIGNAL", color: "text-green-400", bg: "bg-green-500/15 border-green-500/30" };
-    if (score >= 70) return { label: "VALID SIGNAL",  color: "text-amber-400", bg: "bg-amber-500/15 border-amber-500/30" };
-    if (score >= 60) return { label: "WEAK SIGNAL",   color: "text-orange-400",bg: "bg-orange-500/15 border-orange-500/30" };
-    return                  { label: "NO SIGNAL",     color: "text-white/25",  bg: "bg-white/3 border-white/5" };
-  };
 
   return (
     <div className="px-4 pt-8 space-y-4 pb-6">
@@ -106,17 +34,7 @@ export default function AIScanner() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-black text-white neon-text">AI Scanner</h1>
-          <p className="text-sm text-muted-foreground">Live Signal Engine · {tradingMode} Mode</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {connected && botRunning && (
-            <motion.div className="w-1.5 h-1.5 rounded-full bg-green-400"
-              animate={{ scale: [1, 1.6, 1], opacity: [1, 0.3, 1] }}
-              transition={{ duration: 1, repeat: Infinity }} />
-          )}
-          <span className={`text-[10px] font-semibold uppercase tracking-wider ${connected ? (botRunning ? "text-green-400" : "text-amber-400") : "text-red-400"}`}>
-            {connected ? (botRunning ? "Scanning" : "Connected") : "Offline"}
-          </span>
+          <p className="text-sm text-muted-foreground">Live Signal Engine · IC Markets Optimized</p>
         </div>
       </div>
 
@@ -131,95 +49,7 @@ export default function AIScanner() {
       </div>
 
       {/* ── MARKET SCANNER ── */}
-      {tab === "scanner" && (
-        <div className="space-y-3">
-          {!connected ? <NotConnectedState /> : (
-            <>
-              {/* Timeframe selector */}
-              <div className="flex gap-2">
-                {TIMEFRAMES.map((tf) => (
-                  <button key={tf} onClick={() => setSelectedTf(tf)}
-                    className={`px-4 py-1.5 rounded-xl font-heading text-xs font-bold uppercase tracking-widest transition-all ${selectedTf === tf ? "bg-red-600 text-white" : "glass text-muted-foreground"}`}>
-                    {tf}
-                  </button>
-                ))}
-                <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 glass rounded-xl">
-                  <span className="text-[10px] text-muted-foreground">Threshold:</span>
-                  <span className="text-[10px] font-bold text-white">{threshold}pts</span>
-                </div>
-              </div>
-
-              {!botRunning ? (
-                <GlassCard className="py-10 flex flex-col items-center gap-3 text-center">
-                  <Radio className="w-8 h-8 text-amber-400/40" />
-                  <p className="font-heading text-sm uppercase tracking-widest text-amber-400">Robot Paused</p>
-                  <p className="text-xs text-muted-foreground/60">Press START ROBOT on the Home screen to begin scanning.</p>
-                </GlassCard>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2 px-1">
-                    <motion.div className="w-1.5 h-1.5 rounded-full bg-green-400"
-                      animate={{ scale: [1,1.6,1], opacity: [1,0.3,1] }}
-                      transition={{ duration: 1, repeat: Infinity }} />
-                    <p className="text-xs text-green-400 font-bold">Scanning Live Market — {selectedTf} · Tick #{scanTick}</p>
-                  </div>
-
-                  {PAIRS.map((pair, i) => {
-                    const data = scanResults[pair]?.[selectedTf];
-                    const score = data?.total ?? 0;
-                    const { label, color, bg } = getSignalLabel(score);
-                    const isValid = score >= threshold;
-
-                    return (
-                      <motion.div key={pair} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                        <GlassCard className={`border ${isValid ? bg : "border-white/5"}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isValid ? "bg-green-500/10" : "bg-white/5"}`}>
-                                <span className={`font-heading text-xs font-black ${isValid ? "text-green-400" : "text-muted-foreground/50"}`}>{pair.slice(0,3)}</span>
-                              </div>
-                              <div>
-                                <p className="font-heading font-black text-white text-sm">{pair}</p>
-                                <p className={`text-[10px] font-bold ${color}`}>{label}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className={`font-heading font-black text-lg ${isValid ? "text-green-400" : "text-white/30"}`}>{score}</p>
-                              <p className="text-[9px] text-muted-foreground">/ 100</p>
-                            </div>
-                          </div>
-
-                          {data && (
-                            <div className="mt-3 grid grid-cols-4 gap-1.5">
-                              {[
-                                { key: "EMA", val: data.ema,  max: 30 },
-                                { key: "RSI", val: data.rsi,  max: 25 },
-                                { key: "ATR", val: data.atr,  max: 20 },
-                                { key: "DIR", val: data.dir,  max: 25 },
-                              ].map((ind) => (
-                                <div key={ind.key} className="flex flex-col gap-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[9px] text-muted-foreground">{ind.key}</span>
-                                    <span className="text-[9px] font-bold text-white">{ind.val}</span>
-                                  </div>
-                                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                    <div className={`h-full rounded-full ${ind.val / ind.max > 0.7 ? "bg-green-500" : ind.val / ind.max > 0.4 ? "bg-amber-500" : "bg-red-500/60"}`}
-                                      style={{ width: `${(ind.val / ind.max) * 100}%` }} />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </GlassCard>
-                      </motion.div>
-                    );
-                  })}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      {tab === "scanner" && <LiveScannerEngine />}
 
       {/* ── MARKET STRUCTURE ── */}
       {tab === "structure" && (
