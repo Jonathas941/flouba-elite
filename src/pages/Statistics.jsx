@@ -2,15 +2,17 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { WifiOff, Activity, BarChart3, Shield, RefreshCw } from "lucide-react";
+import { WifiOff, Activity, BarChart3, Shield, RefreshCw, Stethoscope } from "lucide-react";
 import LiveTradeCard from "@/components/trade/LiveTradeCard";
 import PerformancePanel from "@/components/trade/PerformancePanel";
 import PanicButton from "@/components/trade/PanicButton";
+import TradingDiagnostics from "@/components/trade/TradingDiagnostics";
 
 const TABS = [
   { id: "live",   label: "Live",        icon: Activity },
   { id: "perf",   label: "Performance", icon: BarChart3 },
   { id: "manage", label: "Protection",  icon: Shield },
+  { id: "diag",   label: "Diagnostics", icon: Stethoscope },
 ];
 
 function computeStats(trades) {
@@ -224,6 +226,13 @@ export default function Statistics() {
           {tab === "perf" && (
             <motion.div key="perf" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <PerformancePanel stats={stats} />
+            </motion.div>
+          )}
+
+          {/* DIAGNOSTICS */}
+          {tab === "diag" && (
+            <motion.div key="diag" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <TradingDiagnostics />
             </motion.div>
           )}
 
