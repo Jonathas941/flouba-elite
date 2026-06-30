@@ -6,56 +6,11 @@ import {
   TrendingUp, TrendingDown, Zap, Radio, WifiOff,
   Clock, Activity, BarChart3, Target, AlertTriangle,
 } from "lucide-react";
-
-const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
-const TIMEFRAMES = ["M1", "M5"];
-const MODE_THRESHOLD = { Conservative: 85, Balanced: 70, Aggressive: 60, Normal: 70 };
-
-// Spread approximations per symbol (pips) — IC Markets typical
-const BASE_SPREAD = { XAUUSD: 0.18, EURUSD: 0.02, GBPUSD: 0.04, USDJPY: 0.03, NAS100: 0.5, US30: 1.2, BTCUSD: 8.0 };
-
-// Deterministic-ish pseudo-random per seed so scores feel real each tick
-function prng(seed) {
-  let x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
-
-function computeSignal(pair, tf, tick) {
-  const base = pair.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const tfMult = tf === "M5" ? 17 : 7;
-  const s = base + tfMult + tick;
-
-  const ema  = Math.round(prng(s * 1.1)  * 30);   // 0–30
-  const rsi  = Math.round(prng(s * 2.3)  * 25);   // 0–25
-  const atr  = Math.round(prng(s * 3.7)  * 20);   // 0–20
-  const mom  = Math.round(prng(s * 5.1)  * 15);   // 0–15
-  const vol  = Math.round(prng(s * 7.3)  * 10);   // 0–10
-  const total = ema + rsi + atr + mom + vol;
-
-  // Trend: determined by EMA score
-  const trend = ema > 18 ? "Uptrend" : ema > 9 ? "Sideways" : "Downtrend";
-  // Direction: BUY if uptrend + rsi decent, else SELL
-  const direction = (trend === "Uptrend" && rsi > 12) ? "BUY"
-    : (trend === "Downtrend" && rsi < 12) ? "SELL"
-    : mom > 8 ? "BUY" : "SELL";
-
-  // ATR value (fake realistic range for display only)
-  const atrVal = pair === "XAUUSD" ? (0.8 + prng(s * 9) * 3).toFixed(2)
-    : pair === "NAS100" || pair === "US30" ? (3 + prng(s * 9) * 15).toFixed(1)
-    : pair === "BTCUSD" ? (180 + prng(s * 9) * 300).toFixed(0)
-    : (0.0008 + prng(s * 9) * 0.003).toFixed(5);
-
-  // Spread (slight variation)
-  const spread = (BASE_SPREAD[pair] * (1 + prng(s * 11) * 0.3)).toFixed(pair === "NAS100" || pair === "US30" || pair === "BTCUSD" ? 1 : 2);
-
-  // Market status
-  const now = new Date();
-  const hour = now.getUTCHours();
-  const marketOpen = hour >= 6 && hour < 21;
-  const marketStatus = !marketOpen ? "Closed" : hour >= 13 && hour < 17 ? "High Activity" : "Active";
-
-  return { ema, rsi, atr, mom, vol, total, trend, direction, atrVal, spread, marketStatus };
-}
+import {
+  PAIRS, TIMEFRAMES, MODE_THRESHOLD,
+  computeAnalysis, getBestOpportunity,
+  isSessionAllowed, getCurrentSession,
+} from "@/lib/marketAnalysis";
 
 function ScoreBar({ label, val, max, color }) {
   const pct = (val / max) * 100;
@@ -83,18 +38,20 @@ function SignalBadge({ direction }) {
   );
 }
 
-export default function LiveScannerEngine() {
+export default function LiveScannerEngine({ onScanUpdate }) {
   const [connected, setConnected] = useState(false);
   const [botRunning, setBotRunning] = useState(false);
   const [tradingMode, setTradingMode] = useState("Balanced");
+  const [newsFilter, setNewsFilter] = useState(true);
   const [selectedTf, setSelectedTf] = useState("M1");
   const [scanResults, setScanResults] = useState({});
   const [tick, setTick] = useState(0);
   const [lastScanTime, setLastScanTime] = useState(null);
-  const [signalAlerts, setSignalAlerts] = useState([]); // { pair, tf, direction, score, time }
+  const [signalAlerts, setSignalAlerts] = useState([]);
   const intervalRef = useRef(null);
   const settingsIdRef = useRef(null);
   const prevSignalsRef = useRef({});
+  const tickRef = useRef(0);
 
   const loadSettings = useCallback(async () => {
     const list = await base44.entities.BotSettings.list();
@@ -104,50 +61,50 @@ export default function LiveScannerEngine() {
       setConnected(s.connection_status === "Connected");
       setBotRunning(["Running", "Scanning Market", "Entering Trade", "Managing Position", "Signal Found", "Sending Order", "Trade Opened"].includes(s.robot_status));
       setTradingMode(s.trading_mode || "Balanced");
+      setNewsFilter(s.news_filter ?? true);
     }
   }, []);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
 
-  // Real-time subscription to BotSettings changes
   useEffect(() => {
     const unsub = base44.entities.BotSettings.subscribe((event) => {
       if (event.data) {
         setConnected(event.data.connection_status === "Connected");
         setBotRunning(["Running", "Scanning Market", "Entering Trade", "Managing Position", "Signal Found", "Sending Order", "Trade Opened"].includes(event.data.robot_status));
         setTradingMode(event.data.trading_mode || "Balanced");
+        setNewsFilter(event.data.news_filter ?? true);
       }
     });
     return unsub;
   }, []);
 
-  // 1-second OnTick-style scan loop
   useEffect(() => {
-    if (!connected || !botRunning) {
-      clearInterval(intervalRef.current);
-      return;
-    }
+    clearInterval(intervalRef.current);
+    if (!connected || !botRunning) return;
 
-    const runScan = (currentTick) => {
-      const results = {};
+    const runScan = () => {
+      tickRef.current += 1;
+      const currentTick = tickRef.current;
       const threshold = MODE_THRESHOLD[tradingMode] || 70;
+      const session = getCurrentSession();
+      const results = {};
       const newAlerts = [];
 
       PAIRS.forEach((pair) => {
         results[pair] = {};
         TIMEFRAMES.forEach((tf) => {
-          const data = computeSignal(pair, tf, currentTick);
+          const data = computeAnalysis(pair, tf, currentTick);
+          const sessionOk = isSessionAllowed("All", session); // scanner shows all
+          data.isValid = data.total >= threshold && data.spreadOk && data.atrOk && sessionOk;
           results[pair][tf] = data;
 
           const key = `${pair}-${tf}`;
           const wasSignal = prevSignalsRef.current[key];
-          const isSignal = data.total >= threshold;
-
-          // Rising edge: new signal found this tick
-          if (isSignal && !wasSignal) {
+          if (data.isValid && !wasSignal) {
             newAlerts.push({ pair, tf, direction: data.direction, score: data.total, time: new Date() });
           }
-          prevSignalsRef.current[key] = isSignal;
+          prevSignalsRef.current[key] = data.isValid;
         });
       });
 
@@ -155,24 +112,20 @@ export default function LiveScannerEngine() {
       setLastScanTime(new Date());
       setTick(currentTick);
 
+      const best = getBestOpportunity(results, selectedTf);
+      onScanUpdate?.({ results, best, session, tick: currentTick });
+
       if (newAlerts.length > 0) {
         setSignalAlerts((prev) => [...newAlerts, ...prev].slice(0, 5));
-        // Update bot status to "Signal Found" in DB (fire-and-forget)
         if (settingsIdRef.current) {
           base44.entities.BotSettings.update(settingsIdRef.current, { robot_status: "Signal Found" });
         }
       }
     };
 
-    let t = tick;
-    intervalRef.current = setInterval(() => {
-      t += 1;
-      runScan(t);
-    }, 1000);
-
+    intervalRef.current = setInterval(runScan, 1000);
     return () => clearInterval(intervalRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, botRunning, tradingMode]);
+  }, [connected, botRunning, tradingMode, selectedTf, newsFilter]);
 
   const threshold = MODE_THRESHOLD[tradingMode] || 70;
 
@@ -218,23 +171,23 @@ export default function LiveScannerEngine() {
         </span>
       </div>
 
-      {/* Timeframe + threshold */}
+      {/* TF selector + threshold */}
       <div className="flex gap-2 items-center">
-        {TIMEFRAMES.map((tf) => (
+        {["M1","M5","M15","H1"].map((tf) => (
           <button key={tf} onClick={() => setSelectedTf(tf)}
-            className={`px-4 py-1.5 rounded-xl font-heading text-xs font-bold uppercase tracking-widest transition-all ${selectedTf === tf ? "bg-red-600 text-white" : "glass text-muted-foreground"}`}>
+            className={`px-3 py-1.5 rounded-xl font-heading text-xs font-bold uppercase tracking-widest transition-all ${selectedTf === tf ? "bg-red-600 text-white" : "glass text-muted-foreground"}`}>
             {tf}
           </button>
         ))}
         <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 glass rounded-xl">
           <Target className="w-3 h-3 text-red-400" />
-          <span className="text-[10px] font-bold text-white">{threshold}pts · {tradingMode}</span>
+          <span className="text-[10px] font-bold text-white">{threshold}pt · {tradingMode}</span>
         </div>
       </div>
 
-      {/* Signal Alerts */}
+      {/* Signal alerts */}
       <AnimatePresence>
-        {signalAlerts.map((alert, i) => (
+        {signalAlerts.map((alert) => (
           <motion.div key={`${alert.pair}-${alert.tf}-${alert.time.getTime()}`}
             initial={{ opacity: 0, y: -10, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -246,7 +199,7 @@ export default function LiveScannerEngine() {
               <div className="flex items-center gap-3">
                 <Zap className={`w-4 h-4 ${alert.direction === "BUY" ? "text-green-400" : "text-red-400"}`} />
                 <div>
-                  <p className="font-heading font-black text-white text-sm">SIGNAL FOUND — {alert.pair}</p>
+                  <p className="font-heading font-black text-white text-sm">SIGNAL — {alert.pair}</p>
                   <p className="text-[10px] text-muted-foreground">{alert.tf} · Score {alert.score}/100 · {alert.time.toLocaleTimeString()}</p>
                 </div>
               </div>
@@ -256,8 +209,8 @@ export default function LiveScannerEngine() {
         ))}
       </AnimatePresence>
 
-      {/* No signal message when all below threshold */}
-      {Object.keys(scanResults).length > 0 && !PAIRS.some((p) => (scanResults[p]?.[selectedTf]?.total ?? 0) >= threshold) && (
+      {/* No signal notice */}
+      {Object.keys(scanResults).length > 0 && !PAIRS.some((p) => (scanResults[p]?.[selectedTf]?.isValid)) && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/3 border border-white/5">
           <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
           <p className="text-[11px] text-muted-foreground">No valid signal — continuing live scan…</p>
@@ -269,12 +222,11 @@ export default function LiveScannerEngine() {
         const data = scanResults[pair]?.[selectedTf];
         const score = data?.total ?? 0;
         const { label, color, border, bg } = getScoreStyle(score);
-        const isValid = score >= threshold;
+        const isValid = data?.isValid;
 
         return (
           <motion.div key={pair} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
             <GlassCard className={`border ${border} ${bg}`}>
-              {/* Header row */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isValid ? "bg-green-500/15 border border-green-500/30" : "bg-white/5"}`}>
@@ -283,6 +235,7 @@ export default function LiveScannerEngine() {
                   <div>
                     <p className="font-heading font-black text-white text-sm">{pair}</p>
                     <p className={`text-[10px] font-bold ${color}`}>{label}</p>
+                    {data && !data.spreadOk && <p className="text-[9px] text-red-400">Spread too high</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -294,26 +247,31 @@ export default function LiveScannerEngine() {
                 </div>
               </div>
 
-              {/* Score bars */}
               {data && (
-                <div className="grid grid-cols-5 gap-1.5 mb-3">
-                  <ScoreBar label="EMA" val={data.ema} max={30} color={data.ema > 20 ? "bg-green-500" : data.ema > 10 ? "bg-amber-500" : "bg-red-500/60"} />
-                  <ScoreBar label="RSI" val={data.rsi} max={25} color={data.rsi > 17 ? "bg-green-500" : data.rsi > 9 ? "bg-amber-500" : "bg-red-500/60"} />
-                  <ScoreBar label="ATR" val={data.atr} max={20} color={data.atr > 14 ? "bg-green-500" : data.atr > 7 ? "bg-amber-500" : "bg-red-500/60"} />
-                  <ScoreBar label="MOM" val={data.mom} max={15} color={data.mom > 10 ? "bg-green-500" : data.mom > 5 ? "bg-amber-500" : "bg-red-500/60"} />
-                  <ScoreBar label="VOL" val={data.vol} max={10} color={data.vol > 7 ? "bg-green-500" : data.vol > 3 ? "bg-amber-500" : "bg-red-500/60"} />
+                <div className="grid grid-cols-4 gap-1.5 mb-3">
+                  <ScoreBar label="TREND" val={data.trend_score}  max={20} color={data.trend_score  > 14 ? "bg-green-500" : data.trend_score  > 7 ? "bg-amber-500" : "bg-red-500/60"} />
+                  <ScoreBar label="MOM"   val={data.mom_score}    max={15} color={data.mom_score    > 10 ? "bg-green-500" : data.mom_score    > 5 ? "bg-amber-500" : "bg-red-500/60"} />
+                  <ScoreBar label="VOL"   val={data.vol_score}    max={10} color={data.vol_score    > 7  ? "bg-green-500" : data.vol_score    > 3 ? "bg-amber-500" : "bg-red-500/60"} />
+                  <ScoreBar label="ATR"   val={data.atr_score}    max={10} color={data.atr_score    > 7  ? "bg-green-500" : data.atr_score    > 3 ? "bg-amber-500" : "bg-red-500/60"} />
+                </div>
+              )}
+              {data && (
+                <div className="grid grid-cols-4 gap-1.5 mb-3">
+                  <ScoreBar label="RSI"    val={data.rsi_score}    max={10} color={data.rsi_score   > 7  ? "bg-green-500" : data.rsi_score    > 3 ? "bg-amber-500" : "bg-red-500/60"} />
+                  <ScoreBar label="STRUCT" val={data.struct_score} max={15} color={data.struct_score> 10 ? "bg-green-500" : data.struct_score > 5 ? "bg-amber-500" : "bg-red-500/60"} />
+                  <ScoreBar label="S/D"    val={data.sd_score}     max={10} color={data.sd_score    > 7  ? "bg-green-500" : data.sd_score     > 3 ? "bg-amber-500" : "bg-red-500/60"} />
+                  <ScoreBar label="LIQ"    val={data.liq_score}    max={10} color={data.liq_score   > 7  ? "bg-green-500" : data.liq_score    > 3 ? "bg-amber-500" : "bg-red-500/60"} />
                 </div>
               )}
 
-              {/* Market stats row */}
               {data && (
                 <div className="grid grid-cols-4 gap-1 pt-2 border-t border-white/5">
                   {[
-                    { icon: Activity,  label: "Trend",    val: data.trend,        col: data.trend === "Uptrend" ? "text-green-400" : data.trend === "Downtrend" ? "text-red-400" : "text-amber-400" },
-                    { icon: BarChart3, label: "Spread",   val: data.spread,       col: "text-white" },
-                    { icon: Target,    label: "ATR",      val: data.atrVal,       col: "text-white" },
-                    { icon: Zap,       label: "Market",   val: data.marketStatus, col: data.marketStatus === "High Activity" ? "text-green-400" : data.marketStatus === "Active" ? "text-amber-400" : "text-red-400" },
-                  ].map(({ icon: Icon, label: lbl, val, col }) => (
+                    { label: "Trend",  val: data.trend,       col: data.trend === "Uptrend" ? "text-green-400" : data.trend === "Downtrend" ? "text-red-400" : "text-amber-400" },
+                    { label: "Spread", val: data.spread,      col: data.spreadOk ? "text-white" : "text-red-400" },
+                    { label: "ATR",    val: data.atrVal,      col: "text-white" },
+                    { label: "Market", val: data.marketStatus, col: data.marketStatus === "High Activity" ? "text-green-400" : data.marketStatus === "Active" ? "text-amber-400" : "text-red-400" },
+                  ].map(({ label: lbl, val, col }) => (
                     <div key={lbl} className="flex flex-col gap-0.5">
                       <span className="text-[9px] text-muted-foreground/60 uppercase">{lbl}</span>
                       <span className={`text-[10px] font-bold ${col} leading-tight truncate`}>{val}</span>
