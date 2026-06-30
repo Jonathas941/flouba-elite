@@ -19,7 +19,8 @@ import Settings from '@/pages/Settings';
 import Statistics from '@/pages/Statistics';
 import Subscription from '@/pages/Subscription';
 import Admin from '@/pages/Admin';
-// Add page imports here
+import AISignals from '@/pages/AISignals';
+import Account from '@/pages/Account';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -33,12 +34,8 @@ const AuthenticatedApp = () => {
   }
 
   if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      navigateToLogin();
-      return null;
-    }
+    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
+    if (authError.type === 'auth_required') { navigateToLogin(); return null; }
   }
 
   return (
@@ -56,13 +53,14 @@ const AuthenticatedApp = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/statistics" element={<Statistics />} />
           <Route path="/subscription" element={<Subscription />} />
+          <Route path="/ai-signals" element={<AISignals />} />
+          <Route path="/account" element={<Account />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
 };
-
 
 function App() {
   return (

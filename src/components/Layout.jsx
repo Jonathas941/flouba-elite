@@ -1,14 +1,14 @@
 import React from "react";
 import { Outlet, useLocation, Link } from "react-router-dom";
-import { LayoutDashboard, Brain, Sliders, BarChart3, Crown, Shield } from "lucide-react";
+import { LayoutDashboard, BarChart3, Zap, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/", label: "Home", icon: LayoutDashboard },
-  { to: "/strategy", label: "Strategy", icon: Brain },
-  { to: "/settings", label: "Settings", icon: Sliders },
-  { to: "/statistics", label: "Stats", icon: BarChart3 },
-  { to: "/subscription", label: "Plans", icon: Crown },
+  { to: "/",            label: "Home",      icon: LayoutDashboard },
+  { to: "/statistics",  label: "Statistics", icon: BarChart3 },
+  { to: "/ai-signals",  label: "AI Signals", icon: Zap },
+  { to: "/settings",    label: "Settings",   icon: Settings },
+  { to: "/account",     label: "Account",    icon: User },
 ];
 
 export default function Layout() {
@@ -29,7 +29,12 @@ export default function Layout() {
                   active ? "text-red-500" : "text-muted-foreground"
                 )}
               >
-                <item.icon className={cn("w-5 h-5", active && "neon-text")} />
+                <div className="relative">
+                  <item.icon className={cn("w-5 h-5", active && "neon-text")} />
+                  {active && (
+                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-500 rounded-full" />
+                  )}
+                </div>
                 <span className="text-[10px] uppercase tracking-wider font-semibold">{item.label}</span>
               </Link>
             );

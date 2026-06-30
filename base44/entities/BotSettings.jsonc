@@ -59,6 +59,10 @@
       "type": "string",
       "enum": [
         "Running",
+        "Waiting for Confirmation",
+        "Scanning Market",
+        "Entering Trade",
+        "Managing Position",
         "Paused",
         "Locked"
       ],
@@ -78,8 +82,9 @@
         "XAUUSD",
         "EURUSD",
         "GBPUSD",
-        "US30",
-        "NAS100"
+        "USDJPY",
+        "NAS100",
+        "US30"
       ],
       "default": "XAUUSD"
     },
@@ -87,17 +92,49 @@
       "type": "string",
       "default": ""
     },
+    "mt5_server": {
+      "type": "string",
+      "default": "Flouba-Live01"
+    },
+    "broker_name": {
+      "type": "string",
+      "default": "Flouba Broker"
+    },
+    "robot_version": {
+      "type": "string",
+      "default": "v2.4.1"
+    },
     "balance": {
       "type": "number",
       "default": 10000
     },
     "equity": {
       "type": "number",
-      "default": 10000
+      "default": 10234.5
+    },
+    "margin": {
+      "type": "number",
+      "default": 1250
+    },
+    "free_margin": {
+      "type": "number",
+      "default": 8984.5
     },
     "profit_today": {
       "type": "number",
-      "default": 0
+      "default": 234.5
+    },
+    "daily_drawdown": {
+      "type": "number",
+      "default": 2.1
+    },
+    "win_rate": {
+      "type": "number",
+      "default": 72
+    },
+    "total_trades": {
+      "type": "number",
+      "default": 147
     }
   },
   "required": []
