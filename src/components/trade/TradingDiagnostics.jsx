@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from "@/api/base44Client";
+import { mt5Api } from "@/lib/mt5Api";
 import {
   CheckCircle2, XCircle, AlertTriangle, Loader2,
   RefreshCw, Zap, ChevronDown, ChevronUp,
@@ -106,56 +107,72 @@ export default function TradingDiagnostics() {
 
   const runDiagnostics = async () => {
     setLoading(true);
-    const list = await base44.entities.BotSettings.list();
-    const s = list[0] || {};
+
+    // Fetch real live data from MT5 API
+    const [acctRes, posRes, settingsList] = await Promise.all([
+      mt5Api.account().catch(() => null),
+      mt5Api.positions().catch(() => null),
+      base44.entities.BotSettings.list().catch(() => []),
+    ]);
+
+    const s = settingsList[0] || {};
     setSettings(s);
+
+    const liveAccount  = acctRes?.ok ? acctRes.data?.account : null;
+    const livePositions = posRes?.ok ? (posRes.data?.positions || []) : [];
+
+    const connected = liveAccount?.connected === true;
+    const pair = livePositions[0]?.symbol || s.active_pair || "XAUUSD";
+    const mode = s.trading_mode || "Balanced";
+    const threshold = MODE_THRESHOLD[mode] || 65;
+    const session = getCurrentSession();
+    const marketOpen = session !== "Closed";
 
     tickRef.current += 1;
     const tick = tickRef.current;
-    const pair = s.active_pair || "XAUUSD";
-    const tf   = "M1";
-    const mode = s.trading_mode || "Balanced";
-    const threshold = MODE_THRESHOLD[mode] || 65;
-    const analysis = computeAnalysis(pair, tf, tick);
-    const session  = getCurrentSession();
+    const analysis = computeAnalysis(pair, "M1", tick);
 
-    // Simulate live tick data based on analysis
-    const bid = pair === "XAUUSD" ? (2340 + analysis.ema20Raw * 20).toFixed(2)
-      : pair === "BTCUSD" ? (67000 + analysis.ema20Raw * 2000).toFixed(0)
-      : ["NAS100","US30"].includes(pair) ? (18000 + analysis.ema20Raw * 500).toFixed(1)
-      : (1 + analysis.ema20Raw * 0.5).toFixed(5);
-    const ask = (parseFloat(bid) + analysis.spread).toFixed(
-      ["BTCUSD"].includes(pair) ? 0 : ["NAS100","US30"].includes(pair) ? 1 : 5
-    );
+    // Use real spread from live position if available, else from analysis
+    const livePos      = livePositions[0];
+    const realSpread   = livePos?.spread ?? analysis.spread;
+    const spreadOk     = realSpread <= (pair === "XAUUSD" ? 35 : pair === "BTCUSD" ? 80 : 15);
 
-    const connected    = s.connection_status === "Connected";
-    const marketOpen   = session !== "Closed";
-    const signalValid  = analysis.isValid === true || (analysis.rsiOk && analysis.atrOk && analysis.spreadOk && analysis.total >= threshold);
-    const spreadOk     = analysis.spreadOk;
-    const autoTrading  = connected; // proxied: if connected in app, assume EA is attached
-    const margin       = s.free_margin;
-    const lotOk        = true; // 0.01 lot always valid
-    const slOk         = analysis.atrOk; // SL based on ATR, so valid if ATR is valid
+    // Real bid/ask from account if present, else simulated
+    const bid = liveAccount?.bid ?? livePos?.currentBid ?? analysis.bid ?? null;
+    const ask = liveAccount?.ask ?? livePos?.currentAsk ?? null;
+    const lastTick = livePos?.openTime ? new Date(livePos.openTime).toLocaleTimeString() : (connected ? new Date().toLocaleTimeString() : "N/A");
+
+    const signalValid  = analysis.rsiOk && analysis.atrOk && spreadOk && analysis.total >= threshold;
+    const autoTrading  = connected; // EA is attached if server is connected
+    const freeMargin   = liveAccount?.freeMargin ?? s.free_margin ?? null;
 
     setDiag({
       connected, autoTrading, marketOpen, session,
       pair, symbolAvailable: connected,
-      spread: analysis.spread, spreadOk,
-      bid, ask,
-      lastTickTime: connected ? new Date().toLocaleTimeString() : "N/A",
+      spread: realSpread, spreadOk,
+      bid: bid ? String(bid) : null,
+      ask: ask ? String(ask) : null,
+      lastTickTime: lastTick,
       signalScore: analysis.total,
       signalValid,
       signalDirection: analysis.direction,
       rsiOk: analysis.rsiOk, adxOk: analysis.adxOk, atrOk: analysis.atrOk,
       rsi: analysis.rsi?.toFixed(1), adx: analysis.adx?.toFixed(1), atrVal: analysis.atrVal,
       orderPermission: connected && autoTrading,
-      margin: margin ?? null,
-      lotOk, slOk,
+      margin: freeMargin,
+      lotOk: true,
+      slOk: analysis.atrOk,
       lastErrorCode: s.last_error_code ?? null,
       lastErrorMsg:  s.last_error_msg  ?? null,
       strategy: analysis.strategy,
       marketCondition: analysis.marketCondition,
       threshold,
+      // Live account extras
+      balance: liveAccount?.balance,
+      equity: liveAccount?.equity,
+      leverage: liveAccount?.leverage,
+      server: liveAccount?.server,
+      openPositions: livePositions.length,
     });
     setLoading(false);
   };
@@ -260,23 +277,36 @@ export default function TradingDiagnostics() {
     }
     await advance(8, steps[9].label, 600);
 
-    // Step 9 — ORDER_SEND
-    // Simulate broker response: in a real integration this calls the MT5 bridge
-    await new Promise(r => setTimeout(r, 900));
-    // Since we have no real MT5 bridge, report the honest result
-    setTestSteps(prev => {
-      const s = [...prev];
-      s[9] = { ...s[9], status: "error", detail: "No MT5 bridge endpoint configured — ORDER_SEND requires a live MT5 bridge API or EA connection on your server." };
-      return s;
-    });
-    setTestResult({
-      success: false,
-      errorCode: "BRIDGE_MISSING",
-      errorMsg:  "MT5 Bridge Not Configured",
-      errorReason: "All pre-trade checks passed. The order cannot be physically sent because there is no MT5 bridge server connected. You need to: (1) Run the Flouba Elite MT5 EA on your terminal, or (2) Configure a bridge API endpoint (Python/Node) that relays ORDER_SEND to your MT5 terminal.",
-      failStep: 9,
-      allPreChecksOk: true,
-    });
+    // Step 9 — Send real ORDER_SEND via MT5 API
+    try {
+      const res = await mt5Api.buy(diag.pair, 0.01);
+      await new Promise(r => setTimeout(r, 400));
+      if (res?.ok && res.data?.success) {
+        setTestSteps(prev => {
+          const s = [...prev];
+          s[9] = { ...s[9], status: "ok", detail: `Ticket #${res.data?.ticket || res.data?.order || "OK"}` };
+          return s;
+        });
+        setTestResult({ success: true });
+      } else {
+        const errCode = res?.data?.error_code ?? res?.status ?? "UNKNOWN";
+        const errMsg  = res?.data?.message || res?.data?.error || "Order rejected by broker";
+        const errInfo = typeof errCode === "number" ? getErrorInfo(errCode) : { label: String(errCode), reason: errMsg };
+        setTestSteps(prev => {
+          const s = [...prev];
+          s[9] = { ...s[9], status: "error", detail: errMsg };
+          return s;
+        });
+        setTestResult({ success: false, errorCode: errCode, errorMsg: errInfo.label, errorReason: errInfo.reason + " — " + errMsg });
+      }
+    } catch (e) {
+      setTestSteps(prev => {
+        const s = [...prev];
+        s[9] = { ...s[9], status: "error", detail: e.message };
+        return s;
+      });
+      setTestResult({ success: false, errorCode: "EXCEPTION", errorMsg: "Network / Bridge Error", errorReason: e.message });
+    }
     setTestRunning(false);
   };
 

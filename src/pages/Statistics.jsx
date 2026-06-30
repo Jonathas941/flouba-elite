@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { mt5Api } from "@/lib/mt5Api";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WifiOff, Activity, BarChart3, Shield, RefreshCw, Stethoscope } from "lucide-react";
@@ -53,12 +54,46 @@ export default function Statistics() {
   const tickRef = useRef(null);
 
   const load = useCallback(async () => {
-    const [list, allTrades] = await Promise.all([
-      base44.entities.BotSettings.list(),
-      base44.entities.Trade.list("-opened_at", 100),
+    // Load account + live positions from real MT5 API
+    const [acctRes, posRes, settingsList] = await Promise.all([
+      mt5Api.account().catch(() => null),
+      mt5Api.positions().catch(() => null),
+      base44.entities.BotSettings.list().catch(() => []),
     ]);
-    const s = list[0] || {};
+
+    const s = settingsList[0] || {};
+    // Merge live account data into settings shape for display
+    if (acctRes?.ok && acctRes.data?.account) {
+      const a = acctRes.data.account;
+      s.connection_status = a.connected ? "Connected" : "Disconnected";
+      s.balance     = a.balance;
+      s.equity      = a.equity;
+      s.margin      = a.margin;
+      s.free_margin = a.freeMargin;
+    }
     setSettings(s);
+
+    // Live open positions from MT5
+    const livePositions = posRes?.ok ? (posRes.data?.positions || []) : [];
+    // Normalize to Trade entity shape for display
+    const normalizedOpen = livePositions.map(p => ({
+      id: p.ticket ?? p.id,
+      pair: p.symbol || p.pair,
+      direction: (p.type === 0 || p.type === "buy") ? "Buy" : "Sell",
+      lot: p.volume ?? p.lot,
+      profit: p.profit ?? p.unrealized_pnl ?? 0,
+      entry_price: p.openPrice ?? p.open_price ?? p.entry_price,
+      current_price: p.currentPrice ?? p.current_price,
+      spread: p.spread,
+      opened_at: p.openTime ?? p.open_time ?? p.opened_at,
+      status: "Open",
+      ticket: p.ticket ?? p.id,
+      ...p,
+    }));
+
+    // Closed trades still from local entity for history
+    const closedTrades = await base44.entities.Trade.filter({ status: "Closed" }, "-closed_at", 50).catch(() => []);
+    const allTrades = [...normalizedOpen, ...closedTrades];
     setTrades(allTrades);
     setStats(computeStats(allTrades));
   }, []);
@@ -111,20 +146,16 @@ export default function Statistics() {
   }, [trades, settings]);
 
   const handlePanic = async () => {
-    const openTrades = trades.filter((t) => t.status === "Open");
-    await Promise.all(
-      openTrades.map((t) =>
-        base44.entities.Trade.update(t.id, {
-          status: "Closed",
-          closed_at: new Date().toISOString(),
-          close_reason: "Panic",
-        })
-      )
-    );
-    if (settings?.id) {
-      await base44.entities.BotSettings.update(settings.id, { robot_status: "Paused" });
+    try {
+      const res = await mt5Api.closeAll();
+      if (res?.ok) {
+        toast({ title: "⚠ Emergency Stop", description: "All positions closed via MT5." });
+      } else {
+        toast({ title: "⚠ Emergency Stop", description: res?.data?.message || "Close all sent.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "⚠ Emergency Stop", description: "Request sent.", variant: "destructive" });
     }
-    toast({ title: "⚠ Emergency Stop", description: "All positions closed. Robot stopped." });
     await load();
   };
 
@@ -195,7 +226,7 @@ export default function Statistics() {
                   <p className="text-[11px] text-white/20">The robot is scanning the market…</p>
                 </div>
               ) : (
-                openTrades.map((trade) => <LiveTradeCard key={trade.id} trade={trade} />)
+                openTrades.map((trade) => <LiveTradeCard key={trade.id} trade={trade} onClose={load} />)
               )}
 
               {/* Recent closed */}

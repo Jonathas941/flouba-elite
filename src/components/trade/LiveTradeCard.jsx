@@ -1,6 +1,8 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, X } from "lucide-react";
+import { mt5Api } from "@/lib/mt5Api";
+import { useToast } from "@/components/ui/use-toast";
 
 function formatDuration(openedAt) {
   if (!openedAt) return "--";
@@ -14,9 +16,34 @@ function formatDuration(openedAt) {
 }
 
 export default function LiveTradeCard({ trade, onClose }) {
-  const isBuy = trade.direction === "Buy";
-  const profit = trade.profit ?? 0;
-  const isProfit = profit >= 0;
+  const { toast } = useToast();
+
+  // Normalize field names from MT5 API (may differ from local entity field names)
+  const pair      = trade.symbol || trade.pair || "--";
+  const direction = trade.type === 0 || trade.type === "buy" || trade.direction === "Buy" ? "Buy" : "Sell";
+  const isBuy     = direction === "Buy";
+  const profit    = trade.profit ?? trade.unrealized_pnl ?? 0;
+  const isProfit  = profit >= 0;
+  const lot       = trade.volume ?? trade.lot ?? "--";
+  const entry     = trade.openPrice ?? trade.open_price ?? trade.entry_price;
+  const current   = trade.currentPrice ?? trade.current_price;
+  const spread    = trade.spread;
+  const openTime  = trade.openTime ?? trade.open_time ?? trade.opened_at;
+  const ticket    = trade.ticket ?? trade.id;
+
+  const handleClose = async () => {
+    try {
+      const res = await mt5Api.close(ticket);
+      if (res?.ok) {
+        toast({ title: "Position Closed", description: `${pair} closed successfully.` });
+        onClose?.();
+      } else {
+        toast({ title: "Close Failed", description: res?.data?.message || "Could not close position.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
 
   return (
     <motion.div
@@ -32,22 +59,30 @@ export default function LiveTradeCard({ trade, onClose }) {
             {isBuy ? <TrendingUp className="w-3.5 h-3.5 text-green-400" /> : <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
           </div>
           <div>
-            <span className="font-heading font-bold text-white text-sm">{trade.pair}</span>
-            <span className={`ml-2 text-[10px] font-bold uppercase tracking-widest ${isBuy ? "text-green-400" : "text-red-400"}`}>{trade.direction}</span>
+            <span className="font-heading font-bold text-white text-sm">{pair}</span>
+            <span className={`ml-2 text-[10px] font-bold uppercase tracking-widest ${isBuy ? "text-green-400" : "text-red-400"}`}>{direction}</span>
           </div>
         </div>
-        <div className={`font-heading font-bold text-sm ${isProfit ? "text-green-400" : "text-red-400"}`}>
-          {isProfit ? "+" : ""}{profit.toFixed(2)}
+        <div className="flex items-center gap-3">
+          <div className={`font-heading font-bold text-sm ${isProfit ? "text-green-400" : "text-red-400"}`}>
+            {isProfit ? "+" : ""}{Number(profit).toFixed(2)}
+          </div>
+          {ticket && (
+            <button onClick={handleClose}
+              className="w-6 h-6 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+              <X className="w-3 h-3 text-red-400" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Details grid */}
       <div className="grid grid-cols-4 divide-x divide-white/5 px-0">
         {[
-          { label: "LOT",     value: trade.lot?.toFixed(2) ?? "--" },
-          { label: "ENTRY",   value: trade.entry_price?.toFixed(5) ?? "--" },
-          { label: "CURRENT", value: trade.current_price?.toFixed(5) ?? "--" },
-          { label: "SPREAD",  value: trade.spread != null ? `${trade.spread}` : "--" },
+          { label: "LOT",     value: typeof lot === "number" ? lot.toFixed(2) : lot },
+          { label: "ENTRY",   value: entry != null ? Number(entry).toFixed(5) : "--" },
+          { label: "CURRENT", value: current != null ? Number(current).toFixed(5) : "--" },
+          { label: "SPREAD",  value: spread != null ? String(spread) : "--" },
         ].map(({ label, value }) => (
           <div key={label} className="flex flex-col items-center py-2 px-1">
             <span className="text-[8px] uppercase tracking-widest text-white/30">{label}</span>
@@ -60,13 +95,11 @@ export default function LiveTradeCard({ trade, onClose }) {
       <div className="flex items-center justify-between px-4 py-2 border-t border-white/5">
         <div className="flex items-center gap-1 text-white/30">
           <Clock className="w-3 h-3" />
-          <span className="text-[10px] font-heading">{formatDuration(trade.opened_at)}</span>
+          <span className="text-[10px] font-heading">{formatDuration(openTime)}</span>
         </div>
-        <span className={`text-[10px] font-heading font-bold px-2 py-0.5 rounded-full ${
-          trade.status === "Open" ? "text-green-400 bg-green-500/10 border border-green-500/20" : "text-white/30 bg-white/5"
-        }`}>
-          {trade.status?.toUpperCase() ?? "OPEN"}
-        </span>
+        {ticket && (
+          <span className="text-[9px] font-heading text-white/20">#{ticket}</span>
+        )}
       </div>
     </motion.div>
   );

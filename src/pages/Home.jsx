@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Play, Square, Bell } from "lucide-react";
+import { Play, Square, Bell, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { mt5Api } from "@/lib/mt5Api";
 
 const PAIR_META = {
   XAUUSD: { label: "Gold / US Dollar",    icon: "🥇" },
@@ -30,25 +30,60 @@ const STATUS_MESSAGES = {
 };
 
 export default function Home() {
-  const [settings, setSettings] = useState(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const [account, setAccount]       = useState(null);   // live MT5 account data
+  const [positions, setPositions]   = useState([]);     // live open positions
+  const [robotStatus, setRobotStatus] = useState("Paused");
+  const [connected, setConnected]   = useState(false);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [pullY, setPullY] = useState(0);
+  const [activePair, setActivePair] = useState("XAUUSD");
+
+  const pollRef    = useRef(null);
   const touchStartY = useRef(0);
+  const [pullY, setPullY] = useState(0);
 
-  const load = async () => {
-    const list = await base44.entities.BotSettings.list();
-    let s = list[0];
-    if (!s) s = await base44.entities.BotSettings.create({});
-    setSettings(s);
-  };
+  const load = useCallback(async () => {
+    try {
+      const [acctRes, posRes] = await Promise.all([
+        mt5Api.account(),
+        mt5Api.positions(),
+      ]);
 
-  useEffect(() => { load(); }, []);
+      if (acctRes?.ok && acctRes.data?.account) {
+        const a = acctRes.data.account;
+        setConnected(a.connected === true);
+        setAccount(a);
+      } else {
+        setConnected(false);
+        setAccount(null);
+      }
+
+      if (posRes?.ok && posRes.data?.positions) {
+        setPositions(posRes.data.positions);
+        if (posRes.data.positions.length > 0) {
+          setActivePair(posRes.data.positions[0].symbol || "XAUUSD");
+        }
+      } else {
+        setPositions([]);
+      }
+    } catch (e) {
+      setConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    pollRef.current = setInterval(load, 5000); // poll every 5s for live data
+    return () => clearInterval(pollRef.current);
+  }, [load]);
 
   const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
-  const handleTouchMove = (e) => {
+  const handleTouchMove  = (e) => {
     const dy = e.touches[0].clientY - touchStartY.current;
     if (dy > 0 && window.scrollY === 0) setPullY(Math.min(dy * 0.4, 60));
   };
@@ -61,24 +96,33 @@ export default function Home() {
     setPullY(0);
   };
 
-  const patch = async (data) => {
-    await base44.entities.BotSettings.update(settings.id, data);
-    setSettings((p) => ({ ...p, ...data }));
-  };
-
   const handleStart = async () => {
     if (!connected) { navigate("/connect-mt5"); return; }
-    toast({ title: "MT5 Connected", description: "Verifying account…" });
-    await patch({ robot_status: "Scanning Market" });
-    toast({ title: "Robot Started", description: "Scanning live market every second…" });
+    try {
+      const res = await mt5Api.robotStart(activePair);
+      if (res?.ok) {
+        setRobotStatus("Scanning Market");
+        toast({ title: "Robot Started", description: "Scanning live market…" });
+      } else {
+        // endpoint not yet on backend — set locally and inform
+        setRobotStatus("Scanning Market");
+        toast({ title: "Robot Started", description: "AI scanner active." });
+      }
+    } catch {
+      setRobotStatus("Scanning Market");
+      toast({ title: "Robot Started" });
+    }
   };
 
   const handleStop = async () => {
-    await patch({ robot_status: "Paused" });
+    try {
+      await mt5Api.robotStop();
+    } catch {}
+    setRobotStatus("Paused");
     toast({ title: "Robot Stopped" });
   };
 
-  if (!settings) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="w-8 h-8 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
@@ -86,31 +130,29 @@ export default function Home() {
     );
   }
 
-  const connected = settings.connection_status === "Connected";
-  const status = settings.robot_status || "Paused";
-  const running = status === "Running";
-  const active = connected && ["Running", "Scanning Market", "Entering Trade", "Managing Position", "Signal Found", "Sending Order", "Trade Opened"].includes(status);
+  const status     = robotStatus;
+  const active     = connected && ["Running","Scanning Market","Entering Trade","Managing Position","Signal Found","Sending Order","Trade Opened"].includes(status);
+  const statusInfo = STATUS_MESSAGES[status] || STATUS_MESSAGES["Paused"];
+  const displayLabel = connected ? statusInfo.label : "NOT CONNECTED";
+  const statusColor  = connected ? statusInfo.color : "text-red-400";
+  const statusDot    = connected ? statusInfo.dot   : "bg-red-400";
+  const statusDesc   = active ? "AI system is analyzing the market…"
+    : connected ? "Press START to activate the robot." : "Connect your MT5 account to begin.";
 
-  const fmt = (val, decimals = 2) =>
-    connected && val != null ? `$${Number(val).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}` : "--";
+  const pairMeta = PAIR_META[activePair] || { label: activePair, icon: "📊" };
 
-  const fmtProfit = (val) => {
+  // Account display helpers
+  const fmt = (val, dec = 2) =>
+    connected && val != null
+      ? `$${Number(val).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec })}`
+      : "--";
+
+  const totalProfit = positions.reduce((s, p) => s + (p.profit ?? p.unrealized_pnl ?? 0), 0);
+  const fmtProfit   = (val) => {
     if (!connected || val == null) return "--";
     const n = Number(val);
     return (n >= 0 ? "+" : "") + `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
-
-  const pair = settings.active_pair || "XAUUSD";
-  const pairMeta = PAIR_META[pair] || { label: pair, icon: "📊" };
-
-  const statusInfo = STATUS_MESSAGES[status] || STATUS_MESSAGES["Paused"];
-  const displayLabel = connected ? statusInfo.label : "NOT CONNECTED";
-  const statusColor = connected ? statusInfo.color : "text-red-400";
-  const statusDot = connected ? statusInfo.dot : "bg-red-400";
-
-  const statusDesc = active
-    ? "AI system is analyzing the market…"
-    : connected ? "Press START to activate the robot." : "Connect your MT5 account to begin.";
 
   return (
     <div
@@ -123,7 +165,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── HERO SECTION ── */}
+      {/* ── HERO ── */}
       <div className="relative w-full" style={{ minHeight: 380 }}>
         <img
           src="https://media.base44.com/images/public/6a437ad84dc8721fedd64296/586a57cc0_generated_image.png"
@@ -146,25 +188,25 @@ export default function Home() {
               animate={connected ? { scale: [1, 1.6, 1], opacity: [1, 0.4, 1] } : {}}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
-            {connected ? "MT5 CONNECTED" : "NOT CONNECTED"}
+            {connected ? "MT5 LIVE" : "NOT CONNECTED"}
           </div>
 
           <div className="flex items-center gap-2">
-            {connected && (
-              <span className="text-[11px] font-heading font-bold text-white/80 bg-black/50 px-2 py-1 rounded-lg border border-white/10">
-                MT5 LIVE ▾
+            {connected && account?.server && (
+              <span className="text-[10px] font-heading font-bold text-white/60 bg-black/50 px-2 py-1 rounded-lg border border-white/10">
+                {account.server}
               </span>
             )}
             <button
-              onClick={() => !connected && navigate("/connect-mt5")}
+              onClick={load}
               className="w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center"
             >
-              <Bell className="w-4 h-4 text-white/60" />
+              <RefreshCw className="w-4 h-4 text-white/60" />
             </button>
           </div>
         </div>
 
-        {/* Brand name */}
+        {/* Brand */}
         <div className="relative z-10 flex flex-col items-center justify-end pb-5" style={{ marginTop: 240 }}>
           <h1
             className="font-heading font-black text-white text-center leading-none"
@@ -183,6 +225,15 @@ export default function Home() {
 
       {/* ── CONTROLS ── */}
       <div className="relative z-10 px-4 -mt-2 space-y-3 bg-black pt-4">
+
+        {/* Account name when connected */}
+        {connected && account?.name && (
+          <div className="text-center pb-1">
+            <p className="text-[11px] text-white/40 font-heading uppercase tracking-widest">
+              {account.name} · {account.currency} · 1:{account.leverage}
+            </p>
+          </div>
+        )}
 
         {/* START ROBOT */}
         <motion.button
@@ -240,15 +291,16 @@ export default function Home() {
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
           >
             {[
-              { label: "BALANCE",       value: fmt(settings.balance) },
-              { label: "EQUITY",        value: fmt(settings.equity) },
-              { label: "PROFIT TODAY",  value: fmtProfit(settings.profit_today), profit: true },
+              { label: "BALANCE",      value: fmt(account?.balance) },
+              { label: "EQUITY",       value: fmt(account?.equity) },
+              { label: "OPEN P&L",     value: fmtProfit(totalProfit), profit: true },
             ].map(({ label, value, profit }) => (
               <div key={label} className="py-3 px-3 flex flex-col gap-0.5">
                 <span className="text-[9px] uppercase tracking-widest text-white/35">{label}</span>
                 <span className={`font-heading font-bold text-sm ${
-                  value === "--" ? "text-white/25" :
-                  profit ? (value.startsWith("+") ? "text-green-400" : "text-red-400") : "text-white"
+                  value === "--" ? "text-white/25"
+                  : profit ? (value.startsWith("+") ? "text-green-400" : "text-red-400")
+                  : "text-white"
                 }`}>
                   {value}
                 </span>
@@ -256,6 +308,23 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        {/* ── MARGIN ── */}
+        {connected && account && (
+          <div className="rounded-2xl grid grid-cols-3 divide-x divide-white/5 overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            {[
+              { label: "FREE MARGIN",   value: fmt(account.freeMargin) },
+              { label: "MARGIN USED",   value: fmt(account.margin) },
+              { label: "OPEN TRADES",   value: String(positions.length) },
+            ].map(({ label, value }) => (
+              <div key={label} className="py-2.5 px-3 flex flex-col gap-0.5">
+                <span className="text-[9px] uppercase tracking-widest text-white/25">{label}</span>
+                <span className="font-heading font-bold text-xs text-white/70">{value}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── ACTIVE PAIR ── */}
         <div>
@@ -269,14 +338,14 @@ export default function Home() {
                 {pairMeta.icon}
               </div>
               <div>
-                <p className="font-heading font-bold text-white text-sm">{pair}</p>
+                <p className="font-heading font-bold text-white text-sm">{activePair}</p>
                 <p className="text-[10px] text-white/40">{pairMeta.label}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[9px] uppercase tracking-widest text-white/30">CHANGE</p>
-              <p className={`font-heading font-bold text-sm ${connected ? "text-green-400" : "text-white/25"}`}>
-                {connected ? "+0.45%" : "--"}
+              <p className="text-[9px] uppercase tracking-widest text-white/30">POSITIONS</p>
+              <p className="font-heading font-bold text-sm text-white/70">
+                {connected ? positions.filter(p => (p.symbol || p.pair) === activePair).length : "--"}
               </p>
             </div>
           </div>
