@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Save } from "lucide-react";
+import MobileHeader from "@/components/MobileHeader";
 
 export default function Settings() {
   const [s, setS] = useState(null);
@@ -41,11 +42,9 @@ export default function Settings() {
   );
 
   return (
-    <div className="px-4 pt-8 space-y-4">
-      <header>
-        <h1 className="font-heading text-2xl font-black text-white neon-text">Bot Settings</h1>
-        <p className="text-sm text-muted-foreground">Tune your robot's behavior and risk.</p>
-      </header>
+    <div className="space-y-4 pb-6">
+      <MobileHeader title="Bot Settings" subtitle="Tune your robot's behavior and risk." />
+      <div className="px-4 space-y-4">
 
       <GlassCard>
         <SegmentRow label="Trading Mode" options={["Conservative", "Normal", "Aggressive"]} value={s.trading_mode} onChange={(v) => set("trading_mode", v)} />
@@ -70,6 +69,7 @@ export default function Settings() {
       <Button onClick={save} className="w-full h-13 py-3 rounded-2xl bg-red-600 hover:bg-red-500 neon-red font-heading tracking-widest">
         <Save className="w-4 h-4 mr-2" /> SAVE SETTINGS
       </Button>
+      </div>
     </div>
   );
 }

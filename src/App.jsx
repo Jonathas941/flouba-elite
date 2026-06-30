@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -24,8 +25,21 @@ import AIScanner from '@/pages/AIScanner';
 import Account from '@/pages/Account';
 import ConnectMT5 from '@/pages/ConnectMT5';
 
+const PageSlide = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, x: 18 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -18 }}
+    transition={{ duration: 0.18, ease: "easeInOut" }}
+    style={{ willChange: "opacity, transform" }}
+  >
+    {children}
+  </motion.div>
+);
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const location = useLocation();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -41,28 +55,30 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/splash" element={<Splash />} />
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route path="/admin" element={<Admin />} />
-        <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/strategy" element={<Strategy />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/statistics" element={<Statistics />} />
-          <Route path="/subscription" element={<Subscription />} />
-          <Route path="/ai-signals" element={<AISignals />} />
-          <Route path="/ai-scanner" element={<AIScanner />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/connect-mt5" element={<ConnectMT5 />} />
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route path="/login" element={<PageSlide><Login /></PageSlide>} />
+        <Route path="/register" element={<PageSlide><Register /></PageSlide>} />
+        <Route path="/forgot-password" element={<PageSlide><ForgotPassword /></PageSlide>} />
+        <Route path="/reset-password" element={<PageSlide><ResetPassword /></PageSlide>} />
+        <Route path="/splash" element={<PageSlide><Splash /></PageSlide>} />
+        <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+          <Route path="/admin" element={<PageSlide><Admin /></PageSlide>} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<PageSlide><Home /></PageSlide>} />
+            <Route path="/strategy" element={<PageSlide><Strategy /></PageSlide>} />
+            <Route path="/settings" element={<PageSlide><Settings /></PageSlide>} />
+            <Route path="/statistics" element={<PageSlide><Statistics /></PageSlide>} />
+            <Route path="/subscription" element={<PageSlide><Subscription /></PageSlide>} />
+            <Route path="/ai-signals" element={<PageSlide><AISignals /></PageSlide>} />
+            <Route path="/ai-scanner" element={<PageSlide><AIScanner /></PageSlide>} />
+            <Route path="/account" element={<PageSlide><Account /></PageSlide>} />
+            <Route path="/connect-mt5" element={<PageSlide><ConnectMT5 /></PageSlide>} />
+          </Route>
         </Route>
-      </Route>
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </AnimatePresence>
   );
 };
 

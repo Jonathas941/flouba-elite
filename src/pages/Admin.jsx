@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import StatTile from "@/components/StatTile";
 import { Button } from "@/components/ui/button";
-import { Users, Activity, Crown, Shield, ArrowLeft, Plus } from "lucide-react";
+import { Users, Activity, Crown, Shield, Plus } from "lucide-react";
+import MobileHeader from "@/components/MobileHeader";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -55,14 +56,9 @@ export default function Admin() {
   const activeSubs = subs.filter((s) => s.status === "Active").length;
 
   return (
-    <div className="px-4 pt-8 space-y-4 max-w-md mx-auto pb-12">
-      <button onClick={() => navigate("/")} className="flex items-center gap-2 text-sm text-muted-foreground">
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
-      <header>
-        <h1 className="font-heading text-2xl font-black text-white neon-text">Admin Panel</h1>
-        <p className="text-sm text-muted-foreground">Manage users, accounts and platform activity.</p>
-      </header>
+    <div className="max-w-md mx-auto pb-12">
+      <MobileHeader title="Admin Panel" subtitle="Manage users, accounts and platform activity." onBack={() => navigate("/")} />
+      <div className="px-4 space-y-4">
 
       <div className="grid grid-cols-2 gap-3">
         <StatTile label="Users" value={users.length} icon={Users} />
@@ -93,6 +89,7 @@ export default function Admin() {
           ))}
         </div>
       </GlassCard>
+      </div>
     </div>
   );
 }

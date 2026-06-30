@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import GlassCard from "@/components/GlassCard";
 import { User, Crown, Shield, LogOut, ChevronRight, Settings, Bell, Lock, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MobileHeader from "@/components/MobileHeader";
 
 export default function Account() {
   const [me, setMe] = useState(null);
@@ -28,8 +29,9 @@ export default function Account() {
   ];
 
   return (
-    <div className="px-4 pt-8 space-y-4">
-      <h1 className="font-heading text-2xl font-black text-white neon-text">Account</h1>
+    <div className="space-y-4 pb-6">
+      <MobileHeader title="Account" />
+      <div className="px-4 space-y-4">
 
       <GlassCard className="flex items-center gap-4">
         <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
@@ -106,6 +108,7 @@ export default function Account() {
           </div>
         </GlassCard>
       )}
+      </div>
     </div>
   );
 }
