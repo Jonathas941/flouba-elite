@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import GlassCard from "@/components/GlassCard";
-import { User, Crown, Shield, LogOut, ChevronRight, Settings, Bell, Lock } from "lucide-react";
+import { User, Crown, Shield, LogOut, ChevronRight, Settings, Bell, Lock, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function Account() {
   const [me, setMe] = useState(null);
   const [sub, setSub] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,6 +78,34 @@ export default function Account() {
       >
         <LogOut className="w-4 h-4" /> LOGOUT
       </button>
+
+      {!deleteConfirm ? (
+        <button
+          onClick={() => setDeleteConfirm(true)}
+          className="w-full h-12 rounded-2xl flex items-center justify-center gap-2 text-white/25 font-heading tracking-widest text-xs hover:text-red-400 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> DELETE ACCOUNT
+        </button>
+      ) : (
+        <GlassCard className="border border-red-500/40 space-y-3">
+          <p className="text-sm text-white font-semibold text-center">Are you sure you want to delete your account?</p>
+          <p className="text-xs text-muted-foreground text-center">This action is permanent and cannot be undone.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setDeleteConfirm(false)}
+              className="h-11 rounded-2xl border border-white/10 text-white/60 font-heading text-xs tracking-widest hover:bg-white/5 transition-colors"
+            >
+              CANCEL
+            </button>
+            <button
+              onClick={() => base44.auth.logout("/")}
+              className="h-11 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-heading text-xs tracking-widest transition-colors"
+            >
+              CONFIRM
+            </button>
+          </div>
+        </GlassCard>
+      )}
     </div>
   );
 }

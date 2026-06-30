@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
-import { Check, Crown, Zap, Star } from "lucide-react";
+import { Check, Crown, Zap, Star, ChevronLeft } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const PLANS = [
   { plan: "Starter", price: 29, icon: Zap, features: ["1 MT5 account", "Normal mode", "Email support", "Daily limits"] },
@@ -14,6 +15,7 @@ const PLANS = [
 export default function Subscription() {
   const [current, setCurrent] = useState(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => { (async () => setCurrent((await base44.entities.Subscription.list())[0]))(); }, []);
 
@@ -26,10 +28,15 @@ export default function Subscription() {
   };
 
   return (
-    <div className="px-4 pt-8 space-y-4">
-      <header>
-        <h1 className="font-heading text-2xl font-black text-white neon-text">Subscription</h1>
-        <p className="text-sm text-muted-foreground">Unlock the full power of Flouba Elite.</p>
+    <div className="px-4 space-y-4" style={{ paddingTop: "calc(16px + env(safe-area-inset-top))" }}>
+      <header className="flex items-center gap-3 mb-2">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl glass flex items-center justify-center shrink-0">
+          <ChevronLeft className="w-5 h-5 text-white" />
+        </button>
+        <div>
+          <h1 className="font-heading text-2xl font-black text-white neon-text">Subscription</h1>
+          <p className="text-sm text-muted-foreground">Unlock the full power of Flouba Elite.</p>
+        </div>
       </header>
 
       {PLANS.map((p) => {

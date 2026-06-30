@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Wifi, WifiOff, ShieldCheck, Eye, EyeOff,
-  ChevronDown, Loader2, CheckCircle2, ArrowRight, Bot,
+  ChevronDown, ChevronLeft, Loader2, CheckCircle2, ArrowRight, Bot,
 } from "lucide-react";
 
 const BROKERS = [
@@ -102,10 +102,15 @@ export default function ConnectMT5() {
   const st = STATUS[status];
 
   return (
-    <div className="min-h-screen px-4 pt-10 pb-32 max-w-md mx-auto space-y-5">
+    <div className="min-h-screen px-4 pb-32 max-w-md mx-auto space-y-5" style={{ paddingTop: "calc(16px + env(safe-area-inset-top))" }}>
+
+      {/* Back button */}
+      <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl glass flex items-center justify-center mb-2">
+        <ChevronLeft className="w-5 h-5 text-white" />
+      </button>
 
       {/* ── 1. WELCOME ── */}
-      <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2 pt-4">
+      <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2">
         <div className="w-16 h-16 glass neon-red rounded-2xl mx-auto flex items-center justify-center mb-3">
           <Bot className="w-8 h-8 text-red-500" strokeWidth={1.6} />
         </div>

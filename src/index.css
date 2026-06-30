@@ -69,3 +69,18 @@
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: rgba(239,68,68,0.4); border-radius: 10px; }
+
+html, body {
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+button, a, nav, nav * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+svg {
+  pointer-events: none;
+}

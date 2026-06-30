@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +19,10 @@ export default function Home() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = useRef(0);
+
   const load = async () => {
     const list = await base44.entities.BotSettings.list();
     let s = list[0];
@@ -27,6 +31,20 @@ export default function Home() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
+  const handleTouchMove = (e) => {
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0 && window.scrollY === 0) setPullY(Math.min(dy * 0.4, 60));
+  };
+  const handleTouchEnd = async () => {
+    if (pullY > 45) {
+      setRefreshing(true);
+      await load();
+      setRefreshing(false);
+    }
+    setPullY(0);
+  };
 
   const patch = async (data) => {
     await base44.entities.BotSettings.update(settings.id, data);
@@ -82,7 +100,16 @@ export default function Home() {
   const statusDot   = active ? "bg-green-400"  : connected ? "bg-amber-400"  : "bg-red-400";
 
   return (
-    <div className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden">
+    <div
+      className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden"
+      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull to refresh indicator */}
+      {pullY > 0 && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex justify-center" style={{ opacity: pullY / 60 }}>
+          <div className={`w-6 h-6 border-2 border-red-500/40 border-t-red-500 rounded-full ${refreshing ? "animate-spin" : ""}`} />
+        </div>
+      )}
 
       {/* ── HERO SECTION ── */}
       <div className="relative w-full" style={{ minHeight: 380 }}>

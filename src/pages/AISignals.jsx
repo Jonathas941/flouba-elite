@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
 import { Zap, TrendingUp, TrendingDown, Clock, Target } from "lucide-react";
@@ -13,11 +13,35 @@ const SIGNALS = [
 
 export default function AISignals() {
   const [filter, setFilter] = useState("All");
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = useRef(0);
   const FILTERS = ["All", "Active", "Pending", "Expired"];
   const filtered = filter === "All" ? SIGNALS : SIGNALS.filter((s) => s.status === filter);
 
+  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
+  const handleTouchMove = (e) => {
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0 && window.scrollY === 0) setPullY(Math.min(dy * 0.4, 60));
+  };
+  const handleTouchEnd = async () => {
+    if (pullY > 45) {
+      setRefreshing(true);
+      await new Promise((r) => setTimeout(r, 800));
+      setRefreshing(false);
+    }
+    setPullY(0);
+  };
+
   return (
-    <div className="px-4 pt-8 space-y-4">
+    <div className="px-4 pt-8 space-y-4"
+      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+      {/* Pull to refresh indicator */}
+      {pullY > 0 && (
+        <div className="flex justify-center" style={{ marginTop: pullY - 20, opacity: pullY / 60 }}>
+          <div className={`w-6 h-6 border-2 border-red-500/40 border-t-red-500 rounded-full ${refreshing ? "animate-spin" : ""}`} />
+        </div>
+      )}
       <header className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-black text-white neon-text flex items-center gap-2">

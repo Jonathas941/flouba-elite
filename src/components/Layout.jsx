@@ -14,11 +14,11 @@ const NAV = [
 export default function Layout() {
   const location = useLocation();
   return (
-    <div className="min-h-screen pb-24 max-w-md mx-auto relative">
+    <div className="min-h-screen max-w-md mx-auto relative" style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom))" }}>
       <Outlet />
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50">
-        <div className="flex items-center justify-around py-3 px-4 border-t border-white/8"
-          style={{ background: "rgba(10,10,10,0.97)", backdropFilter: "blur(20px)" }}>
+        <div className="flex items-center justify-around px-4 border-t border-white/8"
+          style={{ background: "rgba(10,10,10,0.97)", backdropFilter: "blur(20px)", paddingTop: "12px", paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}>
           {NAV.map((item) => {
             const active = location.pathname === item.to;
             return (
