@@ -64,9 +64,9 @@ export default function ConnectMT5() {
   };
 
   const handleTest = async () => {
-    if (!isFormValid) { toast({ title: "Fill in all fields before testing.", variant: "destructive" }); return; }
+    if (!isFormValid) return;
     setStatus("testing");
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 1500));
     setStatus("idle");
     toast({ title: "Test complete", description: "Fill in the correct server address and credentials to connect." });
   };

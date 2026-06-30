@@ -12,6 +12,21 @@ const PAIR_META = {
   USDJPY: { label: "US Dollar / Yen",     icon: "💴" },
   NAS100: { label: "Nasdaq 100 Index",    icon: "📈" },
   US30:   { label: "Dow Jones Index",     icon: "🏦" },
+  BTCUSD: { label: "Bitcoin / US Dollar", icon: "₿" },
+};
+
+const STATUS_MESSAGES = {
+  "Running":                  { label: "ROBOT IS RUNNING",         color: "text-green-400",  dot: "bg-green-400" },
+  "Scanning Market":          { label: "SCANNING LIVE MARKET",     color: "text-green-400",  dot: "bg-green-400" },
+  "Entering Trade":           { label: "ENTERING TRADE",           color: "text-amber-400",  dot: "bg-amber-400" },
+  "Managing Position":        { label: "MANAGING POSITION",        color: "text-blue-400",   dot: "bg-blue-400"  },
+  "Waiting for Confirmation": { label: "WAITING FOR CONFIRMATION", color: "text-amber-400",  dot: "bg-amber-400" },
+  "Signal Found":             { label: "SIGNAL FOUND",             color: "text-green-300",  dot: "bg-green-300" },
+  "Sending Order":            { label: "SENDING ORDER",            color: "text-amber-300",  dot: "bg-amber-300" },
+  "Trade Opened":             { label: "TRADE OPENED",             color: "text-green-400",  dot: "bg-green-400" },
+  "No Valid Signal Yet":      { label: "NO VALID SIGNAL YET",      color: "text-white/50",   dot: "bg-white/30"  },
+  "Paused":                   { label: "ROBOT PAUSED",             color: "text-amber-400",  dot: "bg-amber-400" },
+  "Locked":                   { label: "ROBOT LOCKED",             color: "text-red-400",    dot: "bg-red-400"   },
 };
 
 export default function Home() {
@@ -53,14 +68,14 @@ export default function Home() {
 
   const handleStart = async () => {
     if (!connected) { navigate("/connect-mt5"); return; }
+    toast({ title: "MT5 Connected", description: "Verifying account…" });
     await patch({ robot_status: "Scanning Market" });
-    toast({ title: "Robot started", description: "Scanning market…" });
-    setTimeout(() => patch({ robot_status: "Running" }), 2000);
+    toast({ title: "Robot Started", description: "Scanning live market every second…" });
   };
 
   const handleStop = async () => {
     await patch({ robot_status: "Paused" });
-    toast({ title: "Robot paused" });
+    toast({ title: "Robot Stopped" });
   };
 
   if (!settings) {
@@ -74,7 +89,7 @@ export default function Home() {
   const connected = settings.connection_status === "Connected";
   const status = settings.robot_status || "Paused";
   const running = status === "Running";
-  const active = connected && ["Running", "Scanning Market", "Entering Trade", "Managing Position"].includes(status);
+  const active = connected && ["Running", "Scanning Market", "Entering Trade", "Managing Position", "Signal Found", "Sending Order", "Trade Opened"].includes(status);
 
   const fmt = (val, decimals = 2) =>
     connected && val != null ? `$${Number(val).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}` : "--";
@@ -88,23 +103,20 @@ export default function Home() {
   const pair = settings.active_pair || "XAUUSD";
   const pairMeta = PAIR_META[pair] || { label: pair, icon: "📊" };
 
-  const statusLabel = active
-    ? status === "Running" ? "ROBOT IS RUNNING" : status.toUpperCase()
-    : connected ? "ROBOT IS PAUSED" : "NOT CONNECTED";
+  const statusInfo = STATUS_MESSAGES[status] || STATUS_MESSAGES["Paused"];
+  const displayLabel = connected ? statusInfo.label : "NOT CONNECTED";
+  const statusColor = connected ? statusInfo.color : "text-red-400";
+  const statusDot = connected ? statusInfo.dot : "bg-red-400";
 
   const statusDesc = active
-    ? "AI system is analyzing the market..."
+    ? "AI system is analyzing the market…"
     : connected ? "Press START to activate the robot." : "Connect your MT5 account to begin.";
-
-  const statusColor = active ? "text-green-400" : connected ? "text-amber-400" : "text-red-400";
-  const statusDot   = active ? "bg-green-400"  : connected ? "bg-amber-400"  : "bg-red-400";
 
   return (
     <div
       className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden"
       onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
     >
-      {/* Pull to refresh indicator */}
       {pullY > 0 && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex justify-center" style={{ opacity: pullY / 60 }}>
           <div className={`w-6 h-6 border-2 border-red-500/40 border-t-red-500 rounded-full ${refreshing ? "animate-spin" : ""}`} />
@@ -113,18 +125,15 @@ export default function Home() {
 
       {/* ── HERO SECTION ── */}
       <div className="relative w-full" style={{ minHeight: 380 }}>
-        {/* Robot bg image */}
         <img
           src="https://media.base44.com/images/public/6a437ad84dc8721fedd64296/586a57cc0_generated_image.png"
           alt="Flouba AI Robot"
           className="absolute inset-0 w-full h-full object-cover object-top"
           style={{ opacity: 0.88 }}
         />
-        {/* Dark gradient overlay bottom */}
         <div className="absolute inset-0" style={{
           background: "linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.85) 80%, #000 100%)"
         }} />
-        {/* Red ambient top */}
         <div className="absolute top-0 left-0 right-0 h-40 pointer-events-none" style={{
           background: "radial-gradient(ellipse at 50% 0%, rgba(180,0,0,0.35), transparent 70%)"
         }} />
@@ -137,7 +146,7 @@ export default function Home() {
               animate={connected ? { scale: [1, 1.6, 1], opacity: [1, 0.4, 1] } : {}}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
-            {connected ? "CONNECTED" : "NOT CONNECTED"}
+            {connected ? "MT5 CONNECTED" : "NOT CONNECTED"}
           </div>
 
           <div className="flex items-center gap-2">
@@ -155,15 +164,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Brand name over robot */}
+        {/* Brand name */}
         <div className="relative z-10 flex flex-col items-center justify-end pb-5" style={{ marginTop: 240 }}>
           <h1
             className="font-heading font-black text-white text-center leading-none"
-            style={{
-              fontSize: 38,
-              letterSpacing: "0.08em",
-              textShadow: "0 0 30px rgba(220,0,0,0.9), 0 2px 20px rgba(0,0,0,0.8)",
-            }}
+            style={{ fontSize: 38, letterSpacing: "0.08em", textShadow: "0 0 30px rgba(220,0,0,0.9), 0 2px 20px rgba(0,0,0,0.8)" }}
           >
             FLOUBA ELITE
           </h1>
@@ -182,32 +187,32 @@ export default function Home() {
         {/* START ROBOT */}
         <motion.button
           onClick={handleStart}
-          disabled={connected && running}
+          disabled={connected && active}
           whileTap={{ scale: 0.97 }}
           className="w-full h-14 rounded-2xl flex items-center justify-between px-5 font-heading font-black tracking-[0.2em] text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           style={{
-            background: running ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.95)",
-            color: running ? "#4ade80" : "#16a34a",
-            border: running ? "1px solid rgba(74,222,128,0.3)" : "none",
-            boxShadow: running ? "none" : "0 4px 30px rgba(255,255,255,0.15)",
+            background: active ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.95)",
+            color: active ? "#4ade80" : "#16a34a",
+            border: active ? "1px solid rgba(74,222,128,0.3)" : "none",
+            boxShadow: active ? "none" : "0 4px 30px rgba(255,255,255,0.15)",
           }}
         >
           <span>START ROBOT</span>
-          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${running ? "bg-green-500/20 border border-green-500/40" : "bg-green-600"}`}>
-            <Play className={`w-4 h-4 fill-current ${running ? "text-green-400" : "text-white"}`} />
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${active ? "bg-green-500/20 border border-green-500/40" : "bg-green-600"}`}>
+            <Play className={`w-4 h-4 fill-current ${active ? "text-green-400" : "text-white"}`} />
           </div>
         </motion.button>
 
         {/* STOP ROBOT */}
         <motion.button
           onClick={handleStop}
-          disabled={!connected || !running}
+          disabled={!connected || !active}
           whileTap={{ scale: 0.97 }}
           className="w-full h-14 rounded-2xl flex items-center justify-between px-5 font-heading font-black tracking-[0.2em] text-sm text-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           style={{
             background: "transparent",
             border: "1.5px solid rgba(239,68,68,0.6)",
-            boxShadow: running ? "0 0 20px rgba(239,68,68,0.15)" : "none",
+            boxShadow: active ? "0 0 20px rgba(239,68,68,0.15)" : "none",
           }}
         >
           <span>STOP ROBOT</span>
@@ -216,7 +221,6 @@ export default function Home() {
           </div>
         </motion.button>
 
-        {/* Connect button if not connected */}
         {!connected && (
           <motion.button
             initial={{ opacity: 0 }}
@@ -293,7 +297,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <p className={`font-heading font-bold text-sm tracking-wider ${statusColor}`}>{statusLabel}</p>
+              <p className={`font-heading font-bold text-sm tracking-wider ${statusColor}`}>{displayLabel}</p>
               <p className="text-[10px] text-white/35 mt-0.5">{statusDesc}</p>
             </div>
           </div>

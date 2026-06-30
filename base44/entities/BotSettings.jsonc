@@ -6,10 +6,10 @@
       "type": "string",
       "enum": [
         "Conservative",
-        "Normal",
+        "Balanced",
         "Aggressive"
       ],
-      "default": "Normal"
+      "default": "Balanced"
     },
     "lot_size_mode": {
       "type": "string",
@@ -19,13 +19,29 @@
       ],
       "default": "Auto Risk"
     },
+    "lot_size": {
+      "type": "number",
+      "default": 0.01
+    },
     "risk_percentage": {
       "type": "number",
       "default": 1
     },
+    "stop_loss": {
+      "type": "number",
+      "default": 50
+    },
+    "take_profit": {
+      "type": "number",
+      "default": 100
+    },
     "max_daily_trades": {
       "type": "number",
       "default": 5
+    },
+    "stop_after_losses": {
+      "type": "number",
+      "default": 2
     },
     "daily_profit_target": {
       "type": "number",
@@ -63,6 +79,10 @@
         "Scanning Market",
         "Entering Trade",
         "Managing Position",
+        "Signal Found",
+        "Sending Order",
+        "Trade Opened",
+        "No Valid Signal Yet",
         "Paused",
         "Locked"
       ],
@@ -84,7 +104,8 @@
         "GBPUSD",
         "USDJPY",
         "NAS100",
-        "US30"
+        "US30",
+        "BTCUSD"
       ],
       "default": "XAUUSD"
     },
