@@ -1,33 +1,43 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
-import { base44 } from "@/api/base44Client";
+import { mt5Api } from "@/lib/mt5Api";
 import {
   TrendingUp, TrendingDown, Zap, Radio, WifiOff,
-  Target, AlertTriangle, Brain,
+  Target, AlertTriangle, Brain, CheckCircle, XCircle,
 } from "lucide-react";
-import {
-  PAIRS, TIMEFRAMES, MODE_THRESHOLD,
-  computeAnalysis, getBestOpportunity, getCurrentSession,
-} from "@/lib/marketAnalysis";
 
-function ScoreBar({ label, val, max, ok }) {
-  const pct = Math.min(100, (val / max) * 100);
-  const color = ok === false ? "bg-red-500/60" : pct > 70 ? "bg-green-500" : pct > 40 ? "bg-amber-500" : "bg-red-500/60";
-  return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[9px] text-muted-foreground">{label}</span>
-        <span className="text-[9px] font-bold text-white">{val}/{max}</span>
-      </div>
-      <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
+const STRATEGY_LABELS = {
+  momentum_scalping: "Momentum Scalping",
+  range_breakout:    "Range Breakout",
+  volatility_spike:  "Volatility Spike",
+  hybrid_manual:     "Hybrid Manual",
+  hft_scalper:       "HFT Scalper",
+  auto:              "Auto",
+};
+
+const STRATEGY_COLORS = {
+  "Momentum Scalping": "text-green-400",
+  "Range Breakout":    "text-sky-400",
+  "Volatility Spike":  "text-amber-400",
+  "Hybrid Manual":     "text-purple-400",
+  "HFT Scalper":       "text-pink-400",
+  "Auto":              "text-white/50",
+};
+
+function strategyLabel(raw) {
+  if (!raw) return "Auto";
+  return STRATEGY_LABELS[raw] || raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function SignalBadge({ direction }) {
+  if (direction !== "BUY" && direction !== "SELL") {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1 rounded-lg font-heading font-black text-xs bg-white/5 text-white/30 border border-white/10">
+        HOLD
+      </div>
+    );
+  }
   return (
     <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-heading font-black text-xs ${
       direction === "BUY"
@@ -40,201 +50,96 @@ function SignalBadge({ direction }) {
   );
 }
 
-const STRATEGY_COLORS = {
-  "Momentum Scalping": "text-green-400",
-  "Range Breakout":    "text-sky-400",
-  "Volatility Spike":  "text-amber-400",
-  "Hybrid Manual":     "text-purple-400",
-};
+export default function LiveScannerEngine({ onScanUpdate }) {
+  const [scanner, setScanner]   = useState(null);
+  const [error, setError]       = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [signalAlerts, setSignalAlerts] = useState([]);
 
-export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, sessionAllowed = true }) {
-  const [connected, setConnected]           = useState(false);
-  const [botRunning, setBotRunning]         = useState(false);
-  const [tradingMode, setTradingMode]       = useState("Balanced");
-  const [maxDailyTrades, setMaxDailyTrades] = useState(5);
-  const [dailyTrades, setDailyTrades]       = useState(0);
-  const [selectedTf, setSelectedTf]         = useState("M1");
-  const [scanResults, setScanResults]       = useState({});
-  const [lastScanTime, setLastScanTime]     = useState(null);
-  const [signalAlerts, setSignalAlerts]     = useState([]);
+  const pollRef        = useRef(null);
+  const prevSignalRef  = useRef(null);
 
-  const intervalRef    = useRef(null);
-  const settingsIdRef  = useRef(null);
-  const prevSignalsRef = useRef({});
-  const tickRef        = useRef(0);
-  const newsBlockedRef = useRef(newsBlocked);
-  const sessionOkRef   = useRef(sessionAllowed);
-  newsBlockedRef.current = newsBlocked;
-  sessionOkRef.current   = sessionAllowed;
+  const poll = useCallback(async () => {
+    try {
+      const res = await mt5Api.scannerStatus();
+      if (res?.ok && res?.data?.scanner) {
+        const s = res.data.scanner;
+        setScanner(s);
+        setError(null);
 
-  const loadSettings = useCallback(async () => {
-    const list = await base44.entities.BotSettings.list();
-    const s = list[0];
-    if (s) {
-      settingsIdRef.current = s.id;
-      setConnected(s.connection_status === "Connected");
-      setBotRunning(["Running","Scanning Market","Entering Trade","Managing Position","Signal Found","Sending Order","Trade Opened"].includes(s.robot_status));
-      setTradingMode(s.trading_mode || "Balanced");
-      setMaxDailyTrades(s.max_daily_trades ?? 5);
-    }
-  }, []);
+        const ind = s.indicators || {};
+        const conditions = (s.conditions || []).map((label) => ({ label, ok: !label.includes("✗") }));
+        const strategy = strategyLabel(s.strategy);
 
-  const countDailyTrades = useCallback(async () => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const trades = await base44.entities.Trade.filter({ status: "Open" });
-    setDailyTrades(trades.filter(t => t.opened_at && new Date(t.opened_at) >= today).length);
-  }, []);
-
-  useEffect(() => { loadSettings(); countDailyTrades(); }, [loadSettings, countDailyTrades]);
-
-  useEffect(() => {
-    const unsub = base44.entities.BotSettings.subscribe((event) => {
-      if (event.data) {
-        setConnected(event.data.connection_status === "Connected");
-        setBotRunning(["Running","Scanning Market","Entering Trade","Managing Position","Signal Found","Sending Order","Trade Opened"].includes(event.data.robot_status));
-        setTradingMode(event.data.trading_mode || "Balanced");
-        setMaxDailyTrades(event.data.max_daily_trades ?? 5);
-      }
-    });
-    return unsub;
-  }, []);
-
-  // ── 1-second OnTick scan loop ─────────────────────────────────────────────
-  useEffect(() => {
-    clearInterval(intervalRef.current);
-    if (!connected || !botRunning) return;
-
-    const runScan = () => {
-      tickRef.current += 1;
-      const t = tickRef.current;
-      const threshold = MODE_THRESHOLD[tradingMode] || 65;
-      const session = getCurrentSession();
-      const results = {};
-      const newAlerts = [];
-      const debugEntries = [];
-      const dailyLimitHit = dailyTrades >= maxDailyTrades;
-
-      PAIRS.forEach((pair) => {
-        results[pair] = {};
-        TIMEFRAMES.forEach((tf) => {
-          const data = computeAnalysis(pair, tf, t);
-
-          const newsOk    = !newsBlockedRef.current;
-          const sessOk    = sessionOkRef.current;
-          const scoreOk   = data.total >= threshold;
-          const dailyOk   = !dailyLimitHit;
-
-          // Strategy-aware validity
-          let stratValid = false;
-          if (data.strategy === "Momentum Scalping") {
-            stratValid = data.momentumOk && scoreOk && newsOk && sessOk && dailyOk;
-          } else if (data.strategy === "Range Breakout") {
-            stratValid = data.rangeBreakoutReady && newsOk && dailyOk;
-          } else if (data.strategy === "Volatility Spike") {
-            stratValid = data.volatilitySpikeOk && newsOk && sessOk && dailyOk;
-          }
-
-          data.isValid = stratValid;
-          results[pair][tf] = data;
-
-          // Debug log for M1 only
-          if (tf === "M1") {
-            let checks = [];
-            if (data.strategy === "Momentum Scalping") {
-              checks = [
-                { label: `EMA20 ${data.ema20AbovEma50 ? ">" : "<"} EMA50 → ${data.direction}`, ok: true },
-                { label: `ADX ${data.adx?.toFixed(1)} ${data.adxOk ? "✓ > 20" : "✗ < 20"}`, ok: data.adxOk },
-                { label: `RSI ${data.rsi?.toFixed(1)} ${data.rsiOk ? "✓" : data.direction === "BUY" ? "✗ need >55" : "✗ need <45"}`, ok: data.rsiOk },
-                { label: `ATR ${data.atrVal} ${data.atrOk ? "✓ ok" : "✗ too low"}`, ok: data.atrOk },
-                { label: `Spread ${data.spread} ${data.spreadOk ? "✓ ok" : "✗ too high"}`, ok: data.spreadOk },
-                { label: `Score ${data.total}/100 ${scoreOk ? `✓ ≥${threshold}` : `✗ need ≥${threshold}`}`, ok: scoreOk },
-                { label: newsOk ? "✓ News: clear" : "✗ News: BLOCKED", ok: newsOk },
-                { label: `Daily trades: ${dailyTrades}/${maxDailyTrades} ${dailyOk ? "✓" : "✗ limit reached"}`, ok: dailyOk },
-              ];
-            } else if (data.strategy === "Range Breakout") {
-              checks = [
-                { label: `Session: ${session} ${session === "Asian" ? "✓ Asian" : "✗ need Asian"}`, ok: session === "Asian" },
-                { label: `Buy Stop: above ${data.asianHigh}`, ok: true },
-                { label: `Sell Stop: below ${data.asianLow}`, ok: true },
-                { label: `Spread ${data.spread} ${data.spreadOk ? "✓ ok" : "✗ too high"}`, ok: data.spreadOk },
-                { label: newsOk ? "✓ News: clear" : "✗ News: BLOCKED", ok: newsOk },
-              ];
-            } else if (data.strategy === "Volatility Spike") {
-              checks = [
-                { label: `ATR ${data.atrVal} vs Avg ${data.atrAvgVal} ${data.atrSpike ? "✓ SPIKE" : "✗ no spike"}`, ok: data.atrSpike },
-                { label: `20-candle breakout ${data.price20CandleBreak ? "✓ confirmed" : "✗ not yet"}`, ok: data.price20CandleBreak },
-                { label: `Spread ${data.spread} ${data.spreadOk ? "✓ ok" : "✗ too high"}`, ok: data.spreadOk },
-                { label: newsOk ? "✓ News: clear" : "✗ News: BLOCKED", ok: newsOk },
-              ];
-            }
-
-            debugEntries.push({
-              pair, tf,
-              score: data.total,
-              direction: data.direction,
-              strategy: data.strategy,
-              marketCondition: data.marketCondition,
-              decision: stratValid ? "PENDING" : "BLOCKED",
-              reasons: checks,
-              time: new Date().toLocaleTimeString(),
-            });
-          }
-
-          const key = `${pair}-${tf}`;
-          if (stratValid && !prevSignalsRef.current[key]) {
-            newAlerts.push({ pair, tf, direction: data.direction, score: data.total, strategy: data.strategy, time: new Date() });
-          }
-          prevSignalsRef.current[key] = stratValid;
-        });
-      });
-
-      setScanResults(results);
-      setLastScanTime(new Date());
-
-      const best = getBestOpportunity(results, selectedTf);
-      const sortedDebug = debugEntries.sort((a, b) => {
-        if (a.decision === "PENDING" && b.decision !== "PENDING") return -1;
-        if (b.decision === "PENDING" && a.decision !== "PENDING") return 1;
-        return b.score - a.score;
-      });
-
-      onScanUpdate?.({ results, best, session, tick: t, debugLog: sortedDebug });
-
-      if (newAlerts.length > 0) {
-        setSignalAlerts((prev) => [...newAlerts, ...prev].slice(0, 5));
-        if (settingsIdRef.current) {
-          base44.entities.BotSettings.update(settingsIdRef.current, { robot_status: "Signal Found" });
+        if (s.last_signal && s.last_signal !== "HOLD" && prevSignalRef.current !== `${s.symbol}-${s.last_signal}-${s.last_scan_time}`) {
+          prevSignalRef.current = `${s.symbol}-${s.last_signal}-${s.last_scan_time}`;
+          setSignalAlerts((prev) => [
+            { pair: s.symbol, direction: s.last_signal, score: s.signal_score, strategy, time: new Date() },
+            ...prev,
+          ].slice(0, 5));
         }
+
+        onScanUpdate?.({
+          scanner: s,
+          debugLog: [{
+            pair: s.symbol,
+            tf: ind.timeframe || "M1",
+            score: s.signal_score ?? 0,
+            direction: s.last_signal && s.last_signal !== "HOLD" ? s.last_signal : (ind.ema_20 > ind.ema_50 ? "BUY" : "SELL"),
+            strategy,
+            decision: s.last_signal === "BUY" || s.last_signal === "SELL" ? "ENTERED" : (s.signal_score > 0 ? "PENDING" : "BLOCKED"),
+            reasons: conditions,
+            time: s.last_scan_time ? new Date(s.last_scan_time).toLocaleTimeString() : new Date().toLocaleTimeString(),
+          }],
+        });
+      } else {
+        setError(res?.error || res?.data?.message || "Scanner unavailable");
       }
-    };
+    } catch (e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  }, [onScanUpdate]);
 
-    intervalRef.current = setInterval(runScan, 1000);
-    return () => clearInterval(intervalRef.current);
-  }, [connected, botRunning, tradingMode, selectedTf, dailyTrades, maxDailyTrades]);
+  useEffect(() => {
+    poll();
+    pollRef.current = setInterval(poll, 2000);
+    return () => clearInterval(pollRef.current);
+  }, [poll]);
 
-  const threshold = MODE_THRESHOLD[tradingMode] || 65;
-
-  const getScoreStyle = (score, isValid) => {
-    if (isValid && score >= 80) return { label: "STRONG SIGNAL", color: "text-green-400", border: "border-green-500/30", bg: "bg-green-500/8" };
-    if (isValid && score >= 65) return { label: "VALID SIGNAL",  color: "text-amber-400", border: "border-amber-500/30", bg: "bg-amber-500/8" };
-    if (score  >= 55)           return { label: "WEAK SIGNAL",   color: "text-orange-400",border: "border-orange-500/20",bg: "" };
-    return                             { label: "NO SIGNAL",     color: "text-white/25",  border: "border-white/5",      bg: "" };
-  };
-
-  if (!connected) return (
+  if (loading) return (
     <GlassCard className="py-14 flex flex-col items-center gap-4 text-center">
-      <WifiOff className="w-10 h-10 text-muted-foreground/30" />
-      <p className="font-heading text-sm uppercase tracking-widest text-muted-foreground">Waiting for MT5 Connection</p>
+      <div className="w-8 h-8 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+      <p className="font-heading text-sm uppercase tracking-widest text-muted-foreground">Loading scanner…</p>
     </GlassCard>
   );
 
-  if (!botRunning) return (
+  if (error) return (
+    <GlassCard className="py-14 flex flex-col items-center gap-4 text-center">
+      <WifiOff className="w-10 h-10 text-muted-foreground/30" />
+      <p className="font-heading text-sm uppercase tracking-widest text-muted-foreground">Waiting for MT5 Connection</p>
+      <p className="text-[10px] text-white/25">{error}</p>
+    </GlassCard>
+  );
+
+  if (!scanner?.robot_running) return (
     <GlassCard className="py-10 flex flex-col items-center gap-3 text-center">
       <Radio className="w-8 h-8 text-amber-400/40" />
       <p className="font-heading text-sm uppercase tracking-widest text-amber-400">Robot Paused</p>
       <p className="text-xs text-muted-foreground/60">Press START ROBOT to begin live scanning.</p>
     </GlassCard>
   );
+
+  const ind        = scanner.indicators || {};
+  const risk       = scanner.risk || {};
+  const strategy   = strategyLabel(scanner.strategy);
+  const stratColor = STRATEGY_COLORS[strategy] || "text-white/40";
+  const score      = scanner.signal_score ?? 0;
+  const direction  = scanner.last_signal && scanner.last_signal !== "HOLD"
+    ? scanner.last_signal
+    : (ind.ema_20 > ind.ema_50 ? "BUY" : "SELL");
+  const isLive     = scanner.last_signal === "BUY" || scanner.last_signal === "SELL";
+  const conditions = (scanner.conditions || []).map((label) => ({ label, ok: !label.includes("✗") }));
 
   return (
     <div className="space-y-3">
@@ -245,29 +150,17 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
           <motion.div className="w-1.5 h-1.5 rounded-full bg-green-400"
             animate={{ scale:[1,1.6,1], opacity:[1,0.3,1] }}
             transition={{ duration:1, repeat:Infinity }} />
-          <span className="text-xs text-green-400 font-bold font-heading">SCANNING — OnTick 1s</span>
+          <span className="text-xs text-green-400 font-bold font-heading">LIVE SCANNING — Real MT5 Data</span>
         </div>
-        <span className="text-[10px] text-muted-foreground">{lastScanTime?.toLocaleTimeString() ?? "--"}</span>
-      </div>
-
-      {/* TF selector */}
-      <div className="flex gap-1.5 items-center">
-        {["M1","M5","M15","H1"].map((tf) => (
-          <button key={tf} onClick={() => setSelectedTf(tf)}
-            className={`px-3 py-1.5 rounded-xl font-heading text-xs font-bold uppercase tracking-widest transition-all ${selectedTf === tf ? "bg-red-600 text-white" : "glass text-muted-foreground"}`}>
-            {tf}
-          </button>
-        ))}
-        <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 glass rounded-xl">
-          <Target className="w-3 h-3 text-red-400" />
-          <span className="text-[10px] font-bold text-white">{threshold}pt · {tradingMode}</span>
-        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {scanner.last_scan_time ? new Date(scanner.last_scan_time).toLocaleTimeString() : "--"}
+        </span>
       </div>
 
       {/* Signal alerts */}
       <AnimatePresence>
         {signalAlerts.map((alert) => (
-          <motion.div key={`${alert.pair}-${alert.tf}-${alert.time.getTime()}`}
+          <motion.div key={`${alert.pair}-${alert.direction}-${alert.time.getTime()}`}
             initial={{ opacity:0, y:-10, scale:0.97 }}
             animate={{ opacity:1, y:0, scale:1 }}
             exit={{ opacity:0, scale:0.96 }}
@@ -279,7 +172,7 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
                 <Zap className={`w-4 h-4 ${alert.direction === "BUY" ? "text-green-400" : "text-red-400"}`} />
                 <div>
                   <p className="font-heading font-black text-white text-sm">SIGNAL — {alert.pair}</p>
-                  <p className="text-[10px] text-muted-foreground">{alert.tf} · {alert.strategy} · Score {alert.score}/100</p>
+                  <p className="text-[10px] text-muted-foreground">{alert.strategy} · Score {alert.score}/100</p>
                 </div>
               </div>
               <SignalBadge direction={alert.direction} />
@@ -288,77 +181,102 @@ export default function LiveScannerEngine({ onScanUpdate, newsBlocked = false, s
         ))}
       </AnimatePresence>
 
-      {/* No signal notice */}
-      {Object.keys(scanResults).length > 0 && !PAIRS.some((p) => scanResults[p]?.[selectedTf]?.isValid) && (
+      {/* Active symbol card */}
+      <GlassCard className={`border ${isLive ? "border-green-500/30 bg-green-500/8" : "border-white/5"}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isLive ? "bg-green-500/15 border border-green-500/30" : "bg-white/5"}`}>
+              <span className={`font-heading text-xs font-black ${isLive ? "text-green-400" : "text-muted-foreground/50"}`}>{scanner.symbol?.slice(0,3)}</span>
+            </div>
+            <div>
+              <p className="font-heading font-black text-white text-sm">{scanner.symbol}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <Brain className={`w-2.5 h-2.5 ${stratColor}`} />
+                <p className={`text-[9px] font-heading font-bold ${stratColor}`}>{strategy}</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <SignalBadge direction={scanner.last_signal} />
+            <div className="text-right">
+              <p className={`font-heading font-black text-lg leading-none ${isLive ? "text-green-400" : "text-white/30"}`}>{score}</p>
+              <p className="text-[9px] text-muted-foreground">/ 100</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Real indicators grid */}
+        <div className="grid grid-cols-4 gap-1 pt-2 border-t border-white/5">
+          {[
+            { label: "ADX",    val: ind.adx_14?.toFixed(1) },
+            { label: "RSI",    val: ind.rsi_14?.toFixed(1) },
+            { label: "ATR",    val: ind.atr_14?.toFixed(3) },
+            { label: "Spread", val: ind.spread_pips != null ? `${ind.spread_pips}p` : "--" },
+          ].map(({ label, val }) => (
+            <div key={label} className="flex flex-col gap-0.5">
+              <span className="text-[9px] text-muted-foreground/60 uppercase">{label}</span>
+              <span className="text-[10px] font-bold text-white leading-tight truncate">{val ?? "--"}</span>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-1 pt-2">
+          {[
+            { label: "Bid",   val: ind.bid },
+            { label: "Ask",   val: ind.ask },
+            { label: "EMA20", val: ind.ema_20?.toFixed(2) },
+            { label: "EMA50", val: ind.ema_50?.toFixed(2) },
+          ].map(({ label, val }) => (
+            <div key={label} className="flex flex-col gap-0.5">
+              <span className="text-[9px] text-muted-foreground/60 uppercase">{label}</span>
+              <span className="text-[10px] font-bold text-white/70 leading-tight truncate">{val ?? "--"}</span>
+            </div>
+          ))}
+        </div>
+      </GlassCard>
+
+      {/* Reason / conditions */}
+      {scanner.reason && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/3 border border-white/5">
           <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-          <p className="text-[11px] text-muted-foreground">No valid signal — AI scanning live…</p>
+          <p className="text-[11px] text-muted-foreground">{scanner.reason}</p>
         </div>
       )}
 
-      {/* Symbol cards */}
-      {PAIRS.map((pair, i) => {
-        const data = scanResults[pair]?.[selectedTf];
-        const score = data?.total ?? 0;
-        const { label, color, border, bg } = getScoreStyle(score, data?.isValid);
-        const stratColor = data?.strategy ? STRATEGY_COLORS[data.strategy] || "text-white/40" : "text-white/40";
-
-        return (
-          <motion.div key={pair} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.02 }}>
-            <GlassCard className={`border ${border} ${bg}`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${data?.isValid ? "bg-green-500/15 border border-green-500/30" : "bg-white/5"}`}>
-                    <span className={`font-heading text-xs font-black ${data?.isValid ? "text-green-400" : "text-muted-foreground/50"}`}>{pair.slice(0,3)}</span>
-                  </div>
-                  <div>
-                    <p className="font-heading font-black text-white text-sm">{pair}</p>
-                    <p className={`text-[10px] font-bold ${color}`}>{label}</p>
-                    {data?.strategy && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Brain className={`w-2.5 h-2.5 ${stratColor}`} />
-                        <p className={`text-[9px] font-heading font-bold ${stratColor}`}>{data.strategy}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {data?.isValid && <SignalBadge direction={data.direction} />}
-                  <div className="text-right">
-                    <p className={`font-heading font-black text-lg leading-none ${data?.isValid ? "text-green-400" : "text-white/30"}`}>{score}</p>
-                    <p className="text-[9px] text-muted-foreground">/ 100</p>
-                  </div>
-                </div>
+      {conditions.length > 0 && (
+        <GlassCard>
+          <p className="text-[9px] uppercase tracking-widest text-white/25 font-heading mb-2">Live Conditions</p>
+          <div className="space-y-1">
+            {conditions.map((c, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                {c.ok ? <CheckCircle className="w-3 h-3 text-green-400 shrink-0" /> : <XCircle className="w-3 h-3 text-red-400/70 shrink-0" />}
+                <span className={`text-[10px] font-heading ${c.ok ? "text-white/60" : "text-red-300/80"}`}>{c.label}</span>
               </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
 
-              {data && (
-                <div className="grid grid-cols-4 gap-1.5 mb-2">
-                  <ScoreBar label="TREND" val={data.trend_score}  max={20} />
-                  <ScoreBar label="ADX"   val={data.adx_score}    max={15} ok={data.adxOk} />
-                  <ScoreBar label="RSI"   val={data.rsi_score}    max={10} ok={data.rsiOk} />
-                  <ScoreBar label="ATR"   val={data.atr_score}    max={10} ok={data.atrOk} />
-                </div>
-              )}
+      {/* Risk panel */}
+      <div className="grid grid-cols-3 divide-x divide-white/5 rounded-xl overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        {[
+          { label: "DAILY TRADES",  value: `${risk.daily_trades ?? 0}` },
+          { label: "DAILY P&L",     value: risk.daily_pnl != null ? `$${risk.daily_pnl.toFixed(2)}` : "--" },
+          { label: "OPEN TRADES",   value: `${risk.open_trades ?? scanner.open_positions_count ?? 0}` },
+        ].map(({ label, value }) => (
+          <div key={label} className="px-3 py-2.5 flex flex-col gap-0.5">
+            <span className="text-[8px] uppercase tracking-widest text-white/25 font-heading">{label}</span>
+            <span className="font-heading font-bold text-xs text-white">{value}</span>
+          </div>
+        ))}
+      </div>
 
-              {data && (
-                <div className="grid grid-cols-4 gap-1 pt-2 border-t border-white/5">
-                  {[
-                    { label: "ADX",    val: data.adx?.toFixed(1),          col: data.adxOk ? "text-white" : "text-amber-400" },
-                    { label: "ATR",    val: data.atrVal,                   col: data.atrOk ? "text-white" : "text-orange-400" },
-                    { label: "RSI",    val: data.rsi?.toFixed(1),          col: data.rsiOk ? "text-white" : "text-amber-400" },
-                    { label: "Spread", val: data.spread,                   col: data.spreadOk ? "text-white" : "text-red-400" },
-                  ].map(({ label: lbl, val, col }) => (
-                    <div key={lbl} className="flex flex-col gap-0.5">
-                      <span className="text-[9px] text-muted-foreground/60 uppercase">{lbl}</span>
-                      <span className={`text-[10px] font-bold ${col} leading-tight truncate`}>{val}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </GlassCard>
-          </motion.div>
-        );
-      })}
+      {!risk.trading_allowed && risk.block_reason && (
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30">
+          <Target className="w-3.5 h-3.5 text-red-400 shrink-0" />
+          <p className="text-[11px] font-heading font-bold text-red-400">{risk.block_reason}</p>
+        </div>
+      )}
     </div>
   );
 }

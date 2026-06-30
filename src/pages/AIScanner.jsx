@@ -9,7 +9,6 @@ import LiveScannerEngine from "@/components/scanner/LiveScannerEngine";
 import AIDashboard from "@/components/analysis/AIDashboard";
 import SessionNewsFilter from "@/components/analysis/SessionNewsFilter";
 import DrawdownProtection from "@/components/analysis/DrawdownProtection";
-import { getBestOpportunity } from "@/lib/marketAnalysis";
 import LiveDebugPanel from "@/components/scanner/LiveDebugPanel";
 import ScannerStatusPanel from "@/components/scanner/ScannerStatusPanel";
 
@@ -38,7 +37,7 @@ function SectionHeader({ icon: Icon, title, subtitle }) {
 
 export default function AIScanner() {
   const [tab, setTab] = useState("dashboard");
-  const [scanData, setScanData] = useState(null);  // { results, best, session, tick, debugLog }
+  const [scanData, setScanData] = useState(null);  // { scanner, debugLog } — real MT5 data
   const [filterState, setFilterState] = useState({ sessionAllowed: true, newsBlocked: false, newsEvent: null, currentSession: "--" });
 
   const handleScanUpdate = useCallback((data) => {
@@ -48,14 +47,6 @@ export default function AIScanner() {
   const handleFilterChange = useCallback((state) => {
     setFilterState(state);
   }, []);
-
-  // Best symbol for active timeframe
-  const bestData = scanData?.results
-    ? (() => {
-        const best = scanData.best;
-        return best ? scanData.results[best.pair]?.["M1"] : null;
-      })()
-    : null;
 
   return (
     <div className="bg-black min-h-screen max-w-md mx-auto">
@@ -84,21 +75,13 @@ export default function AIScanner() {
 
       {/* LiveScannerEngine always runs in background when on scanner/dashboard tabs */}
       <div className={tab === "scanner" ? "px-4 pb-6" : "hidden"}>
-        <LiveScannerEngine
-          onScanUpdate={handleScanUpdate}
-          newsBlocked={filterState.newsBlocked}
-          sessionAllowed={filterState.sessionAllowed}
-        />
+        <LiveScannerEngine onScanUpdate={handleScanUpdate} />
       </div>
 
       {/* Background runner — keeps scan data & debug log fresh on other tabs */}
       {tab !== "scanner" && (
         <div className="hidden">
-          <LiveScannerEngine
-            onScanUpdate={handleScanUpdate}
-            newsBlocked={filterState.newsBlocked}
-            sessionAllowed={filterState.sessionAllowed}
-          />
+          <LiveScannerEngine onScanUpdate={handleScanUpdate} />
         </div>
       )}
 
@@ -110,14 +93,7 @@ export default function AIScanner() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <ScannerStatusPanel />
             <SessionNewsFilter onFilterChange={handleFilterChange} />
-            <AIDashboard
-              data={bestData}
-              bestSymbol={scanData?.best}
-              selectedTf="M1"
-              newsBlocked={filterState.newsBlocked}
-              sessionAllowed={filterState.sessionAllowed}
-              session={filterState.currentSession}
-            />
+            <AIDashboard scanner={scanData?.scanner} />
             <LiveDebugPanel debugLog={scanData?.debugLog ?? []} />
           </motion.div>
         )}
