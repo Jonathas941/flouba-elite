@@ -2,17 +2,16 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Bot, Play, Square, Wifi, WifiOff, Link as LinkIcon } from "lucide-react";
+import { Play, Square, Bell } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
-const STATUS_MAP = {
-  "Running":               { color: "text-green-400",  dot: "bg-green-400" },
-  "Waiting for Confirmation": { color: "text-amber-400",  dot: "bg-amber-400" },
-  "Scanning Market":       { color: "text-sky-400",    dot: "bg-sky-400"   },
-  "Entering Trade":        { color: "text-yellow-400", dot: "bg-yellow-400"},
-  "Managing Position":     { color: "text-purple-400", dot: "bg-purple-400"},
-  "Paused":                { color: "text-gray-400",   dot: "bg-gray-400"  },
-  "Locked":                { color: "text-red-400",    dot: "bg-red-400"   },
+const PAIR_META = {
+  XAUUSD: { label: "Gold / US Dollar",    icon: "🥇" },
+  EURUSD: { label: "Euro / US Dollar",    icon: "💶" },
+  GBPUSD: { label: "Pound / US Dollar",   icon: "💷" },
+  USDJPY: { label: "US Dollar / Yen",     icon: "💴" },
+  NAS100: { label: "Nasdaq 100 Index",    icon: "📈" },
+  US30:   { label: "Dow Jones Index",     icon: "🏦" },
 };
 
 export default function Home() {
@@ -35,6 +34,7 @@ export default function Home() {
   };
 
   const handleStart = async () => {
+    if (!connected) { navigate("/connect-mt5"); return; }
     await patch({ robot_status: "Scanning Market" });
     toast({ title: "Robot started", description: "Scanning market…" });
     setTimeout(() => patch({ robot_status: "Running" }), 2000);
@@ -47,7 +47,7 @@ export default function Home() {
 
   if (!settings) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="w-8 h-8 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
       </div>
     );
@@ -56,193 +56,223 @@ export default function Home() {
   const connected = settings.connection_status === "Connected";
   const status = settings.robot_status || "Paused";
   const running = status === "Running";
-  const active = connected && (running || status === "Scanning Market" || status === "Entering Trade" || status === "Managing Position");
-  const cfg = STATUS_MAP[status] || STATUS_MAP["Paused"];
+  const active = connected && ["Running", "Scanning Market", "Entering Trade", "Managing Position"].includes(status);
 
   const fmt = (val, decimals = 2) =>
-    connected && val != null ? `$${Number(val).toFixed(decimals)}` : "--";
+    connected && val != null ? `$${Number(val).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}` : "--";
+
+  const fmtProfit = (val) => {
+    if (!connected || val == null) return "--";
+    const n = Number(val);
+    return (n >= 0 ? "+" : "") + `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const pair = settings.active_pair || "XAUUSD";
+  const pairMeta = PAIR_META[pair] || { label: pair, icon: "📊" };
+
+  const statusLabel = active
+    ? status === "Running" ? "ROBOT IS RUNNING" : status.toUpperCase()
+    : connected ? "ROBOT IS PAUSED" : "NOT CONNECTED";
+
+  const statusDesc = active
+    ? "AI system is analyzing the market..."
+    : connected ? "Press START to activate the robot." : "Connect your MT5 account to begin.";
+
+  const statusColor = active ? "text-green-400" : connected ? "text-amber-400" : "text-red-400";
+  const statusDot   = active ? "bg-green-400"  : connected ? "bg-amber-400"  : "bg-red-400";
 
   return (
-    <div className="min-h-screen flex flex-col px-5 pt-8 pb-28 max-w-md mx-auto">
+    <div className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden">
 
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-heading text-xl font-black text-white leading-none tracking-widest">
-            FLOUBA <span className="text-red-500">ELITE</span>
-          </h1>
-          <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mt-0.5">AI Trading Engine</p>
+      {/* ── HERO SECTION ── */}
+      <div className="relative w-full" style={{ minHeight: 380 }}>
+        {/* Robot bg image */}
+        <img
+          src="https://media.base44.com/images/public/6a437ad84dc8721fedd64296/586a57cc0_generated_image.png"
+          alt="Flouba AI Robot"
+          className="absolute inset-0 w-full h-full object-cover object-top"
+          style={{ opacity: 0.88 }}
+        />
+        {/* Dark gradient overlay bottom */}
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.85) 80%, #000 100%)"
+        }} />
+        {/* Red ambient top */}
+        <div className="absolute top-0 left-0 right-0 h-40 pointer-events-none" style={{
+          background: "radial-gradient(ellipse at 50% 0%, rgba(180,0,0,0.35), transparent 70%)"
+        }} />
+
+        {/* Status bar row */}
+        <div className="relative z-10 flex items-center justify-between px-4 pt-4">
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-heading font-bold uppercase tracking-widest ${connected ? "bg-black/60 text-green-400 border border-green-500/40" : "bg-black/60 text-red-400 border border-red-500/40"}`}>
+            <motion.div
+              className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-red-400"}`}
+              animate={connected ? { scale: [1, 1.6, 1], opacity: [1, 0.4, 1] } : {}}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+            {connected ? "CONNECTED" : "NOT CONNECTED"}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {connected && (
+              <span className="text-[11px] font-heading font-bold text-white/80 bg-black/50 px-2 py-1 rounded-lg border border-white/10">
+                MT5 LIVE ▾
+              </span>
+            )}
+            <button
+              onClick={() => !connected && navigate("/connect-mt5")}
+              className="w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center"
+            >
+              <Bell className="w-4 h-4 text-white/60" />
+            </button>
+          </div>
         </div>
 
-        {/* Connection Badge */}
-        <button
-          onClick={() => !connected && navigate("/connect-mt5")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-heading font-bold uppercase tracking-widest transition-colors ${
-            connected
-              ? "bg-green-500/10 border border-green-500/30 text-green-400"
-              : "bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
-          }`}
-        >
-          {connected
-            ? <><Wifi className="w-3 h-3" /> Connected</>
-            : <><WifiOff className="w-3 h-3" /> Not Connected</>
-          }
-        </button>
-      </motion.div>
-
-      {/* Robot Visual */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1 }}
-        className="flex flex-col items-center mb-8"
-      >
-        {/* Outer rings */}
-        <div className="relative flex items-center justify-center" style={{ width: 220, height: 220 }}>
-          <motion.div
-            className="absolute w-52 h-52 rounded-full border border-dashed border-red-500/15"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 35, repeat: Infinity, ease: "linear" }}
-          />
-          {[0, 90, 180, 270].map((deg) => (
-            <motion.div
-              key={deg}
-              className="absolute w-52 h-52"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 35, repeat: Infinity, ease: "linear" }}
-            >
-              <div
-                className="absolute w-2 h-2 bg-red-500 rounded-full"
-                style={{
-                  top: "50%", left: "50%",
-                  transform: `rotate(${deg}deg) translate(104px) translate(-50%, -50%)`,
-                  boxShadow: "0 0 8px rgba(239,68,68,0.8)",
-                }}
-              />
-            </motion.div>
-          ))}
-          <motion.div
-            className="absolute w-36 h-36 rounded-full border border-red-500/20"
-            animate={{ rotate: -360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          />
-          {active && (
-            <motion.div
-              className="absolute w-32 h-32 rounded-3xl border border-red-500/30"
-              animate={{ scale: [1, 1.12, 1], opacity: [0.4, 0.1, 0.4] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-          )}
-          {/* Core bot */}
-          <motion.div
-            className={`relative w-28 h-28 rounded-3xl flex items-center justify-center border-2 ${active ? "border-red-500/60" : "border-white/10"}`}
+        {/* Brand name over robot */}
+        <div className="relative z-10 flex flex-col items-center justify-end pb-5" style={{ marginTop: 240 }}>
+          <h1
+            className="font-heading font-black text-white text-center leading-none"
             style={{
-              background: "linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
-              backdropFilter: "blur(16px)",
-              boxShadow: active ? "0 0 40px rgba(239,68,68,0.3), inset 0 1px 0 rgba(255,255,255,0.08)" : "inset 0 1px 0 rgba(255,255,255,0.06)",
+              fontSize: 38,
+              letterSpacing: "0.08em",
+              textShadow: "0 0 30px rgba(220,0,0,0.9), 0 2px 20px rgba(0,0,0,0.8)",
             }}
           >
-            <Bot className="w-14 h-14 text-red-500" strokeWidth={1.2} />
-            {active && (
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                {[0, 0.15, 0.3].map((d) => (
-                  <motion.div
-                    key={d}
-                    className="w-1 bg-red-500 rounded-full"
-                    animate={{ height: ["4px", "10px", "4px"] }}
-                    transition={{ duration: 0.7, repeat: Infinity, delay: d }}
-                  />
-                ))}
-              </div>
-            )}
-          </motion.div>
+            FLOUBA ELITE
+          </h1>
+          <p
+            className="font-heading font-bold tracking-[0.35em] text-white/90 mt-1"
+            style={{ fontSize: 11, textShadow: "0 0 10px rgba(220,0,0,0.6)" }}
+          >
+            AI TRADING ROBOT
+          </p>
         </div>
+      </div>
 
-        {/* Label + Status */}
-        <p className="font-heading text-base font-black text-white tracking-[0.2em] mt-2">Flouba AI Engine</p>
-        <div className="flex items-center gap-2 mt-2">
-          <motion.div
-            className={`w-2 h-2 rounded-full ${connected ? cfg.dot : "bg-gray-500"}`}
-            animate={active ? { scale: [1, 1.5, 1], opacity: [1, 0.3, 1] } : {}}
-            transition={{ duration: 1.2, repeat: Infinity }}
-          />
-          <span className={`font-heading text-xs uppercase tracking-[0.18em] ${connected ? cfg.color : "text-muted-foreground"}`}>
-            {connected ? status : "Waiting for MT5 Connection"}
-          </span>
-        </div>
-      </motion.div>
+      {/* ── CONTROLS ── */}
+      <div className="relative z-10 px-4 -mt-2 space-y-3 bg-black pt-4">
 
-      {/* START / STOP Buttons */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 gap-3 mb-6"
-      >
+        {/* START ROBOT */}
         <motion.button
           onClick={handleStart}
-          disabled={!connected || running}
-          whileTap={connected && !running ? { scale: 0.96 } : {}}
-          className="h-14 rounded-2xl bg-green-600 hover:bg-green-500 disabled:opacity-25 disabled:cursor-not-allowed font-heading tracking-widest text-sm text-white flex items-center justify-center gap-2 transition-colors"
-          style={connected && !running ? { boxShadow: "0 0 20px rgba(74,222,128,0.35)" } : {}}
+          disabled={connected && running}
+          whileTap={{ scale: 0.97 }}
+          className="w-full h-14 rounded-2xl flex items-center justify-between px-5 font-heading font-black tracking-[0.2em] text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          style={{
+            background: running ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.95)",
+            color: running ? "#4ade80" : "#16a34a",
+            border: running ? "1px solid rgba(74,222,128,0.3)" : "none",
+            boxShadow: running ? "none" : "0 4px 30px rgba(255,255,255,0.15)",
+          }}
         >
-          <Play className="w-4 h-4 fill-current" />
-          START
+          <span>START ROBOT</span>
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${running ? "bg-green-500/20 border border-green-500/40" : "bg-green-600"}`}>
+            <Play className={`w-4 h-4 fill-current ${running ? "text-green-400" : "text-white"}`} />
+          </div>
         </motion.button>
+
+        {/* STOP ROBOT */}
         <motion.button
           onClick={handleStop}
           disabled={!connected || !running}
-          whileTap={connected && running ? { scale: 0.96 } : {}}
-          className="h-14 rounded-2xl border border-red-500/40 bg-red-600/10 hover:bg-red-600/25 disabled:opacity-25 disabled:cursor-not-allowed font-heading tracking-widest text-sm text-red-400 flex items-center justify-center gap-2 transition-colors"
-          style={running ? { boxShadow: "0 0 20px rgba(239,68,68,0.3)" } : {}}
+          whileTap={{ scale: 0.97 }}
+          className="w-full h-14 rounded-2xl flex items-center justify-between px-5 font-heading font-black tracking-[0.2em] text-sm text-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          style={{
+            background: "transparent",
+            border: "1.5px solid rgba(239,68,68,0.6)",
+            boxShadow: running ? "0 0 20px rgba(239,68,68,0.15)" : "none",
+          }}
         >
-          <Square className="w-4 h-4 fill-current" />
-          STOP
-        </motion.button>
-      </motion.div>
-
-      {/* Connect MT5 Button (when disconnected) */}
-      {!connected && (
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.25 }}
-          onClick={() => navigate("/connect-mt5")}
-          className="w-full h-12 rounded-2xl border border-red-500/30 bg-red-600/8 hover:bg-red-600/15 font-heading tracking-widest text-xs text-red-400 flex items-center justify-center gap-2 transition-colors mb-6"
-        >
-          <LinkIcon className="w-4 h-4" />
-          Connect MT5 Account
-        </motion.button>
-      )}
-
-      {/* Balance / Equity / Profit */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="grid grid-cols-3 gap-3"
-      >
-        {[
-          { label: "Balance",       value: fmt(settings.balance) },
-          { label: "Equity",        value: fmt(settings.equity) },
-          { label: "Today's Profit", value: fmt(settings.profit_today) },
-        ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="rounded-2xl p-3 text-center"
-            style={{
-              background: "linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))",
-              border: "1px solid rgba(255,80,80,0.1)",
-            }}
-          >
-            <p className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
-            <p className={`font-heading text-sm font-bold ${value === "--" ? "text-muted-foreground/40" : "text-white"}`}>
-              {value}
-            </p>
+          <span>STOP ROBOT</span>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center border border-red-500/40 bg-red-500/10">
+            <Square className="w-4 h-4 fill-current text-red-500" />
           </div>
-        ))}
-      </motion.div>
+        </motion.button>
 
+        {/* Connect button if not connected */}
+        {!connected && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => navigate("/connect-mt5")}
+            className="w-full h-11 rounded-2xl border border-red-500/30 font-heading text-xs tracking-widest text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            CONNECT MT5 ACCOUNT
+          </motion.button>
+        )}
+
+        {/* ── ACCOUNT OVERVIEW ── */}
+        <div className="pt-2">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Account Overview</p>
+          <div
+            className="rounded-2xl grid grid-cols-3 divide-x divide-white/5 overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            {[
+              { label: "BALANCE",       value: fmt(settings.balance) },
+              { label: "EQUITY",        value: fmt(settings.equity) },
+              { label: "PROFIT TODAY",  value: fmtProfit(settings.profit_today), profit: true },
+            ].map(({ label, value, profit }) => (
+              <div key={label} className="py-3 px-3 flex flex-col gap-0.5">
+                <span className="text-[9px] uppercase tracking-widest text-white/35">{label}</span>
+                <span className={`font-heading font-bold text-sm ${
+                  value === "--" ? "text-white/25" :
+                  profit ? (value.startsWith("+") ? "text-green-400" : "text-red-400") : "text-white"
+                }`}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── ACTIVE PAIR ── */}
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Active Pair</p>
+          <div
+            className="rounded-2xl flex items-center justify-between px-4 py-3"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-lg">
+                {pairMeta.icon}
+              </div>
+              <div>
+                <p className="font-heading font-bold text-white text-sm">{pair}</p>
+                <p className="text-[10px] text-white/40">{pairMeta.label}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] uppercase tracking-widest text-white/30">CHANGE</p>
+              <p className={`font-heading font-bold text-sm ${connected ? "text-green-400" : "text-white/25"}`}>
+                {connected ? "+0.45%" : "--"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── ROBOT STATUS ── */}
+        <div className="pb-4">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Robot Status</p>
+          <div
+            className="rounded-2xl flex items-center gap-3 px-4 py-3"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${active ? "bg-green-500/15 border border-green-500/30" : "bg-white/5 border border-white/10"}`}>
+              <motion.div
+                className={`w-2.5 h-2.5 rounded-full ${statusDot}`}
+                animate={active ? { scale: [1, 1.5, 1], opacity: [1, 0.3, 1] } : {}}
+                transition={{ duration: 1.2, repeat: Infinity }}
+              />
+            </div>
+            <div>
+              <p className={`font-heading font-bold text-sm tracking-wider ${statusColor}`}>{statusLabel}</p>
+              <p className="text-[10px] text-white/35 mt-0.5">{statusDesc}</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
