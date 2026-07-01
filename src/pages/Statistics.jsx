@@ -55,6 +55,7 @@ export default function Statistics() {
   const [stats, setStats] = useState({});
   const { toast } = useToast();
   const tickRef = useRef(null);
+  const drawdownAlertedRef = useRef(false);
 
   const load = useCallback(async () => {
     // Load account + live positions from real MT5 API
@@ -123,6 +124,25 @@ export default function Statistics() {
       })();
     }
   }, [settings]);
+
+  // Daily Drawdown Alert: notify immediately if today's loss exceeds the configured max daily drawdown %
+  useEffect(() => {
+    if (!settings || settings.connection_status !== "Connected") return;
+    if (!settings.max_daily_drawdown || !settings.balance) return;
+    const drawdownPct = (Math.abs(stats.today_loss || 0) / settings.balance) * 100;
+    if (drawdownPct >= settings.max_daily_drawdown) {
+      if (!drawdownAlertedRef.current) {
+        drawdownAlertedRef.current = true;
+        toast({
+          title: "🚨 Daily Drawdown Limit Exceeded",
+          description: `Drawdown reached ${drawdownPct.toFixed(1)}% (limit ${settings.max_daily_drawdown}%)`,
+          variant: "destructive",
+        });
+      }
+    } else {
+      drawdownAlertedRef.current = false;
+    }
+  }, [stats, settings]);
 
   // Auto-manage: Break Even + Trailing Stop + Auto Close
   useEffect(() => {
