@@ -38,17 +38,17 @@ const DEFAULT = {
   stop_after_losses: 2,
   daily_profit_target: 100,
   daily_loss_limit: 50,
-  // HFT Scalper specific
-  hft_max_trades: 10,
-  hft_burst_points: 15,
-  hft_basket_tp_pts: 150,
-  hft_stop_loss_pts: 300,
+  // HFT Scalper specific — tuned for frequent small in/out positions, not trend-riding
+  hft_max_trades: 15,
+  hft_burst_points: 8,
+  hft_basket_tp_pts: 60,
+  hft_stop_loss_pts: 150,
   hft_use_break_even: true,
-  hft_be_trigger: 50,
-  hft_be_lock: 5,
-  hft_trailing_dist: 50,
-  hft_max_spread: 30,
-  hft_ma_period: 50,
+  hft_be_trigger: 20,
+  hft_be_lock: 3,
+  hft_trailing_dist: 15,
+  hft_max_spread: 20,
+  hft_ma_period: 20,
 };
 
 function Field({ label, children }) {
