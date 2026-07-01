@@ -108,6 +108,22 @@ export default function Statistics() {
     return () => clearInterval(tickRef.current);
   }, [load]);
 
+  // Equity Guard: hard-stop — force close all + pause robot if equity falls below % of balance
+  useEffect(() => {
+    if (!settings || settings.connection_status !== "Connected") return;
+    if (!settings.equity_guard_enabled) return;
+    if (!settings.balance || !settings.equity) return;
+    const equityPct = (settings.equity / settings.balance) * 100;
+    if (equityPct < (settings.equity_guard_min_equity_pct ?? 50) && settings.robot_status !== "Paused") {
+      (async () => {
+        await mt5Api.closeAll().catch(() => {});
+        await base44.entities.BotSettings.update(settings.id, { robot_status: "Paused" });
+        setSettings((p) => ({ ...p, robot_status: "Paused" }));
+        toast({ title: "🛑 Equity Guard Triggered", description: "Equity fell below threshold — all trades closed and robot paused.", variant: "destructive" });
+      })();
+    }
+  }, [settings]);
+
   // Auto-manage: Break Even + Trailing Stop + Auto Close
   useEffect(() => {
     if (!settings || settings.connection_status !== "Connected") return;

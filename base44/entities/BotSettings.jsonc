@@ -97,6 +97,26 @@
       "type": "boolean",
       "default": true
     },
+    "grid_distance_pips": {
+      "type": "number",
+      "default": 10,
+      "description": "Distance in pips between grid levels for the Grid Trading strategy."
+    },
+    "grid_max_levels": {
+      "type": "number",
+      "default": 5,
+      "description": "Maximum number of grid levels (stacked positions) the Grid Trading strategy may open."
+    },
+    "equity_guard_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Hard-stop protection: closes all positions and pauses the robot if equity falls below the configured % of balance."
+    },
+    "equity_guard_min_equity_pct": {
+      "type": "number",
+      "default": 50,
+      "description": "Minimum equity as a percentage of balance before the Equity Guard force-closes all trades and pauses the robot."
+    },
     "robot_status": {
       "type": "string",
       "enum": [

@@ -10,6 +10,7 @@ const STRATEGIES = [
   "Volatility Spike",
   "Hybrid Manual",
   "HFT Scalper",
+  "Grid Trading",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -50,6 +51,12 @@ const DEFAULT = {
   hft_trailing_dist: 15,
   hft_max_spread: 20,
   hft_ma_period: 20,
+  // Grid Trading specific — buy/sell levels stacked at fixed distance from price
+  grid_distance_pips: 10,
+  grid_max_levels: 5,
+  // Equity Guard — hard-stop that force-closes all trades if equity falls too low
+  equity_guard_enabled: true,
+  equity_guard_min_equity_pct: 50,
 };
 
 function Field({ label, children }) {
@@ -133,6 +140,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         stop_after_losses: s.stop_after_losses ?? prev.stop_after_losses,
         daily_profit_target: s.daily_profit_target ?? prev.daily_profit_target,
         daily_loss_limit: s.daily_loss_limit ?? prev.daily_loss_limit,
+        grid_distance_pips: s.grid_distance_pips ?? prev.grid_distance_pips,
+        grid_max_levels: s.grid_max_levels ?? prev.grid_max_levels,
+        equity_guard_enabled: s.equity_guard_enabled ?? prev.equity_guard_enabled,
+        equity_guard_min_equity_pct: s.equity_guard_min_equity_pct ?? prev.equity_guard_min_equity_pct,
       }));
     }).catch(() => {});
   }, [open]);
@@ -143,6 +154,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const setTradingMode = (mode) => setForm((f) => ({ ...f, trading_mode: mode, ...MODE_PRESETS[mode] }));
 
   const isHFT = form.strategy === "HFT Scalper";
+  const isGrid = form.strategy === "Grid Trading";
 
   const handleStart = async () => {
     setLoading(true);
@@ -163,6 +175,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         stop_after_losses: form.stop_after_losses,
         daily_profit_target: form.daily_profit_target,
         daily_loss_limit: form.daily_loss_limit,
+        grid_distance_pips: form.grid_distance_pips,
+        grid_max_levels: form.grid_max_levels,
+        equity_guard_enabled: form.equity_guard_enabled,
+        equity_guard_min_equity_pct: form.equity_guard_min_equity_pct,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -276,6 +292,43 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   </Field>
                 </div>
               </div>
+
+              {/* Equity Guard — hard-stop protection, always visible */}
+              <div className="rounded-2xl border border-red-500/25 bg-red-500/5 px-4 py-4 space-y-2.5">
+                <p className="text-[9px] uppercase tracking-[0.25em] text-red-400 font-heading font-bold">🛑 Equity Guard (Hard-Stop)</p>
+                <Field label="Enable Equity Guard">
+                  <Toggle value={form.equity_guard_enabled} onChange={set("equity_guard_enabled")} />
+                </Field>
+                {form.equity_guard_enabled && (
+                  <Field label="Min Equity (% of Balance)">
+                    <NumberInput value={form.equity_guard_min_equity_pct} onChange={set("equity_guard_min_equity_pct")} min={1} max={99} />
+                  </Field>
+                )}
+                <p className="text-[9px] text-white/25 leading-relaxed">Force-closes all trades and pauses the robot if equity drops below this % of balance.</p>
+              </div>
+
+              {/* Grid Trading Settings — only shown when that strategy is selected */}
+              <AnimatePresence>
+                {isGrid && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded-2xl border border-sky-500/25 bg-sky-500/5 px-4 py-4 space-y-2.5">
+                      <p className="text-[9px] uppercase tracking-[0.25em] text-sky-400 font-heading font-bold">▦ Grid Trading Settings</p>
+                      <Field label="Grid Distance (pips)">
+                        <NumberInput value={form.grid_distance_pips} onChange={set("grid_distance_pips")} min={1} />
+                      </Field>
+                      <Field label="Max Grid Levels">
+                        <NumberInput value={form.grid_max_levels} onChange={set("grid_max_levels")} min={1} />
+                      </Field>
+                      <p className="text-[9px] text-white/25 leading-relaxed">Opens Buy/Sell orders at fixed distances from price and stacks further positions as each level is hit. Equity Guard is strongly recommended with this strategy.</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* HFT Scalper Settings — only shown when that strategy is selected */}
               <AnimatePresence>
