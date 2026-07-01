@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Play } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import RiskDisclaimer from "@/components/RiskDisclaimer";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -353,6 +354,8 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <RiskDisclaimer />
 
               {error && (
                 <div className="px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/10">
