@@ -14,12 +14,20 @@ const STRATEGIES = [
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
 const MODES = ["Conservative", "Balanced", "Aggressive"];
 
+// Aggressive = more concurrent trades + bigger lots. Conservative = fewer trades + smaller lots.
+const MODE_PRESETS = {
+  Conservative: { max_concurrent_trades: 1, lot_size: 0.01 },
+  Balanced:     { max_concurrent_trades: 2, lot_size: 0.02 },
+  Aggressive:   { max_concurrent_trades: 5, lot_size: 0.05 },
+};
+
 const DEFAULT = {
   symbol: "XAUUSD",
   strategy: "Auto (AI Select)",
   trading_mode: "Balanced",
   // Lot & Risk
-  lot_size: 0.01,
+  lot_size: 0.02,
+  max_concurrent_trades: 2,
   risk_percentage: 1,
   lot_multiplier: 1,        // multiply lot on consecutive entries
   // SL / TP
@@ -116,6 +124,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         symbol: s.active_pair ?? prev.symbol,
         trading_mode: s.trading_mode ?? prev.trading_mode,
         lot_size: s.lot_size ?? prev.lot_size,
+        max_concurrent_trades: s.max_concurrent_trades ?? prev.max_concurrent_trades,
         risk_percentage: s.risk_percentage ?? prev.risk_percentage,
         stop_loss: s.stop_loss ?? prev.stop_loss,
         take_profit: s.take_profit ?? prev.take_profit,
@@ -128,6 +137,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   }, [open]);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+
+  // Aggressive/Conservative mode auto-scales lot size and max concurrent trades
+  const setTradingMode = (mode) => setForm((f) => ({ ...f, trading_mode: mode, ...MODE_PRESETS[mode] }));
 
   const isHFT = form.strategy === "HFT Scalper";
 
@@ -142,6 +154,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         active_pair: form.symbol,
         trading_mode: form.trading_mode,
         lot_size: form.lot_size,
+        max_concurrent_trades: form.max_concurrent_trades,
         risk_percentage: form.risk_percentage,
         stop_loss: form.stop_loss,
         take_profit: form.take_profit,
@@ -207,7 +220,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     <SelectInput value={form.strategy} onChange={set("strategy")} options={STRATEGIES} />
                   </Field>
                   <Field label="Trading Mode">
-                    <SelectInput value={form.trading_mode} onChange={set("trading_mode")} options={MODES} />
+                    <SelectInput value={form.trading_mode} onChange={setTradingMode} options={MODES} />
                   </Field>
                 </div>
               </div>
@@ -218,6 +231,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 <div className="space-y-2.5">
                   <Field label="Lot Size">
                     <NumberInput value={form.lot_size} onChange={set("lot_size")} min={0.01} step={0.01} />
+                  </Field>
+                  <Field label="Max Concurrent Trades">
+                    <NumberInput value={form.max_concurrent_trades} onChange={set("max_concurrent_trades")} min={1} />
                   </Field>
                   <Field label="Risk %">
                     <NumberInput value={form.risk_percentage} onChange={set("risk_percentage")} min={0.1} step={0.1} />

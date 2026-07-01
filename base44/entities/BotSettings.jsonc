@@ -23,6 +23,11 @@
       "type": "number",
       "default": 0.01
     },
+    "max_concurrent_trades": {
+      "type": "number",
+      "default": 2,
+      "description": "Max number of trades the robot may hold open at once. Scales with trading_mode (Conservative=1, Balanced=2, Aggressive=5)."
+    },
     "risk_percentage": {
       "type": "number",
       "default": 1
