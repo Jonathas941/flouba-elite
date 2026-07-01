@@ -45,7 +45,6 @@ export default function ConnectMT5() {
       const list = await base44.entities.BotSettings.list();
       if (list[0]) {
         setSettingsId(list[0].id);
-        if (list[0].connection_status === "Connected") setStatus("success");
         if (list[0].broker_name) setBroker(list[0].broker_name);
         if (list[0].mt5_account) setLogin(list[0].mt5_account);
         if (list[0].mt5_server)  setServer(list[0].mt5_server);
