@@ -12,6 +12,7 @@ import DrawdownProtection from "@/components/analysis/DrawdownProtection";
 import LiveDebugPanel from "@/components/scanner/LiveDebugPanel";
 import ScannerStatusPanel from "@/components/scanner/ScannerStatusPanel";
 import TradeChecklist from "@/components/scanner/TradeChecklist";
+import SystemHealthCheck from "@/components/health/SystemHealthCheck";
 
 const TABS = [
   { id: "dashboard", label: "AI Dashboard", icon: Brain },
@@ -20,6 +21,7 @@ const TABS = [
   { id: "structure", label: "Structure",    icon: Activity },
   { id: "patterns",  label: "Patterns",     icon: Layers },
   { id: "protect",   label: "Protection",   icon: Shield },
+  { id: "health",    label: "Health",       icon: Gauge },
 ];
 
 function SectionHeader({ icon: Icon, title, subtitle }) {
@@ -285,6 +287,14 @@ export default function AIScanner() {
                 </div>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {/* HEALTH */}
+        {tab === "health" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <SectionHeader icon={Gauge} title="System Health Check" subtitle="Connection, account, scanner & risk diagnostics" />
+            <SystemHealthCheck />
           </motion.div>
         )}
       </div>
