@@ -11,6 +11,7 @@ import SessionNewsFilter from "@/components/analysis/SessionNewsFilter";
 import DrawdownProtection from "@/components/analysis/DrawdownProtection";
 import LiveDebugPanel from "@/components/scanner/LiveDebugPanel";
 import ScannerStatusPanel from "@/components/scanner/ScannerStatusPanel";
+import TradeChecklist from "@/components/scanner/TradeChecklist";
 
 const TABS = [
   { id: "dashboard", label: "AI Dashboard", icon: Brain },
@@ -94,6 +95,7 @@ export default function AIScanner() {
             <ScannerStatusPanel />
             <SessionNewsFilter onFilterChange={handleFilterChange} />
             <AIDashboard scanner={scanData?.scanner} />
+            <TradeChecklist scanner={scanData?.scanner} />
             <LiveDebugPanel debugLog={scanData?.debugLog ?? []} />
           </motion.div>
         )}
