@@ -4,7 +4,12 @@ const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.rike
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    // Read body FIRST — the SDK may consume the body stream during auth
+    const bodyText = await req.text().catch(() => "{}");
+
+    // Create a new bodyless request from headers only so SDK can auth without touching body
+    const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
+    const base44 = createClientFromRequest(headersReq);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -16,24 +21,23 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    const body = await req.json().catch(() => ({}));
+    let body = {};
+    try { body = JSON.parse(bodyText); } catch { body = {}; }
     const { action, ...params } = body;
 
-    // Map of action → [method, path]
-    // Paths discovered from live API probing — extend as backend adds endpoints
     const ROUTES = {
-      status:       ["GET",  "/status"],
-      account:      ["GET",  "/account"],
-      positions:    ["GET",  "/positions"],
-      robot_status: ["GET",  "/robot/status"],
-      robot_start:  ["POST", "/robot/start"],
-      robot_stop:   ["POST", "/robot/stop"],
-      buy:          ["POST", "/trade/buy"],
-      sell:         ["POST", "/trade/sell"],
-      close:        ["POST", "/trade/close"],
-      close_all:    ["POST", "/trade/close_all"],
-      history:      ["GET",  "/history"],
-      scanner_status: ["GET", "/scanner/status"],
+      status:         ["GET",  "/status"],
+      account:        ["GET",  "/account"],
+      positions:      ["GET",  "/positions"],
+      robot_status:   ["GET",  "/robot/status"],
+      robot_start:    ["POST", "/robot/start"],
+      robot_stop:     ["POST", "/robot/stop"],
+      buy:            ["POST", "/trade/buy"],
+      sell:           ["POST", "/trade/sell"],
+      close:          ["POST", "/trade/close"],
+      close_all:      ["POST", "/trade/close_all"],
+      history:        ["GET",  "/history"],
+      scanner_status: ["GET",  "/scanner/status"],
     };
 
     const route = ROUTES[action];
@@ -41,7 +45,6 @@ Deno.serve(async (req) => {
 
     const [method, path] = route;
 
-    // For GET requests, append params as query string
     let url = `${BASE}${path}`;
     if (method === "GET" && Object.keys(params).length > 0) {
       const qs = new URLSearchParams(
@@ -57,10 +60,10 @@ Deno.serve(async (req) => {
     };
 
     const res = await fetch(url, fetchOpts);
+    const rawText = await res.text();
     let data;
-    try { data = await res.json(); } catch { data = { raw: await res.text() }; }
+    try { data = JSON.parse(rawText); } catch { data = { raw: rawText }; }
 
-    // Surface 400/401/422 errors with a clear message
     if (!res.ok) {
       const errMsg = data?.detail || data?.message || data?.error || `HTTP ${res.status}`;
       return Response.json({ ok: false, status: res.status, data, error: errMsg }, { status: 200 });

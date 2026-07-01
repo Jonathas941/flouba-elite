@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import MobileHeader from "@/components/MobileHeader";
 import MobileSelect from "@/components/MobileSelect";
+import { mt5Api } from "@/lib/mt5Api";
 import {
   Wifi, WifiOff, ShieldCheck, Eye, EyeOff,
-  Loader2, CheckCircle2, ArrowRight, Bot,
+  Loader2, CheckCircle2, ArrowRight, Bot, AlertCircle,
 } from "lucide-react";
 
 const BROKERS = [
@@ -36,6 +37,7 @@ export default function ConnectMT5() {
   const [showPass, setShowPass]               = useState(false);
   const [saveCredentials, setSaveCredentials] = useState(true);
   const [status, setStatus]                   = useState("idle");
+  const [errorMsg, setErrorMsg]               = useState("");
   const [settingsId, setSettingsId]           = useState(null);
 
   useEffect(() => {
@@ -66,18 +68,35 @@ export default function ConnectMT5() {
   const handleTest = async () => {
     if (!isFormValid) return;
     setStatus("testing");
-    await new Promise((r) => setTimeout(r, 1500));
-    setStatus("idle");
-    toast({ title: "Test complete", description: "Fill in the correct server address and credentials to connect." });
+    setErrorMsg("");
+    const res = await mt5Api.status();
+    if (res?.ok && res?.data) {
+      setStatus("idle");
+      toast({ title: "Server reachable", description: "Backend is online. Proceed to Connect MT5." });
+    } else {
+      setStatus("error");
+      const msg = res?.error || "Could not reach the MT5 server.";
+      setErrorMsg(msg);
+      toast({ title: "Server unreachable", description: msg, variant: "destructive" });
+    }
   };
 
   const handleConnect = async () => {
     if (!isFormValid) { toast({ title: "Fill in all fields to connect.", variant: "destructive" }); return; }
     setStatus("connecting");
-    await new Promise((r) => setTimeout(r, 2200));
-    setStatus("success");
-    if (saveCredentials) await saveToDb("Connected");
-    toast({ title: "MT5 Connected", description: `${broker} · ${login}` });
+    setErrorMsg("");
+    // Verify the MT5 bridge is alive and the account is responding
+    const res = await mt5Api.account();
+    if (res?.ok && res?.data?.account) {
+      setStatus("success");
+      if (saveCredentials) await saveToDb("Connected");
+      toast({ title: "MT5 Connected", description: `${broker} · ${login}` });
+    } else {
+      setStatus("error");
+      const msg = res?.error || res?.data?.message || res?.data?.detail || "Connection failed. Check your credentials.";
+      setErrorMsg(msg);
+      toast({ title: "Connection Failed", description: msg, variant: "destructive" });
+    }
   };
 
   const st = STATUS[status];
@@ -168,20 +187,20 @@ export default function ConnectMT5() {
 
         {/* ── 4. CONNECTION STATUS ── */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <GlassCard className={`flex items-center gap-3 ${st.bg}`}>
+          <GlassCard className={`flex items-start gap-3 ${st.bg}`}>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${st.bg}`}>
               <st.icon className={`w-5 h-5 ${st.color} ${(status === "testing" || status === "connecting") ? "animate-spin" : ""}`} />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Connection Status</p>
               <p className={`font-heading text-sm font-bold ${st.color}`}>{st.label}</p>
+              {status === "error" && errorMsg && (
+                <p className="text-[11px] text-red-300/80 mt-1 leading-snug">{errorMsg}</p>
+              )}
+              {status === "success" && (
+                <p className="text-[11px] text-green-300/70 mt-0.5">{broker} · {login}</p>
+              )}
             </div>
-            {status === "success" && (
-              <div className="ml-auto text-right">
-                <p className="text-[10px] text-muted-foreground">{broker}</p>
-                <p className="text-xs font-heading font-bold text-white">{login}</p>
-              </div>
-            )}
           </GlassCard>
         </motion.div>
 
