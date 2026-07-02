@@ -52,9 +52,10 @@ export default function Home() {
 
   const load = useCallback(async () => {
     try {
-      const [acctRes, posRes] = await Promise.all([
+      const [acctRes, posRes, robotRes] = await Promise.all([
         mt5Api.account(),
         mt5Api.positions(),
+        mt5Api.robotStatus(),
       ]);
 
       if (acctRes?.ok && acctRes.data?.account) {
@@ -73,6 +74,13 @@ export default function Home() {
         }
       } else {
         setPositions([]);
+      }
+
+      // Reflect the robot's real running state so it survives page navigation
+      if (robotRes?.ok && robotRes.data?.robot) {
+        const r = robotRes.data.robot;
+        setRobotStatus(r.running ? "Scanning Market" : "Paused");
+        if (r.config?.symbol) setActivePair(r.config.symbol);
       }
     } catch (e) {
       setConnected(false);
