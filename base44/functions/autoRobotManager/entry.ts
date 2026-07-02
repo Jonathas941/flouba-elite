@@ -3,17 +3,37 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api";
 const USER_TIMEZONE = "America/Detroit";
 
-function isMarketOpen(config) {
+const SM_TIMEZONE = Deno.env.get("TIMEZONE") || "America/New_York";
+const SM_SESSION_START = Deno.env.get("SESSION_START") || "08:00";
+const SM_SESSION_END = Deno.env.get("SESSION_END") || "12:00";
+
+// DST-aware trading-window check using IANA timezone America/New_York.
+// Existing open positions are still managed by the MT5 robot during blocked
+// periods — this only gates NEW auto-starts.
+function isTradingAllowed() {
   const now = new Date();
-  const utcDay = now.getUTCDay(); // 0=Sun, 6=Sat
-  // Forex market closed on weekends
-  if (utcDay === 6 || utcDay === 0) return false;
-  const utcHour = now.getUTCHours();
-  // Session windows in UTC (standard forex session times)
-  if (config.asian_session && utcHour >= 0 && utcHour < 9) return true;
-  if (config.london_session && utcHour >= 8 && utcHour < 17) return true;
-  if (config.new_york_session && utcHour >= 13 && utcHour < 22) return true;
-  return false;
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: SM_TIMEZONE,
+    weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const parts = fmt.formatToParts(now);
+  const wd = parts.find((p) => p.type === "weekday").value;
+  const hr = parseInt(parts.find((p) => p.type === "hour").value, 10) % 24;
+  const mi = parseInt(parts.find((p) => p.type === "minute").value, 10);
+  const dayMap = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
+  const day = dayMap[wd];
+  const mins = hr * 60 + mi;
+  const [sh, sm] = SM_SESSION_START.split(":").map(Number);
+  const [eh, em] = SM_SESSION_END.split(":").map(Number);
+  const sStart = sh * 60 + sm;
+  const sEnd = eh * 60 + em;
+  // Weekend block: Friday 4:55 PM ET → Sunday 5:10 PM ET
+  if ((day === 5 && mins >= 16 * 60 + 55) || day === 6 || (day === 0 && mins < 17 * 60 + 10)) return false;
+  // Daily rollover block: 4:55 PM – 5:10 PM ET
+  if (mins >= 16 * 60 + 55 && mins < 17 * 60 + 10) return false;
+  // Configured trading window (default 8:00 AM – 12:00 PM ET)
+  if (mins < sStart || mins >= sEnd) return false;
+  return true;
 }
 
 function getLocalMinutes(timezone) {
@@ -132,7 +152,7 @@ Deno.serve(async (req) => {
 
       // === AUTO-START: When a market session is open ===
       if (config.auto_start_enabled && !robotRunning) {
-        const marketOpen = isMarketOpen(config);
+        const marketOpen = isTradingAllowed();
         const profitTarget = config.daily_profit_target ?? 200;
         const lossLimit = config.daily_loss_limit ?? 20;
         // Don't restart if daily limits already hit (prevents loop with auto-stop)

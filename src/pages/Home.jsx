@@ -8,6 +8,7 @@ import { mt5Api } from "@/lib/mt5Api";
 import EAConnectionIndicator from "@/components/EAConnectionIndicator";
 import RobotStartModal from "@/components/RobotStartModal";
 import PositionsTable from "@/components/trade/PositionsTable";
+import MarketSessionStatus from "@/components/MarketSessionStatus";
 
 const PAIR_META = {
   XAUUSD: { label: "Gold / US Dollar",    icon: "🥇" },
@@ -385,6 +386,9 @@ export default function Home() {
             CONNECT MT5 ACCOUNT
           </motion.button>
         )}
+
+        {/* ── MARKET SESSION STATUS ── */}
+        <MarketSessionStatus />
 
         {/* ── ACCOUNT OVERVIEW ── */}
         <div className="pt-2">
