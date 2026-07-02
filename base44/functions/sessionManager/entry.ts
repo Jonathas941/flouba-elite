@@ -201,6 +201,30 @@ function localSessionBlock(et, scannerInd) {
   };
 }
 
+function getNextSession(et) {
+  const now = Date.now();
+  const candidates = [];
+  for (let dayOffset = 0; dayOffset < 4; dayOffset++) {
+    const checkDay = (et.day + dayOffset) % 7;
+    if (checkDay === 6) continue; // Saturday — market closed
+    if (ASIAN_ENABLED && checkDay !== 5) { // Skip Friday Asian (extends into Saturday)
+      const delta = ASIAN_START_MIN - et.mins + dayOffset * 1440;
+      if (delta > 0) candidates.push({ label: "Asian", delta });
+    }
+    if (NY_ENABLED && checkDay !== 0) { // Skip Sunday NY (market opens after NY start)
+      const delta = NY_START_MIN - et.mins + dayOffset * 1440;
+      if (delta > 0) candidates.push({ label: "New York", delta });
+    }
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => a.delta - b.delta);
+  const best = candidates[0];
+  return {
+    label: best.label,
+    next_session_at: new Date(now + best.delta * 60000).toISOString(),
+  };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -256,6 +280,7 @@ Deno.serve(async (req) => {
       : sessionRaw;
 
     const et = getETTime();
+    const nextSession = getNextSession(et);
     let pairStatus = "N/A";
     if (session && s.allowed_pairs?.length) {
       pairStatus = s.allowed_pairs.includes(activePair) ? "Allowed" : "Not in allowed pairs";
@@ -281,6 +306,8 @@ Deno.serve(async (req) => {
       trade_quality_max: 100,
       asian_session_window: s.asian_session_window ?? ASIAN_WINDOW,
       ny_session_window: s.ny_session_window ?? NY_WINDOW,
+      next_session_at: nextSession?.next_session_at ?? null,
+      next_session_label: nextSession?.label ?? null,
       source: s._source ?? "server",
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Globe, Clock, AlertTriangle, CheckCircle2, Activity, Crosshair, Sun, Moon } from "lucide-react";
+import { Globe, Clock, AlertTriangle, CheckCircle2, Activity, Crosshair, Sun, Moon, Timer } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 function QualityBar({ score, max, minRequired }) {
@@ -39,6 +39,24 @@ export default function MarketSessionStatus() {
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Countdown to next session open — ticks every second
+  const [countdown, setCountdown] = useState(null);
+  useEffect(() => {
+    if (!status?.next_session_at) { setCountdown(null); return; }
+    const tick = () => {
+      const target = new Date(status.next_session_at).getTime();
+      const diff = target - Date.now();
+      if (diff <= 0) { setCountdown(null); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown({ h, m, s, label: status.next_session_label });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [status?.next_session_at, status?.next_session_label]);
 
   if (loading || !status) {
     return (
@@ -100,6 +118,32 @@ export default function MarketSessionStatus() {
             {status.allowed ? "ENTRY ALLOWED" : "ENTRY BLOCKED"}
           </p>
         </div>
+
+        {/* Countdown to next market open */}
+        {!status.allowed && countdown && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-xl px-3 py-2.5 flex items-center justify-between"
+            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}
+          >
+            <div className="flex items-center gap-2">
+              <Timer className="w-4 h-4 text-red-400" />
+              <div>
+                <p className="text-[9px] uppercase tracking-wider text-white/40 font-heading">Next Market Open</p>
+                <p className="text-[10px] text-white/60 font-heading">{countdown.label} Session</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-0.5 font-heading font-black text-red-400">
+              <span className="text-lg tabular-nums">{String(countdown.h).padStart(2, "0")}</span>
+              <span className="text-[9px] text-white/30 mx-0.5">h</span>
+              <span className="text-lg tabular-nums">{String(countdown.m).padStart(2, "0")}</span>
+              <span className="text-[9px] text-white/30 mx-0.5">m</span>
+              <span className="text-lg tabular-nums">{String(countdown.s).padStart(2, "0")}</span>
+              <span className="text-[9px] text-white/30 ml-0.5">s</span>
+            </div>
+          </motion.div>
+        )}
 
         {/* ET time + market status */}
         <div className="flex items-center justify-between">

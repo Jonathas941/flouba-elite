@@ -9,6 +9,7 @@ import PositionsTable from "@/components/trade/PositionsTable";
 import TradeHistoryTable from "@/components/trade/TradeHistoryTable";
 import PerformancePanel from "@/components/trade/PerformancePanel";
 import PanicButton from "@/components/trade/PanicButton";
+import PeriodStats from "@/components/trade/PeriodStats";
 import TradingDiagnostics from "@/components/trade/TradingDiagnostics";
 
 const TABS = [
@@ -58,6 +59,9 @@ export default function Statistics() {
   const drawdownAlertedRef = useRef(false);
 
   const load = useCallback(async () => {
+    // Sync closed trades from MT5 → Trade entity so history & stats persist
+    await base44.functions.invoke("syncTradeHistory", {}).catch(() => {});
+
     // Load account + live positions from real MT5 API
     const [acctRes, posRes, settingsList] = await Promise.all([
       mt5Api.account().catch(() => null),
@@ -96,7 +100,7 @@ export default function Statistics() {
     }));
 
     // Closed trades still from local entity for history
-    const closedTrades = await base44.entities.Trade.filter({ status: "Closed" }, "-closed_at", 50).catch(() => []);
+    const closedTrades = await base44.entities.Trade.filter({ status: "Closed" }, "-closed_at", 500).catch(() => []);
     const allTrades = [...normalizedOpen, ...closedTrades];
     setTrades(allTrades);
     setStats(computeStats(allTrades));
@@ -272,14 +276,16 @@ export default function Statistics() {
 
           {/* TRADE HISTORY */}
           {tab === "history" && (
-            <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+              <PeriodStats trades={trades} />
               <TradeHistoryTable />
             </motion.div>
           )}
 
           {/* PERFORMANCE */}
           {tab === "perf" && (
-            <motion.div key="perf" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div key="perf" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+              <PeriodStats trades={trades} />
               <PerformancePanel stats={stats} />
             </motion.div>
           )}
