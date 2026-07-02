@@ -36,6 +36,16 @@
       "type": "number",
       "default": 50
     },
+    "dynamic_stop_loss": {
+      "type": "boolean",
+      "default": false,
+      "description": "When enabled, stop loss is scaled to live ATR (market volatility) instead of a fixed pip value."
+    },
+    "atr_sl_multiplier": {
+      "type": "number",
+      "default": 2,
+      "description": "Multiplier applied to the live ATR to compute the volatility-adjusted stop loss."
+    },
     "take_profit": {
       "type": "number",
       "default": 100

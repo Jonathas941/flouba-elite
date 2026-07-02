@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Play } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { mt5Api } from "@/lib/mt5Api";
 import RiskDisclaimer from "@/components/RiskDisclaimer";
 
 const STRATEGIES = [
@@ -35,6 +36,8 @@ const DEFAULT = {
   // SL / TP
   stop_loss: 50,
   take_profit: 100,
+  dynamic_stop_loss: false, // scale stop loss with live ATR instead of a fixed value
+  atr_sl_multiplier: 2,
   // Daily limits
   max_daily_trades: 999999, // unlimited — daily trade cap removed
   stop_after_losses: 2,
@@ -120,6 +123,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [atrPreview, setAtrPreview] = useState(null);
 
   // Load saved BotSettings on open
   useEffect(() => {
@@ -147,6 +151,17 @@ export default function RobotStartModal({ open, onClose, onStart }) {
     }).catch(() => {});
   }, [open]);
 
+  // Fetch live ATR to preview the volatility-adjusted stop loss
+  useEffect(() => {
+    if (!open || !form.dynamic_stop_loss) { setAtrPreview(null); return; }
+    mt5Api.scannerStatus().then((res) => {
+      const atr = res?.ok && res?.data?.scanner?.indicators?.atr_14;
+      setAtrPreview(atr || null);
+    }).catch(() => setAtrPreview(null));
+  }, [open, form.dynamic_stop_loss, form.symbol]);
+
+  const dynamicSlPoints = atrPreview ? Math.round(atrPreview * form.atr_sl_multiplier * 10) : null;
+
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
   // Aggressive/Conservative mode auto-scales lot size and max concurrent trades
@@ -160,16 +175,21 @@ export default function RobotStartModal({ open, onClose, onStart }) {
     setSaving(true);
     setError(null);
     try {
+      // If dynamic (ATR-based) SL is on, resolve the fixed pip value to send to the robot now
+      const finalForm = form.dynamic_stop_loss && dynamicSlPoints
+        ? { ...form, stop_loss: dynamicSlPoints }
+        : form;
+
       // Persist common settings back to BotSettings
       const records = await base44.entities.BotSettings.list();
       const patch = {
-        active_pair: form.symbol,
-        trading_mode: form.trading_mode,
-        lot_size: form.lot_size,
-        max_concurrent_trades: form.max_concurrent_trades,
-        risk_percentage: form.risk_percentage,
-        stop_loss: form.stop_loss,
-        take_profit: form.take_profit,
+        active_pair: finalForm.symbol,
+        trading_mode: finalForm.trading_mode,
+        lot_size: finalForm.lot_size,
+        max_concurrent_trades: finalForm.max_concurrent_trades,
+        risk_percentage: finalForm.risk_percentage,
+        stop_loss: finalForm.stop_loss,
+        take_profit: finalForm.take_profit,
         max_daily_trades: form.max_daily_trades,
         stop_after_losses: form.stop_after_losses, // max_daily_trades kept unlimited, no UI control
         daily_profit_target: form.daily_profit_target,
@@ -185,7 +205,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         await base44.entities.BotSettings.create(patch);
       }
       setSaving(false);
-      await onStart(form);
+      await onStart(finalForm);
     } catch (e) {
       setError(e.message);
     }
@@ -264,13 +284,29 @@ export default function RobotStartModal({ open, onClose, onStart }) {
               <div>
                 <SectionLabel>Stop Loss &amp; Take Profit (pips)</SectionLabel>
                 <div className="space-y-2.5">
-                  <Field label="Stop Loss">
-                    <NumberInput value={form.stop_loss} onChange={set("stop_loss")} min={1} />
+                  <Field label="Dynamic SL (ATR-based)">
+                    <Toggle value={form.dynamic_stop_loss} onChange={set("dynamic_stop_loss")} />
                   </Field>
+                  {form.dynamic_stop_loss ? (
+                    <Field label="ATR Multiplier">
+                      <NumberInput value={form.atr_sl_multiplier} onChange={set("atr_sl_multiplier")} min={0.5} step={0.5} />
+                    </Field>
+                  ) : (
+                    <Field label="Stop Loss">
+                      <NumberInput value={form.stop_loss} onChange={set("stop_loss")} min={1} />
+                    </Field>
+                  )}
                   <Field label="Take Profit">
                     <NumberInput value={form.take_profit} onChange={set("take_profit")} min={1} />
                   </Field>
                 </div>
+                {form.dynamic_stop_loss && (
+                  <p className="text-[9px] text-white/25 leading-relaxed mt-2">
+                    {dynamicSlPoints
+                      ? `Live ATR${atrPreview ? ` (${atrPreview.toFixed(3)})` : ""} → Stop Loss ≈ ${dynamicSlPoints} pips. Recalculated at launch.`
+                      : "Fetching live volatility (ATR)…"}
+                  </p>
+                )}
               </div>
 
               {/* Daily Limits */}
