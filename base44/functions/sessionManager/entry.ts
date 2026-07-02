@@ -1,9 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // Configurable via environment variables — defaults match the aggressive-but-protected window
-const TIMEZONE = Deno.env.get("TIMEZONE") || "America/New_York";
-const SESSION_START_STR = Deno.env.get("SESSION_START") || "08:00";
-const SESSION_END_STR = Deno.env.get("SESSION_END") || "12:00";
+function validTz(tz) {
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; }
+  catch { return "America/New_York"; }
+}
+const TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
+function validTime(str, fallback) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(str || "");
+  if (!m) return fallback;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return fallback;
+  return str;
+}
+const SESSION_START_STR = validTime(Deno.env.get("SESSION_START"), "08:00");
+const SESSION_END_STR = validTime(Deno.env.get("SESSION_END"), "12:00");
 
 function parseHM(str) {
   const [h, m] = str.split(":").map(Number);

@@ -3,9 +3,21 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api";
 const USER_TIMEZONE = "America/Detroit";
 
-const SM_TIMEZONE = Deno.env.get("TIMEZONE") || "America/New_York";
-const SM_SESSION_START = Deno.env.get("SESSION_START") || "08:00";
-const SM_SESSION_END = Deno.env.get("SESSION_END") || "12:00";
+function validTz(tz) {
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; }
+  catch { return "America/New_York"; }
+}
+const SM_TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
+function validTime(str, fallback) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(str || "");
+  if (!m) return fallback;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return fallback;
+  return str;
+}
+const SM_SESSION_START = validTime(Deno.env.get("SESSION_START"), "08:00");
+const SM_SESSION_END = validTime(Deno.env.get("SESSION_END"), "12:00");
 
 // DST-aware trading-window check using IANA timezone America/New_York.
 // Existing open positions are still managed by the MT5 robot during blocked
