@@ -200,6 +200,29 @@ export default function Home() {
   };
 
   const handleLaunchRobot = async (form) => {
+    // If AI Select mode, ask the AI to pick the best strategy based on live market conditions
+    let strategy = form.strategy;
+    if (form.strategy === "Auto (AI Select)") {
+      try {
+        toast({ title: "AI Analyzing Market…", description: "Selecting optimal strategy from live data.", duration: 4000 });
+        const res = await base44.functions.invoke("aiStrategySelector", {});
+        if (res?.data?.ok && res.data.strategy) {
+          strategy = res.data.strategy;
+          toast({
+            title: `AI Selected: ${strategy}`,
+            description: res.data.reason,
+            duration: 5000,
+          });
+        } else {
+          strategy = "Momentum Scalping";
+          toast({ title: "AI Unavailable", description: "Defaulting to Momentum Scalping.", duration: 3000 });
+        }
+      } catch {
+        strategy = "Momentum Scalping";
+        toast({ title: "AI Unavailable", description: "Defaulting to Momentum Scalping.", duration: 3000 });
+      }
+    }
+
     // Lot multiplier only activates when equity reaches the configured ratio of balance (default 2x)
     const minRatio = form.multiplier_min_equity_ratio ?? 2;
     const multiplierActive = connected && account?.balance > 0 && account?.equity >= minRatio * account.balance;
@@ -215,7 +238,7 @@ export default function Home() {
       setActivePair(form.symbol);
       setRobotStatus("Scanning Market");
       setShowStartModal(false);
-      toast({ title: "Robot Started", description: `${form.strategy} active on ${form.symbol}` });
+      toast({ title: "Robot Started", description: `${strategy} active on ${form.symbol}` });
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
       toast({ title: "Start Failed", description: msg, variant: "destructive" });

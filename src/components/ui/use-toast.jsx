@@ -110,7 +110,7 @@ function dispatch(action) {
   });
 }
 
-function toast({ ...props }) {
+function toast({ duration = 4000, ...props }) {
   const id = genId();
 
   const update = (props) =>
@@ -133,6 +133,11 @@ function toast({ ...props }) {
       },
     },
   });
+
+  // Auto-dismiss after duration (0 = persistent, stays until manually closed)
+  if (duration > 0) {
+    setTimeout(() => dismiss(), duration);
+  }
 
   return {
     id,
