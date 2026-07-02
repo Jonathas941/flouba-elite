@@ -30,12 +30,12 @@ const MODE_PRESETS = {
 const DEFAULT = {
   symbol: "XAUUSD",
   strategy: "Auto (AI Select)",
-  trading_mode: "Conservative",
+  trading_mode: "Balanced",
   // Lot & Risk
-  lot_size: 0.01,
-  max_concurrent_trades: 1,
-  risk_percentage: 1,
-  lot_multiplier: 1,        // multiply lot on consecutive entries
+  lot_size: 0.03,
+  max_concurrent_trades: 2,
+  risk_percentage: 2,
+  lot_multiplier: 2,        // compound: double lot on consecutive winning entries
   // SL / TP
   stop_loss: 20,
   take_profit: 40,
@@ -44,8 +44,8 @@ const DEFAULT = {
   // Daily limits
   max_daily_trades: 999999, // unlimited — daily trade cap removed
   stop_after_losses: 2,
-  daily_profit_target: 10,
-  daily_loss_limit: 5,
+  daily_profit_target: 20,
+  daily_loss_limit: 10,
   // HFT Scalper specific — tuned for frequent small in/out positions, not trend-riding
   hft_max_trades: 15,
   hft_burst_points: 8,
@@ -71,7 +71,7 @@ const DEFAULT = {
   liq_news_buffer_minutes: 10,
   // Equity Guard — hard-stop that force-closes all trades if equity falls too low
   equity_guard_enabled: true,
-  equity_guard_min_equity_pct: 50,
+  equity_guard_min_equity_pct: 75,
   // Trend Filter — HTF 200 EMA direction gate applied to every strategy
   trend_filter_enabled: true,
   trend_filter_timeframe: "M15",
