@@ -108,7 +108,12 @@ export default function SystemHealthCheck() {
     setRunning(false);
   }, []);
 
-  useEffect(() => { runCheck(); }, [runCheck]);
+  // Live auto-refresh — re-run all checks every 10s
+  useEffect(() => {
+    runCheck();
+    const id = setInterval(runCheck, 10000);
+    return () => clearInterval(id);
+  }, [runCheck]);
 
   const failCount = checks?.filter((c) => c.status === "fail").length ?? 0;
   const warnCount = checks?.filter((c) => c.status === "warn").length ?? 0;
