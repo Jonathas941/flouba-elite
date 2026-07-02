@@ -30,7 +30,35 @@ function buildHeaders(token, config) {
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    // Read body FIRST — the SDK may consume the body stream during auth
+    const bodyText = await req.text().catch(() => "{}");
+    let body = {};
+    try { body = JSON.parse(bodyText); } catch { body = {}; }
+
+    // Auth: shared cron secret (scheduled automation) OR admin user (manual call)
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const secretMatch = cronSecret && (
+      req.headers.get("X-Cron-Secret") === cronSecret ||
+      body.cron_secret === cronSecret
+    );
+
+    const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
+    const base44 = createClientFromRequest(headersReq);
+
+    if (!secretMatch) {
+      // Require an authenticated Base44 context (blocks public callers).
+      // Then block non-admin users (regular users can't invoke service-role ops).
+      // me() returning null with isAuthenticated=true = internal scheduler — allowed.
+      const isAuth = await base44.auth.isAuthenticated().catch(() => false);
+      if (!isAuth) {
+        return Response.json({ error: "Unauthorized — authentication required" }, { status: 403 });
+      }
+      const user = await base44.auth.me().catch(() => null);
+      if (user && user.role !== "admin") {
+        return Response.json({ error: "Admin access required" }, { status: 403 });
+      }
+    }
+
     const token = Deno.env.get("MT5_API_TOKEN");
     if (!token) return Response.json({ error: "MT5_API_TOKEN not set" }, { status: 500 });
 

@@ -2,7 +2,34 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    // Read body FIRST — the SDK may consume the body stream during auth
+    const bodyText = await req.text().catch(() => "{}");
+    let body = {};
+    try { body = JSON.parse(bodyText); } catch { body = {}; }
+
+    // Auth: shared cron secret (scheduled automation) OR admin user (manual call)
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const secretMatch = cronSecret && (
+      req.headers.get("X-Cron-Secret") === cronSecret ||
+      body.cron_secret === cronSecret
+    );
+
+    const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
+    const base44 = createClientFromRequest(headersReq);
+
+    if (!secretMatch) {
+      // Require an authenticated Base44 context (blocks public callers).
+      // Then block non-admin users (regular users can't invoke service-role ops).
+      // me() returning null with isAuthenticated=true = internal scheduler — allowed.
+      const isAuth = await base44.auth.isAuthenticated().catch(() => false);
+      if (!isAuth) {
+        return Response.json({ error: "Unauthorized — authentication required" }, { status: 403 });
+      }
+      const user = await base44.auth.me().catch(() => null);
+      if (user && user.role !== "admin") {
+        return Response.json({ error: "Admin access required" }, { status: 403 });
+      }
+    }
 
     const startOfDay = new Date();
     startOfDay.setUTCHours(0, 0, 0, 0);
