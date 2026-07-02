@@ -26,7 +26,7 @@
     "max_concurrent_trades": {
       "type": "number",
       "default": 2,
-      "description": "Max number of trades the robot may hold open at once. Scales with trading_mode (Conservative=1, Balanced=2, Aggressive=5)."
+      "description": "Max number of trades the robot may hold open at once."
     },
     "risk_percentage": {
       "type": "number",
@@ -39,7 +39,7 @@
     "dynamic_stop_loss": {
       "type": "boolean",
       "default": false,
-      "description": "When enabled, stop loss is scaled to live ATR (market volatility) instead of a fixed pip value."
+      "description": "When enabled, stop loss is scaled to live ATR instead of a fixed pip value."
     },
     "atr_sl_multiplier": {
       "type": "number",
@@ -131,7 +131,7 @@
     "trend_filter_enabled": {
       "type": "boolean",
       "default": true,
-      "description": "Global HTF trend filter: only allows Buy positions when price is above the HTF 200 EMA, and Sell positions when below it."
+      "description": "Global HTF trend filter: only allows Buy when price is above the HTF 200 EMA, and Sell when below it."
     },
     "trend_filter_timeframe": {
       "type": "string",
@@ -139,13 +139,11 @@
         "M15",
         "H1"
       ],
-      "default": "M15",
-      "description": "Higher timeframe chart used to compute the 200 EMA trend direction filter."
+      "default": "M15"
     },
     "trend_filter_ema_period": {
       "type": "number",
-      "default": 200,
-      "description": "EMA period on the higher timeframe used to determine the broader market direction."
+      "default": 200
     },
     "liq_htf_timeframe": {
       "type": "string",
@@ -153,8 +151,7 @@
         "M15",
         "H1"
       ],
-      "default": "M15",
-      "description": "Higher timeframe chart used for the Liquidity Sweep Scalping trend filter."
+      "default": "M15"
     },
     "liq_entry_timeframe": {
       "type": "string",
@@ -162,38 +159,31 @@
         "M1",
         "M5"
       ],
-      "default": "M1",
-      "description": "Lower timeframe chart used to execute Liquidity Sweep Scalping entries."
+      "default": "M1"
     },
     "liq_htf_ema_period": {
       "type": "number",
-      "default": 200,
-      "description": "EMA period on the higher timeframe used to determine trend direction for Liquidity Sweep Scalping."
+      "default": 200
     },
     "liq_rsi_overbought": {
       "type": "number",
-      "default": 80,
-      "description": "RSI level considered overbought (exhaustion) for Liquidity Sweep Scalping."
+      "default": 80
     },
     "liq_rsi_oversold": {
       "type": "number",
-      "default": 20,
-      "description": "RSI level considered oversold (exhaustion) for Liquidity Sweep Scalping."
+      "default": 20
     },
     "liq_use_vwap": {
       "type": "boolean",
-      "default": true,
-      "description": "When enabled, Liquidity Sweep Scalping requires price to react back inside VWAP before entering."
+      "default": true
     },
     "liq_session_only": {
       "type": "boolean",
-      "default": true,
-      "description": "When enabled, Liquidity Sweep Scalping only trades during the London-New York session overlap."
+      "default": true
     },
     "liq_news_buffer_minutes": {
       "type": "number",
-      "default": 10,
-      "description": "Minutes before/after high-impact news during which Liquidity Sweep Scalping avoids opening new trades."
+      "default": 10
     },
     "lot_multiplier": {
       "type": "number",
@@ -214,6 +204,36 @@
       "type": "boolean",
       "default": true,
       "description": "When enabled, auto-stops the robot when daily profit target or loss limit is reached."
+    },
+    "hedge_scalp_tp_pips": {
+      "type": "number",
+      "default": 30,
+      "description": "Take profit in pips for each leg of the Hedge Scalper strategy."
+    },
+    "hedge_scalp_sl_pips": {
+      "type": "number",
+      "default": 15,
+      "description": "Stop loss in pips for each leg. When one leg hits SL, the other is closed."
+    },
+    "hedge_scalp_lot_size": {
+      "type": "number",
+      "default": 0.02,
+      "description": "Lot size per leg (Buy and Sell each) for the Hedge Scalper strategy."
+    },
+    "hedge_scalp_max_pairs": {
+      "type": "number",
+      "default": 3,
+      "description": "Maximum simultaneous hedge pairs the strategy may hold."
+    },
+    "hedge_scalp_close_winner_on_sl": {
+      "type": "boolean",
+      "default": true,
+      "description": "When enabled, closes the winning leg immediately when the losing leg hits SL."
+    },
+    "hedge_scalp_reopen_delay_sec": {
+      "type": "number",
+      "default": 5,
+      "description": "Seconds to wait before reopening a new hedge pair after one closes."
     },
     "robot_status": {
       "type": "string",
@@ -259,11 +279,11 @@
     },
     "mt5_password": {
       "type": "string",
-      "description": "MT5 account password (per-user). Passed to the bridge server to connect to the user's account."
+      "description": "MT5 account password (per-user). Passed to the bridge to connect to the user's account."
     },
     "mt5_server": {
       "type": "string",
-      "description": "MT5 server name (e.g. Exness-MT5Real8) for this user's account."
+      "description": "MT5 server name for this user's account."
     },
     "broker_name": {
       "type": "string"

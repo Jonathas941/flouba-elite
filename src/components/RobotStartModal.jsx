@@ -6,6 +6,7 @@ import { mt5Api } from "@/lib/mt5Api";
 import RiskDisclaimer from "@/components/RiskDisclaimer";
 import LiquiditySweepSettings from "@/components/robotstart/LiquiditySweepSettings";
 import AutoScheduleSettings from "@/components/robotstart/AutoScheduleSettings";
+import HedgeScalperSettings from "@/components/robotstart/HedgeScalperSettings";
 import TrendFilterSettings from "@/components/robotstart/TrendFilterSettings";
 
 const STRATEGIES = [
@@ -16,6 +17,7 @@ const STRATEGIES = [
   "HFT Scalper",
   "Grid Trading",
   "Liquidity Sweep Scalping",
+  "Hedge Scalper",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -81,6 +83,13 @@ const DEFAULT = {
   auto_start_enabled: false,
   auto_start_time: "09:00",
   auto_stop_enabled: true,
+  // Hedge Scalper — dual-direction: Buy + Sell simultaneously, close winner when loser hits SL
+  hedge_scalp_tp_pips: 30,
+  hedge_scalp_sl_pips: 15,
+  hedge_scalp_lot_size: 0.02,
+  hedge_scalp_max_pairs: 3,
+  hedge_scalp_close_winner_on_sl: true,
+  hedge_scalp_reopen_delay_sec: 5,
 };
 
 function Field({ label, children }) {
@@ -182,6 +191,12 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         auto_start_enabled: s.auto_start_enabled ?? prev.auto_start_enabled,
         auto_start_time: s.auto_start_time ?? prev.auto_start_time,
         auto_stop_enabled: s.auto_stop_enabled ?? prev.auto_stop_enabled,
+        hedge_scalp_tp_pips: s.hedge_scalp_tp_pips ?? prev.hedge_scalp_tp_pips,
+        hedge_scalp_sl_pips: s.hedge_scalp_sl_pips ?? prev.hedge_scalp_sl_pips,
+        hedge_scalp_lot_size: s.hedge_scalp_lot_size ?? prev.hedge_scalp_lot_size,
+        hedge_scalp_max_pairs: s.hedge_scalp_max_pairs ?? prev.hedge_scalp_max_pairs,
+        hedge_scalp_close_winner_on_sl: s.hedge_scalp_close_winner_on_sl ?? prev.hedge_scalp_close_winner_on_sl,
+        hedge_scalp_reopen_delay_sec: s.hedge_scalp_reopen_delay_sec ?? prev.hedge_scalp_reopen_delay_sec,
       }));
     }).catch(() => {});
   }, [open]);
@@ -205,6 +220,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isHFT = form.strategy === "HFT Scalper";
   const isGrid = form.strategy === "Grid Trading";
   const isLiquiditySweep = form.strategy === "Liquidity Sweep Scalping";
+  const isHedgeScalper = form.strategy === "Hedge Scalper";
 
   const handleStart = async () => {
     setLoading(true);
@@ -252,6 +268,12 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         auto_start_enabled: form.auto_start_enabled,
         auto_start_time: form.auto_start_time,
         auto_stop_enabled: form.auto_stop_enabled,
+        hedge_scalp_tp_pips: form.hedge_scalp_tp_pips,
+        hedge_scalp_sl_pips: form.hedge_scalp_sl_pips,
+        hedge_scalp_lot_size: form.hedge_scalp_lot_size,
+        hedge_scalp_max_pairs: form.hedge_scalp_max_pairs,
+        hedge_scalp_close_winner_on_sl: form.hedge_scalp_close_winner_on_sl,
+        hedge_scalp_reopen_delay_sec: form.hedge_scalp_reopen_delay_sec,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -432,6 +454,15 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 Field={Field}
                 NumberInput={NumberInput}
                 SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
+
+              <HedgeScalperSettings
+                visible={isHedgeScalper}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
                 Toggle={Toggle}
               />
 
