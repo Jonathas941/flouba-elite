@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Play, Square, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import EAConnectionIndicator from "@/components/EAConnectionIndicator";
 import RobotStartModal from "@/components/RobotStartModal";
@@ -45,6 +46,7 @@ export default function Home() {
   const [activePair, setActivePair] = useState("XAUUSD");
 
   const [showStartModal, setShowStartModal] = useState(false);
+  const [autoStartEnabled, setAutoStartEnabled] = useState(false);
   const wsRef       = useRef(null);
   const pollRef     = useRef(null);
   const touchStartY = useRef(0);
@@ -52,10 +54,11 @@ export default function Home() {
 
   const load = useCallback(async () => {
     try {
-      const [acctRes, posRes, robotRes] = await Promise.all([
+      const [acctRes, posRes, robotRes, settingsRes] = await Promise.all([
         mt5Api.account(),
         mt5Api.positions(),
         mt5Api.robotStatus(),
+        base44.entities.BotSettings.list().catch(() => []),
       ]);
 
       if (acctRes?.ok && acctRes.data?.account) {
@@ -74,6 +77,11 @@ export default function Home() {
         }
       } else {
         setPositions([]);
+      }
+
+      // Load auto-start preference from BotSettings
+      if (settingsRes?.length > 0) {
+        setAutoStartEnabled(settingsRes[0].auto_start_enabled ?? false);
       }
 
       // Reflect the robot's real running state so it survives page navigation
@@ -180,6 +188,27 @@ export default function Home() {
     } catch {}
     setRobotStatus("Paused");
     toast({ title: "Robot Stopped" });
+  };
+
+  const toggleAutoStart = async () => {
+    const newVal = !autoStartEnabled;
+    setAutoStartEnabled(newVal);
+    try {
+      const list = await base44.entities.BotSettings.list();
+      if (list?.length > 0) {
+        await base44.entities.BotSettings.update(list[0].id, { auto_start_enabled: newVal });
+      } else {
+        await base44.entities.BotSettings.create({ auto_start_enabled: newVal });
+      }
+      toast({
+        title: newVal ? "Auto-Start Enabled" : "Auto-Start Disabled",
+        description: newVal ? "Robot will start when market opens" : undefined,
+        duration: 2000,
+      });
+    } catch {
+      setAutoStartEnabled(!newVal);
+      toast({ title: "Update failed", variant: "destructive", duration: 2000 });
+    }
   };
 
   if (loading) {
@@ -327,6 +356,24 @@ export default function Home() {
             <Square className="w-4 h-4 fill-current text-red-500" />
           </div>
         </motion.button>
+
+        {/* AUTO-START TOGGLE — enables robot to auto-start when a market session opens */}
+        {connected && (
+          <motion.button
+            onClick={toggleAutoStart}
+            whileTap={{ scale: 0.97 }}
+            className="w-full h-11 rounded-2xl flex items-center justify-between px-4 font-heading font-bold tracking-widest text-xs transition-all"
+            style={{
+              background: autoStartEnabled ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.03)",
+              border: autoStartEnabled ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <span className={autoStartEnabled ? "text-red-400" : "text-white/50"}>AUTO-START (MARKET OPEN)</span>
+            <div className={`w-9 h-5 rounded-full flex items-center transition-colors ${autoStartEnabled ? "bg-red-500" : "bg-white/10"}`}>
+              <div className={`w-4 h-4 rounded-full bg-white shadow transition-all ${autoStartEnabled ? "ml-4" : "ml-0.5"}`} />
+            </div>
+          </motion.button>
+        )}
 
         {!connected && (
           <motion.button

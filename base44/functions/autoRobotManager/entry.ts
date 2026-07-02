@@ -3,6 +3,19 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api";
 const USER_TIMEZONE = "America/Detroit";
 
+function isMarketOpen(config) {
+  const now = new Date();
+  const utcDay = now.getUTCDay(); // 0=Sun, 6=Sat
+  // Forex market closed on weekends
+  if (utcDay === 6 || utcDay === 0) return false;
+  const utcHour = now.getUTCHours();
+  // Session windows in UTC (standard forex session times)
+  if (config.asian_session && utcHour >= 0 && utcHour < 9) return true;
+  if (config.london_session && utcHour >= 8 && utcHour < 17) return true;
+  if (config.new_york_session && utcHour >= 13 && utcHour < 22) return true;
+  return false;
+}
+
 function getLocalMinutes(timezone) {
   const now = new Date();
   const fmt = new Intl.DateTimeFormat("en-US", {
@@ -117,15 +130,15 @@ Deno.serve(async (req) => {
         }
       }
 
-      // === AUTO-START: Check scheduled start time ===
+      // === AUTO-START: When a market session is open ===
       if (config.auto_start_enabled && !robotRunning) {
-        const autoStartTime = config.auto_start_time ?? "09:00";
-        const [targetH, targetM] = autoStartTime.split(":").map(Number);
-        const targetMinutes = targetH * 60 + targetM;
-        const currentMinutes = getLocalMinutes(USER_TIMEZONE);
-        const diff = Math.abs(currentMinutes - targetMinutes);
+        const marketOpen = isMarketOpen(config);
+        const profitTarget = config.daily_profit_target ?? 200;
+        const lossLimit = config.daily_loss_limit ?? 20;
+        // Don't restart if daily limits already hit (prevents loop with auto-stop)
+        const limitsHit = dailyPnL >= profitTarget || dailyPnL <= -lossLimit;
 
-        if (diff <= 5) {
+        if (marketOpen && !limitsHit) {
           const startPayload = {
             strategy: "auto",
             symbol: config.active_pair ?? "XAUUSD",
@@ -157,7 +170,7 @@ Deno.serve(async (req) => {
           const startJson = await startRes.json().catch(() => ({}));
 
           if (startJson?.success || startRes.ok) {
-            actions.push(`AUTO-START: Robot launched at ${autoStartTime} (${USER_TIMEZONE})`);
+            actions.push(`AUTO-START: Market session open — robot launched`);
           } else {
             actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? "Unknown error"}`);
           }

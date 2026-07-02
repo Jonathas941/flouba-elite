@@ -92,7 +92,8 @@ export default function ConnectMT5() {
     if (res?.ok && res?.data?.account) {
       setStatus("success");
       await saveToDb("Connected");
-      toast({ title: "MT5 Connected", description: `${broker} · ${login}` });
+      toast({ title: "MT5 Connected", description: `${broker} · ${login}`, duration: 2000 });
+      navigate("/");
     } else {
       setStatus("error");
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Connection failed. Check your credentials.";
@@ -222,13 +223,7 @@ export default function ConnectMT5() {
               </Button>
             </>
           )}
-          {status === "success" && (
-            <Button
-              className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-heading font-bold tracking-widest text-xs uppercase rounded-xl"
-              onClick={() => navigate("/")}>
-              Continue to Dashboard <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          )}
+          {/* Auto-redirects to home on successful connection */}
         </motion.div>
 
         {/* ── 6. SECURITY NOTE ── */}
