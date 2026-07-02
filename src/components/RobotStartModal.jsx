@@ -44,8 +44,8 @@ const DEFAULT = {
   // Daily limits
   max_daily_trades: 999999, // unlimited — daily trade cap removed
   stop_after_losses: 2,
-  daily_profit_target: 20,
-  daily_loss_limit: 10,
+  daily_profit_target: 200,
+  daily_loss_limit: 20,
   // HFT Scalper specific — tuned for frequent small in/out positions, not trend-riding
   hft_max_trades: 15,
   hft_burst_points: 8,
