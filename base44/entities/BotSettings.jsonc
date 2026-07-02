@@ -42,7 +42,8 @@
     },
     "max_daily_trades": {
       "type": "number",
-      "default": 5
+      "default": 999999,
+      "description": "Daily trade cap removed \u2014 effectively unlimited."
     },
     "stop_after_losses": {
       "type": "number",

@@ -36,7 +36,7 @@ const DEFAULT = {
   stop_loss: 50,
   take_profit: 100,
   // Daily limits
-  max_daily_trades: 5,
+  max_daily_trades: 999999, // unlimited — daily trade cap removed
   stop_after_losses: 2,
   daily_profit_target: 100,
   daily_loss_limit: 50,
@@ -136,7 +136,6 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         risk_percentage: s.risk_percentage ?? prev.risk_percentage,
         stop_loss: s.stop_loss ?? prev.stop_loss,
         take_profit: s.take_profit ?? prev.take_profit,
-        max_daily_trades: s.max_daily_trades ?? prev.max_daily_trades,
         stop_after_losses: s.stop_after_losses ?? prev.stop_after_losses,
         daily_profit_target: s.daily_profit_target ?? prev.daily_profit_target,
         daily_loss_limit: s.daily_loss_limit ?? prev.daily_loss_limit,
@@ -172,7 +171,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         stop_loss: form.stop_loss,
         take_profit: form.take_profit,
         max_daily_trades: form.max_daily_trades,
-        stop_after_losses: form.stop_after_losses,
+        stop_after_losses: form.stop_after_losses, // max_daily_trades kept unlimited, no UI control
         daily_profit_target: form.daily_profit_target,
         daily_loss_limit: form.daily_loss_limit,
         grid_distance_pips: form.grid_distance_pips,
@@ -278,9 +277,6 @@ export default function RobotStartModal({ open, onClose, onStart }) {
               <div>
                 <SectionLabel>Daily Limits</SectionLabel>
                 <div className="space-y-2.5">
-                  <Field label="Max Daily Trades">
-                    <NumberInput value={form.max_daily_trades} onChange={set("max_daily_trades")} min={1} />
-                  </Field>
                   <Field label="Stop After Losses">
                     <NumberInput value={form.stop_after_losses} onChange={set("stop_after_losses")} min={1} />
                   </Field>

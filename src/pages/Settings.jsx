@@ -98,7 +98,6 @@ export default function Settings() {
           {num("risk_percentage", "Risk %")}
           {num("stop_loss", "Stop Loss (pts)")}
           {num("take_profit", "Take Profit (pts)")}
-          {num("max_daily_trades", "Max Daily Trades")}
           {num("stop_after_losses", "Stop After N Losses")}
           {num("daily_profit_target", "Profit Target $")}
           {num("daily_loss_limit", "Loss Limit $")}
