@@ -258,11 +258,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
     try {
       // If dynamic (ATR-based) SL is on, resolve the fixed pip value to send to the robot now
       // Apply the lot multiplier to the base lot size so bigger lots (and faster balance growth) actually get sent
-      const multipliedLotSize = Math.round(form.lot_size * (form.lot_multiplier || 1) * 100) / 100;
       const finalForm = {
         ...form,
         ...(form.dynamic_stop_loss && dynamicSlPoints ? { stop_loss: dynamicSlPoints } : {}),
-        lot_size: multipliedLotSize,
       };
 
       // Persist common settings back to BotSettings

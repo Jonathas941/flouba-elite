@@ -173,9 +173,6 @@ export default function Home() {
     const launchForm = {
       ...form,
       lot_multiplier: multiplierActive ? form.lot_multiplier : 1,
-      lot_size: multiplierActive
-        ? form.lot_size
-        : (form.lot_multiplier > 1 ? Math.round((form.lot_size / form.lot_multiplier) * 100) / 100 : form.lot_size),
     };
     if (!multiplierActive && form.lot_multiplier > 1) {
       toast({ title: "Multiplier Disabled", description: `Equity must reach ${minRatio}x balance to activate lot multiplier.`, duration: 3000 });
