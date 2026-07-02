@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import RiskDisclaimer from "@/components/RiskDisclaimer";
 import LiquiditySweepSettings from "@/components/robotstart/LiquiditySweepSettings";
+import TrendFilterSettings from "@/components/robotstart/TrendFilterSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -71,6 +72,10 @@ const DEFAULT = {
   // Equity Guard — hard-stop that force-closes all trades if equity falls too low
   equity_guard_enabled: true,
   equity_guard_min_equity_pct: 50,
+  // Trend Filter — HTF 200 EMA direction gate applied to every strategy
+  trend_filter_enabled: true,
+  trend_filter_timeframe: "M15",
+  trend_filter_ema_period: 200,
 };
 
 function Field({ label, children }) {
@@ -158,6 +163,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         grid_max_levels: s.grid_max_levels ?? prev.grid_max_levels,
         equity_guard_enabled: s.equity_guard_enabled ?? prev.equity_guard_enabled,
         equity_guard_min_equity_pct: s.equity_guard_min_equity_pct ?? prev.equity_guard_min_equity_pct,
+        trend_filter_enabled: s.trend_filter_enabled ?? prev.trend_filter_enabled,
+        trend_filter_timeframe: s.trend_filter_timeframe ?? prev.trend_filter_timeframe,
+        trend_filter_ema_period: s.trend_filter_ema_period ?? prev.trend_filter_ema_period,
         liq_htf_timeframe: s.liq_htf_timeframe ?? prev.liq_htf_timeframe,
         liq_entry_timeframe: s.liq_entry_timeframe ?? prev.liq_entry_timeframe,
         liq_rsi_overbought: s.liq_rsi_overbought ?? prev.liq_rsi_overbought,
@@ -221,6 +229,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         grid_max_levels: form.grid_max_levels,
         equity_guard_enabled: form.equity_guard_enabled,
         equity_guard_min_equity_pct: form.equity_guard_min_equity_pct,
+        trend_filter_enabled: form.trend_filter_enabled,
+        trend_filter_timeframe: form.trend_filter_timeframe,
+        trend_filter_ema_period: form.trend_filter_ema_period,
         liq_htf_timeframe: form.liq_htf_timeframe,
         liq_entry_timeframe: form.liq_entry_timeframe,
         liq_rsi_overbought: form.liq_rsi_overbought,
@@ -368,6 +379,15 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 )}
                 <p className="text-[9px] text-white/25 leading-relaxed">Force-closes all trades and pauses the robot if equity drops below this % of balance.</p>
               </div>
+
+              <TrendFilterSettings
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
 
               {/* Grid Trading Settings — only shown when that strategy is selected */}
               <AnimatePresence>
