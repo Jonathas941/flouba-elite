@@ -90,6 +90,22 @@ const DEFAULT = {
   hedge_scalp_max_pairs: 3,
   hedge_scalp_close_winner_on_sl: true,
   hedge_scalp_reopen_delay_sec: 5,
+  // Phase 1: Trend-following entry
+  hedge_scalp_trend_entry: true,
+  hedge_scalp_trend_timeframe: "M15",
+  hedge_scalp_trend_ema_period: 200,
+  // Phase 3: Hedge mode
+  hedge_scalp_hedge_mode: "Same Pair",
+  hedge_scalp_hedge_trigger_pips: 15,
+  // Phase 4: Scalping over hedge
+  hedge_scalp_scalp_over_hedge: true,
+  hedge_scalp_scalp_tp_pips: 5,
+  // Phase 5: Drawdown reduction
+  hedge_scalp_drawdown_reduction: true,
+  hedge_scalp_dd_close_ratio: 1,
+  // Phase 6: Pair prioritization
+  hedge_scalp_pair_priority: true,
+  hedge_scalp_priority_lookback_trades: 20,
 };
 
 function Field({ label, children }) {
@@ -197,6 +213,17 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         hedge_scalp_max_pairs: s.hedge_scalp_max_pairs ?? prev.hedge_scalp_max_pairs,
         hedge_scalp_close_winner_on_sl: s.hedge_scalp_close_winner_on_sl ?? prev.hedge_scalp_close_winner_on_sl,
         hedge_scalp_reopen_delay_sec: s.hedge_scalp_reopen_delay_sec ?? prev.hedge_scalp_reopen_delay_sec,
+        hedge_scalp_trend_entry: s.hedge_scalp_trend_entry ?? prev.hedge_scalp_trend_entry,
+        hedge_scalp_trend_timeframe: s.hedge_scalp_trend_timeframe ?? prev.hedge_scalp_trend_timeframe,
+        hedge_scalp_trend_ema_period: s.hedge_scalp_trend_ema_period ?? prev.hedge_scalp_trend_ema_period,
+        hedge_scalp_hedge_mode: s.hedge_scalp_hedge_mode ?? prev.hedge_scalp_hedge_mode,
+        hedge_scalp_hedge_trigger_pips: s.hedge_scalp_hedge_trigger_pips ?? prev.hedge_scalp_hedge_trigger_pips,
+        hedge_scalp_scalp_over_hedge: s.hedge_scalp_scalp_over_hedge ?? prev.hedge_scalp_scalp_over_hedge,
+        hedge_scalp_scalp_tp_pips: s.hedge_scalp_scalp_tp_pips ?? prev.hedge_scalp_scalp_tp_pips,
+        hedge_scalp_drawdown_reduction: s.hedge_scalp_drawdown_reduction ?? prev.hedge_scalp_drawdown_reduction,
+        hedge_scalp_dd_close_ratio: s.hedge_scalp_dd_close_ratio ?? prev.hedge_scalp_dd_close_ratio,
+        hedge_scalp_pair_priority: s.hedge_scalp_pair_priority ?? prev.hedge_scalp_pair_priority,
+        hedge_scalp_priority_lookback_trades: s.hedge_scalp_priority_lookback_trades ?? prev.hedge_scalp_priority_lookback_trades,
       }));
     }).catch(() => {});
   }, [open]);
@@ -274,6 +301,17 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         hedge_scalp_max_pairs: form.hedge_scalp_max_pairs,
         hedge_scalp_close_winner_on_sl: form.hedge_scalp_close_winner_on_sl,
         hedge_scalp_reopen_delay_sec: form.hedge_scalp_reopen_delay_sec,
+        hedge_scalp_trend_entry: form.hedge_scalp_trend_entry,
+        hedge_scalp_trend_timeframe: form.hedge_scalp_trend_timeframe,
+        hedge_scalp_trend_ema_period: form.hedge_scalp_trend_ema_period,
+        hedge_scalp_hedge_mode: form.hedge_scalp_hedge_mode,
+        hedge_scalp_hedge_trigger_pips: form.hedge_scalp_hedge_trigger_pips,
+        hedge_scalp_scalp_over_hedge: form.hedge_scalp_scalp_over_hedge,
+        hedge_scalp_scalp_tp_pips: form.hedge_scalp_scalp_tp_pips,
+        hedge_scalp_drawdown_reduction: form.hedge_scalp_drawdown_reduction,
+        hedge_scalp_dd_close_ratio: form.hedge_scalp_dd_close_ratio,
+        hedge_scalp_pair_priority: form.hedge_scalp_pair_priority,
+        hedge_scalp_priority_lookback_trades: form.hedge_scalp_priority_lookback_trades,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -463,6 +501,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 set={set}
                 Field={Field}
                 NumberInput={NumberInput}
+                SelectInput={SelectInput}
                 Toggle={Toggle}
               />
 

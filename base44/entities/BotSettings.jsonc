@@ -235,6 +235,68 @@
       "default": 5,
       "description": "Seconds to wait before reopening a new hedge pair after one closes."
     },
+    "hedge_scalp_trend_entry": {
+      "type": "boolean",
+      "default": true,
+      "description": "Phase 1: Open positions following the HTF trend instead of immediate dual-direction."
+    },
+    "hedge_scalp_trend_timeframe": {
+      "type": "string",
+      "enum": [
+        "M15",
+        "H1"
+      ],
+      "default": "M15"
+    },
+    "hedge_scalp_trend_ema_period": {
+      "type": "number",
+      "default": 200
+    },
+    "hedge_scalp_hedge_mode": {
+      "type": "string",
+      "enum": [
+        "Same Pair",
+        "Cross Pair",
+        "Both"
+      ],
+      "default": "Same Pair",
+      "description": "Phase 3: How to hedge when the market moves against the entry."
+    },
+    "hedge_scalp_hedge_trigger_pips": {
+      "type": "number",
+      "default": 15,
+      "description": "Phase 3: Pips against the entry before hedging is activated."
+    },
+    "hedge_scalp_scalp_over_hedge": {
+      "type": "boolean",
+      "default": true,
+      "description": "Phase 4: Scalp small movements while hedging is active."
+    },
+    "hedge_scalp_scalp_tp_pips": {
+      "type": "number",
+      "default": 5,
+      "description": "Phase 4: Take profit in pips for scalp trades opened during hedging."
+    },
+    "hedge_scalp_drawdown_reduction": {
+      "type": "boolean",
+      "default": true,
+      "description": "Phase 5: Close losing orders one by one when profit is made."
+    },
+    "hedge_scalp_dd_close_ratio": {
+      "type": "number",
+      "default": 1,
+      "description": "Phase 5: Pips of profit needed to close one losing order."
+    },
+    "hedge_scalp_pair_priority": {
+      "type": "boolean",
+      "default": true,
+      "description": "Phase 6: Auto-prioritize trading on profitable pairs and reduce trading on losing pairs."
+    },
+    "hedge_scalp_priority_lookback_trades": {
+      "type": "number",
+      "default": 20,
+      "description": "Phase 6: Number of recent trades to evaluate pair performance for prioritization."
+    },
     "robot_status": {
       "type": "string",
       "enum": [
