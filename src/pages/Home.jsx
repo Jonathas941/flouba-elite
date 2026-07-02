@@ -98,18 +98,33 @@ export default function Home() {
     }
   }, []);
 
-  // WebSocket for real-time updates; fall back to 5s polling if WS unavailable
+  // WebSocket for real-time updates with auto-reconnect; polling runs as fallback
   useEffect(() => {
     load();
 
     const WS_URL = "wss://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/ws";
-    let ws;
+    let ws = null;
     let wsAlive = false;
+    let reconnectTimer = null;
+    let backoff = 1000; // start at 1s, max 15s
+    let mounted = true;
+
+    const startPoll = () => {
+      clearInterval(pollRef.current);
+      pollRef.current = setInterval(load, 5000);
+    };
+
+    const stopPoll = () => { clearInterval(pollRef.current); };
 
     const connectWs = () => {
+      if (!mounted) return;
       try {
         ws = new WebSocket(WS_URL);
-        ws.onopen = () => { wsAlive = true; clearInterval(pollRef.current); };
+        ws.onopen = () => {
+          wsAlive = true;
+          backoff = 1000; // reset backoff on successful connect
+          stopPoll();     // WS is live — stop polling fallback
+        };
         ws.onmessage = (evt) => {
           try {
             const msg = JSON.parse(evt.data);
@@ -124,25 +139,43 @@ export default function Home() {
             }
           } catch {}
         };
-        ws.onerror = () => { wsAlive = false; startPoll(); };
-        ws.onclose = () => { wsAlive = false; startPoll(); };
+        ws.onerror = () => { wsAlive = false; };
+        ws.onclose = () => {
+          wsAlive = false;
+          if (!mounted) return;
+          startPoll(); // fall back to polling immediately
+          // Auto-reconnect with exponential backoff
+          reconnectTimer = setTimeout(() => {
+            backoff = Math.min(backoff * 1.5, 15000);
+            connectWs();
+          }, backoff);
+        };
       } catch {
+        wsAlive = false;
         startPoll();
       }
     };
 
-    const startPoll = () => {
-      clearInterval(pollRef.current);
-      pollRef.current = setInterval(load, 5000);
-    };
-
     connectWs();
-    // Fallback: if WS doesn't open within 3s, start polling
+    // Fallback: if WS doesn't open within 3s, start polling alongside
     const wsTimeout = setTimeout(() => { if (!wsAlive) startPoll(); }, 3000);
 
+    // Reconnect WS when app returns to foreground (mobile kills WS in background)
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && (!ws || ws.readyState > 1)) {
+        clearInterval(reconnectTimer);
+        backoff = 1000;
+        connectWs();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
+      mounted = false;
       clearTimeout(wsTimeout);
+      clearTimeout(reconnectTimer);
       clearInterval(pollRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
       ws?.close();
     };
   }, [load]);
