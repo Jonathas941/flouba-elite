@@ -7,7 +7,6 @@ function validTz(tz) {
   try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; }
   catch { return "America/New_York"; }
 }
-const SM_TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
 function validTime(str, fallback) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(str || "");
   if (!m) return fallback;
@@ -16,50 +15,49 @@ function validTime(str, fallback) {
   if (h < 0 || h > 23 || min < 0 || min > 59) return fallback;
   return str;
 }
-const SM_SESSION_START = validTime(Deno.env.get("SESSION_START"), "08:00");
-const SM_SESSION_END = validTime(Deno.env.get("SESSION_END"), "12:00");
+function parseHM(hm) {
+  const [h, m] = hm.split(":").map(Number);
+  return h * 60 + m;
+}
 
-// DST-aware trading-window check using IANA timezone America/New_York.
+const SM_TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
+const SM_ASIAN_ENABLED = Deno.env.get("ASIAN_SESSION_ENABLED") !== "false";
+const SM_ASIAN_START = validTime(Deno.env.get("ASIAN_SESSION_START"), "19:15");
+const SM_ASIAN_END = validTime(Deno.env.get("ASIAN_SESSION_END"), "03:45");
+const SM_NY_ENABLED = Deno.env.get("NY_SESSION_ENABLED") !== "false";
+const SM_NY_START = validTime(Deno.env.get("NY_SESSION_START"), "08:00");
+const SM_NY_END = validTime(Deno.env.get("NY_SESSION_END"), "12:00");
+const SM_ASIAN_START_MIN = parseHM(SM_ASIAN_START);
+const SM_ASIAN_END_MIN = parseHM(SM_ASIAN_END);
+const SM_NY_START_MIN = parseHM(SM_NY_START);
+const SM_NY_END_MIN = parseHM(SM_NY_END);
+const SM_ROLLOVER_START = 16 * 60 + 55;
+const SM_ROLLOVER_END = 17 * 60 + 15;
+
+// DST-aware two-session trading windows (America/New_York).
 // Existing open positions are still managed by the MT5 robot during blocked
 // periods — this only gates NEW auto-starts.
-function isTradingAllowed() {
+function getETTime() {
   const now = new Date();
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: SM_TIMEZONE,
-    weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false,
-  });
-  const parts = fmt.formatToParts(now);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: SM_TIMEZONE, weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(now);
   const wd = parts.find((p) => p.type === "weekday").value;
   const hr = parseInt(parts.find((p) => p.type === "hour").value, 10) % 24;
   const mi = parseInt(parts.find((p) => p.type === "minute").value, 10);
   const dayMap = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
-  const day = dayMap[wd];
-  const mins = hr * 60 + mi;
-  const [sh, sm] = SM_SESSION_START.split(":").map(Number);
-  const [eh, em] = SM_SESSION_END.split(":").map(Number);
-  const sStart = sh * 60 + sm;
-  const sEnd = eh * 60 + em;
-  // Weekend block: Friday 4:55 PM ET → Sunday 5:10 PM ET
-  if ((day === 5 && mins >= 16 * 60 + 55) || day === 6 || (day === 0 && mins < 17 * 60 + 10)) return false;
-  // Daily rollover block: 4:55 PM – 5:10 PM ET
-  if (mins >= 16 * 60 + 55 && mins < 17 * 60 + 10) return false;
-  // Configured trading window (default 8:00 AM – 12:00 PM ET)
-  if (mins < sStart || mins >= sEnd) return false;
-  return true;
+  return { day: dayMap[wd], mins: hr * 60 + mi };
 }
 
-function getLocalMinutes(timezone) {
-  const now = new Date();
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const parts = fmt.formatToParts(now);
-  const h = parseInt(parts.find((p) => p.type === "hour").value, 10);
-  const m = parseInt(parts.find((p) => p.type === "minute").value, 10);
-  return h * 60 + m;
+function getActiveSession(et) {
+  // Asian wraps around midnight (e.g. 19:15 → 03:45)
+  if (SM_ASIAN_ENABLED && (et.mins >= SM_ASIAN_START_MIN || et.mins < SM_ASIAN_END_MIN)) return "Asian";
+  if (SM_NY_ENABLED && et.mins >= SM_NY_START_MIN && et.mins < SM_NY_END_MIN) return "New York";
+  return null;
+}
+
+function isWeekend(et) {
+  return (et.day === 5 && et.mins >= SM_ROLLOVER_START) || et.day === 6 || (et.day === 0 && et.mins < SM_ROLLOVER_END);
 }
 
 function buildHeaders(token, config) {
@@ -162,22 +160,37 @@ Deno.serve(async (req) => {
         }
       }
 
-      // === AUTO-START: When a market session is open ===
+      // === AUTO-START: When a trading session is active ===
       if (config.auto_start_enabled && !robotRunning) {
-        const marketOpen = isTradingAllowed();
+        const et = getETTime();
+        const session = getActiveSession(et);
+        const weekend = isWeekend(et);
+        const inRollover = et.mins >= SM_ROLLOVER_START && et.mins < SM_ROLLOVER_END;
         const profitTarget = config.daily_profit_target ?? 200;
         const lossLimit = config.daily_loss_limit ?? 20;
         // Don't restart if daily limits already hit (prevents loop with auto-stop)
         const limitsHit = dailyPnL >= profitTarget || dailyPnL <= -lossLimit;
 
-        if (marketOpen && !limitsHit) {
+        if (session && !weekend && !inRollover && !limitsHit) {
+          // Session-specific risk overrides: Asian = 50% risk, max 2 positions
+          const riskMultiplier = session === "Asian" ? 0.5 : 1.0;
+          const maxPositions = session === "Asian"
+            ? Math.min(config.max_concurrent_trades ?? 2, 2)
+            : config.max_concurrent_trades ?? 2;
+
+          // For Asian session, switch to a preferred pair if current pair isn't suitable
+          const ASIAN_PREF = ["USDJPY", "EURJPY", "AUDJPY", "AUDUSD", "NZDUSD"];
+          const symbol = session === "Asian" && !ASIAN_PREF.includes(config.active_pair)
+            ? ASIAN_PREF[0]
+            : config.active_pair ?? "XAUUSD";
+
           const startPayload = {
             strategy: "auto",
-            symbol: config.active_pair ?? "XAUUSD",
+            symbol,
             trading_mode: config.trading_mode ?? "Balanced",
             lot_size: config.lot_size ?? 0.03,
-            max_concurrent_trades: config.max_concurrent_trades ?? 2,
-            risk_percentage: config.risk_percentage ?? 2,
+            max_concurrent_trades: maxPositions,
+            risk_percentage: (config.risk_percentage ?? 2) * riskMultiplier,
             stop_loss: config.stop_loss ?? 20,
             take_profit: config.take_profit ?? 40,
             daily_profit_target: config.daily_profit_target ?? 200,
@@ -202,7 +215,7 @@ Deno.serve(async (req) => {
           const startJson = await startRes.json().catch(() => ({}));
 
           if (startJson?.success || startRes.ok) {
-            actions.push(`AUTO-START: Market session open — robot launched`);
+            actions.push(`AUTO-START: ${session} session active — robot launched (risk ×${riskMultiplier}, max ${maxPositions} pos, ${symbol})`);
           } else {
             actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? "Unknown error"}`);
           }

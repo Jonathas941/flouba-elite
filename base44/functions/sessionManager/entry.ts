@@ -1,11 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// Configurable via environment variables — defaults match the aggressive-but-protected window
+const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api";
+
+// === Validation helpers ===
 function validTz(tz) {
   try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; }
   catch { return "America/New_York"; }
 }
-const TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
 function validTime(str, fallback) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(str || "");
   if (!m) return fallback;
@@ -14,171 +15,250 @@ function validTime(str, fallback) {
   if (h < 0 || h > 23 || min < 0 || min > 59) return fallback;
   return str;
 }
-const SESSION_START_STR = validTime(Deno.env.get("SESSION_START"), "08:00");
-const SESSION_END_STR = validTime(Deno.env.get("SESSION_END"), "12:00");
-
-function parseHM(str) {
-  const [h, m] = str.split(":").map(Number);
+function parseHM(hm) {
+  const [h, m] = hm.split(":").map(Number);
   return h * 60 + m;
 }
 
-function fmtTime(min) {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  const ampm = h >= 12 ? "PM" : "AM";
-  const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${dh}:${String(m).padStart(2, "0")} ${ampm}`;
-}
+// === Session config from env vars ===
+const TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
+const ASIAN_ENABLED = Deno.env.get("ASIAN_SESSION_ENABLED") !== "false";
+const ASIAN_START = validTime(Deno.env.get("ASIAN_SESSION_START"), "19:15");
+const ASIAN_END = validTime(Deno.env.get("ASIAN_SESSION_END"), "03:45");
+const NY_ENABLED = Deno.env.get("NY_SESSION_ENABLED") !== "false";
+const NY_START = validTime(Deno.env.get("NY_SESSION_START"), "08:00");
+const NY_END = validTime(Deno.env.get("NY_SESSION_END"), "12:00");
 
-// Uses IANA timezone America/New_York — automatically handles DST transitions
-function getETNow() {
+const ASIAN_START_MIN = parseHM(ASIAN_START); // 19:15 = 1155
+const ASIAN_END_MIN = parseHM(ASIAN_END);     // 03:45 = 225
+const NY_START_MIN = parseHM(NY_START);       // 08:00 = 480
+const NY_END_MIN = parseHM(NY_END);           // 12:00 = 720
+const ROLLOVER_START = 16 * 60 + 55;          // 4:55 PM
+const ROLLOVER_END = 17 * 60 + 15;            // 5:15 PM
+
+// === Preferred pairs per session ===
+const ASIAN_PREFERRED = ["USDJPY", "EURJPY", "AUDJPY", "AUDUSD", "NZDUSD"];
+const NY_PREFERRED = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"];
+const MAX_SPREAD_PIPS = 5;
+
+// === ET time computation (DST-aware) ===
+function getETTime() {
   const now = new Date();
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: TIMEZONE,
-    weekday: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const parts = fmt.formatToParts(now);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIMEZONE, weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(now);
   const wd = parts.find((p) => p.type === "weekday").value;
   const hr = parseInt(parts.find((p) => p.type === "hour").value, 10) % 24;
   const mi = parseInt(parts.find((p) => p.type === "minute").value, 10);
-  const se = parseInt(parts.find((p) => p.type === "second").value, 10);
   const dayMap = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
-  return {
-    now,
-    day: dayMap[wd],
-    hour: hr,
-    minute: mi,
-    second: se,
-    mins: hr * 60 + mi,
-    secs: hr * 3600 + mi * 60 + se,
-  };
+  const label = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIMEZONE, hour: "numeric", minute: "2-digit", hour12: true,
+  }).format(now);
+  const dayLabel = new Intl.DateTimeFormat("en-US", { timeZone: TIMEZONE, weekday: "short" }).format(now);
+  return { day: dayMap[wd], mins: hr * 60 + mi, label, dayLabel };
 }
 
-// Forex trading sessions (all times in ET / America-New_York)
-const SESSIONS = [
-  { name: "Sydney",   start: 17 * 60, end: 2 * 60,  wraps: true  }, // 5:00 PM – 2:00 AM
-  { name: "Tokyo",    start: 19 * 60, end: 4 * 60,  wraps: true  }, // 7:00 PM – 4:00 AM
-  { name: "London",   start: 3 * 60,  end: 12 * 60, wraps: false }, // 3:00 AM – 12:00 PM
-  { name: "New York", start: 8 * 60,  end: 17 * 60, wraps: false }, // 8:00 AM – 5:00 PM
-];
-
-function activeSessions(mins) {
-  const list = [];
-  for (const s of SESSIONS) {
-    const isActive = s.wraps ? mins >= s.start || mins < s.end : mins >= s.start && mins < s.end;
-    if (isActive) list.push(s.name);
-  }
-  // London/New York overlap: 8:00 AM – 12:00 PM ET
-  if (mins >= 8 * 60 && mins < 12 * 60) list.push("London/New York Overlap");
-  return list;
-}
-
-// Market opens Sunday 5:00 PM ET, closes Friday 5:00 PM ET
-function isMarketOpen(day, mins) {
-  if (day === 6) return false;                              // Saturday
-  if (day === 0 && mins < 17 * 60) return false;           // Sunday before 5 PM
-  if (day === 5 && mins >= 17 * 60) return false;          // Friday after 5 PM
-  return true;
-}
-
-// Core entry-validation logic — returns { allowed, reason }
-function checkEntry(et) {
-  const sStart = parseHM(SESSION_START_STR);
-  const sEnd = parseHM(SESSION_END_STR);
-
-  // Weekend block: Friday 4:55 PM ET → Sunday 5:10 PM ET (gap risk, no liquidity)
-  if ((et.day === 5 && et.mins >= 16 * 60 + 55) || et.day === 6 || (et.day === 0 && et.mins < 17 * 60 + 10)) {
-    return { allowed: false, reason: "Weekend market closure. Market reopens Sunday at 5:00 PM ET." };
-  }
-  // Daily rollover block: 4:55 PM – 5:10 PM ET (spread spikes, low liquidity)
-  if (et.mins >= 16 * 60 + 55 && et.mins < 17 * 60 + 10) {
-    return { allowed: false, reason: "Daily rollover period (4:55 PM – 5:10 PM ET). High spreads and low liquidity." };
-  }
-  // Configured trading window (default 8:00 AM – 12:00 PM ET = London/NY overlap)
-  if (et.mins < sStart || et.mins >= sEnd) {
-    return { allowed: false, reason: `Outside configured trading window (${fmtTime(sStart)} – ${fmtTime(sEnd)} ET). Next trading session opens at ${fmtTime(sStart)} ET.` };
-  }
-  return { allowed: true, reason: "Within trading window." };
-}
-
-// Next time the configured trading window opens (weekday 8 AM ET, skipping weekends)
-function nextTradingWindow(et) {
-  const sStart = parseHM(SESSION_START_STR);
-  for (let offset = 0; offset < 8; offset++) {
-    const d = (et.day + offset) % 7;
-    if (d === 0 || d === 6) continue; // skip Sat/Sun
-    if (offset === 0) {
-      if (et.mins < sStart) {
-        return { opens_at: fmtTime(sStart), countdown_seconds: Math.max(0, sStart * 60 - et.secs) };
-      }
-      continue; // past start today — check next weekday
-    }
-    const secsRemainingToday = 24 * 3600 - et.secs;
-    const fullDays = offset - 1;
-    return { opens_at: fmtTime(sStart), countdown_seconds: Math.max(0, secsRemainingToday + fullDays * 24 * 3600 + sStart * 60) };
-  }
+// === Session detection ===
+// Asian wraps around midnight (e.g. 19:15 → 03:45)
+function getActiveSession(et) {
+  if (ASIAN_ENABLED && (et.mins >= ASIAN_START_MIN || et.mins < ASIAN_END_MIN)) return "Asian";
+  if (NY_ENABLED && et.mins >= NY_START_MIN && et.mins < NY_END_MIN) return "New York";
   return null;
 }
 
-// Next forex session to open (for display when no session is currently active)
-function nextSession(et) {
-  if (et.day === 6) {
-    const secs = (24 * 3600 - et.secs) + 17 * 60 * 60;
-    return { name: "Sydney", opens_at: fmtTime(17 * 60), countdown_seconds: Math.max(0, secs) };
-  }
-  if (et.day === 0 && et.mins < 17 * 60) {
-    return { name: "Sydney", opens_at: fmtTime(17 * 60), countdown_seconds: Math.max(0, 17 * 60 * 60 - et.secs) };
-  }
-  for (const s of SESSIONS) {
-    if (et.mins < s.start) {
-      return { name: s.name, opens_at: fmtTime(s.start), countdown_seconds: Math.max(0, s.start * 60 - et.secs) };
-    }
-  }
-  // All sessions passed today — next is Sydney (skip Saturday)
-  let daysAhead = 1;
-  let nextDay = (et.day + 1) % 7;
-  while (nextDay === 6) { daysAhead++; nextDay = (nextDay + 1) % 7; }
-  const secs = (24 * 3600 - et.secs) + (daysAhead - 1) * 24 * 3600 + 17 * 60 * 60;
-  return { name: "Sydney", opens_at: fmtTime(17 * 60), countdown_seconds: Math.max(0, secs) };
+function isWeekend(et) {
+  // Friday 4:55 PM ET → Sunday 5:15 PM ET
+  return (et.day === 5 && et.mins >= ROLLOVER_START) || et.day === 6 || (et.day === 0 && et.mins < ROLLOVER_END);
 }
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function computeNextSession(et) {
+  // After Asian ends (03:45) → before NY starts (08:00): NY is next
+  if (et.mins >= ASIAN_END_MIN && et.mins < NY_START_MIN) {
+    if (NY_ENABLED) return { label: "New York", opensAt: NY_START };
+    if (ASIAN_ENABLED) return { label: "Asian (tomorrow)", opensAt: ASIAN_START };
+  }
+  // After NY ends (12:00) → before Asian starts (19:15): Asian is next
+  if (et.mins >= NY_END_MIN && et.mins < ASIAN_START_MIN) {
+    if (ASIAN_ENABLED) return { label: "Asian", opensAt: ASIAN_START };
+    if (NY_ENABLED) return { label: "New York (tomorrow)", opensAt: NY_START };
+  }
+  // Weekend or edge case
+  if (ASIAN_ENABLED) return { label: "Asian", opensAt: ASIAN_START };
+  if (NY_ENABLED) return { label: "New York", opensAt: NY_START };
+  return null;
+}
+
+// === Trade quality score (0-5) ===
+function computeQuality(ind, maxSpread) {
+  let score = 0;
+  const checks = [];
+
+  const adx = ind.adx ?? 0;
+  if (adx >= 25) { score++; checks.push("✓ ADX trending"); }
+  else checks.push("✗ ADX weak");
+
+  const rsi = ind.rsi ?? 50;
+  if (rsi >= 30 && rsi <= 70) { score++; checks.push("✓ RSI neutral"); }
+  else checks.push("✗ RSI extreme");
+
+  const atr = ind.atr ?? 0;
+  if (atr >= 0.05) { score++; checks.push("✓ ATR adequate"); }
+  else checks.push("✗ ATR too low");
+
+  const ema20 = ind.ema_20 ?? 0;
+  const ema50 = ind.ema_50 ?? 0;
+  if (ema20 && ema50 && Math.abs(ema20 - ema50) > 0.0001) { score++; checks.push("✓ EMA aligned"); }
+  else checks.push("✗ EMA flat");
+
+  const spread = ind.spread_pips ?? 999;
+  if (spread <= maxSpread) { score++; checks.push("✓ Spread OK"); }
+  else checks.push("✗ Spread high");
+
+  return { score, maxScore: 5, checks, spread, atr, adx, rsi };
+}
 
 Deno.serve(async (req) => {
   try {
-    await req.text().catch(() => {});
-    const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
-    const base44 = createClientFromRequest(headersReq);
+    const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const et = getETNow();
-    const marketOpen = isMarketOpen(et.day, et.mins);
-    const sessions = activeSessions(et.mins);
-    const entry = checkEntry(et);
-    const nextWin = entry.allowed ? null : nextTradingWindow(et);
-    const nextSess = sessions.length > 0 ? null : nextSession(et);
+    const et = getETTime();
+    const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id });
+    const config = settings?.[0] || {};
+    const activePair = config.active_pair ?? "XAUUSD";
+
+    const session = getActiveSession(et);
+    const weekend = isWeekend(et);
+    const inRollover = et.mins >= ROLLOVER_START && et.mins < ROLLOVER_END;
+
+    // Session-specific config
+    const sessionConfig = session === "Asian" ? {
+      name: "Asian",
+      label: "ASIAN SESSION ACTIVE",
+      risk_multiplier: 0.5,
+      max_positions: Math.min(config.max_concurrent_trades ?? 2, 2),
+      min_quality_score: 4,
+      preferred_pairs: ASIAN_PREFERRED,
+      conditional_pairs: ["XAUUSD"],
+    } : session === "New York" ? {
+      name: "New York",
+      label: "NY SESSION ACTIVE",
+      risk_multiplier: 1.0,
+      max_positions: config.max_concurrent_trades ?? 2,
+      min_quality_score: 3,
+      preferred_pairs: NY_PREFERRED,
+      conditional_pairs: [],
+    } : null;
+
+    // Fetch live scanner data from MT5 for spread / ATR / quality
+    let marketData = null;
+    let quality = null;
+
+    if (config.mt5_account && config.mt5_password && config.mt5_server) {
+      const token = Deno.env.get("MT5_API_TOKEN");
+      if (token) {
+        try {
+          const res = await fetch(`${BASE}/scanner/status`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+              "X-MT5-Login": String(config.mt5_account),
+              "X-MT5-Password": config.mt5_password,
+              "X-MT5-Server": config.mt5_server,
+            },
+          });
+          const json = await res.json().catch(() => ({}));
+          const ind = json?.indicators || json?.data?.indicators || {};
+          if (ind && Object.keys(ind).length) {
+            marketData = {
+              symbol: ind.symbol ?? activePair,
+              bid: ind.bid, ask: ind.ask, spread_pips: ind.spread_pips,
+              atr: ind.atr, adx: ind.adx, rsi: ind.rsi,
+              ema_20: ind.ema_20, ema_50: ind.ema_50, ema_200: ind.ema_200,
+            };
+            quality = computeQuality(ind, MAX_SPREAD_PIPS);
+          }
+        } catch { /* scanner unavailable — continue with time-only check */ }
+      }
+    }
+
+    // === Entry decision ===
+    let allowed = false;
+    let reason = "";
+
+    if (weekend) {
+      reason = "Weekend market closure — no new entries until Sunday 5:15 PM ET.";
+    } else if (inRollover) {
+      reason = "Daily rollover (4:55–5:15 PM ET) — entries blocked.";
+    } else if (!session) {
+      const next = computeNextSession(et);
+      reason = next
+        ? `Outside trading sessions. Next: ${next.label} at ${next.opensAt} ET.`
+        : "No active trading session configured.";
+    } else if (quality) {
+      const minScore = sessionConfig.min_quality_score;
+      if (quality.spread > MAX_SPREAD_PIPS) {
+        reason = `Spread too high (${quality.spread} pips > max ${MAX_SPREAD_PIPS}) — entry rejected.`;
+      } else if (quality.score < minScore) {
+        const fails = quality.checks.filter((c) => c.startsWith("✗"));
+        reason = `Trade quality too low for ${session} session (${quality.score}/${quality.maxScore}, need ${minScore}). ${fails.join(", ")}.`;
+      } else {
+        allowed = true;
+        reason = `${session} session active — entry allowed (quality ${quality.score}/${quality.maxScore}).`;
+      }
+    } else {
+      // Session active but no live market data — permit by time window only
+      allowed = true;
+      reason = `${session} session active — entry permitted by time window.`;
+    }
+
+    // Pair preference status
+    let pairStatus = "N/A";
+    if (sessionConfig) {
+      if (sessionConfig.preferred_pairs.includes(activePair)) {
+        pairStatus = "Preferred";
+      } else if (sessionConfig.conditional_pairs.includes(activePair)) {
+        pairStatus = quality && quality.spread <= MAX_SPREAD_PIPS
+          ? "Conditional (spread OK)"
+          : "Conditional (spread too high)";
+      } else {
+        pairStatus = "Not preferred for this session";
+      }
+    }
 
     return Response.json({
-      allowed: entry.allowed,
-      reason: entry.reason,
-      market_open: marketOpen,
-      current_sessions: sessions,
-      next_session: nextSess,
-      next_trading_window: nextWin,
-      et_time: fmtTime(et.mins),
-      et_day: DAY_NAMES[et.day],
+      session_active: session,
+      session_label: session ? sessionConfig.label : "MARKET CLOSED",
+      allowed,
+      reason,
+      market_open: !weekend,
+      et_time: et.label,
+      et_day: et.dayLabel,
+      active_pair: activePair,
+      pair_status: pairStatus,
+      preferred_pairs: sessionConfig?.preferred_pairs ?? [],
+      conditional_pairs: sessionConfig?.conditional_pairs ?? [],
+      session_risk_multiplier: sessionConfig?.risk_multiplier ?? 1,
+      session_max_positions: sessionConfig?.max_positions ?? config.max_concurrent_trades ?? 2,
+      min_quality_score: sessionConfig?.min_quality_score ?? 0,
+      spread: quality?.spread ?? null,
+      atr: quality?.atr ?? null,
+      trade_quality_score: quality?.score ?? null,
+      trade_quality_max: quality?.maxScore ?? 5,
+      quality_checks: quality?.checks ?? [],
+      market_data: marketData,
       config: {
         timezone: TIMEZONE,
-        session_start: fmtTime(parseHM(SESSION_START_STR)),
-        session_end: fmtTime(parseHM(SESSION_END_STR)),
+        asian_enabled: ASIAN_ENABLED,
+        asian_start: ASIAN_START,
+        asian_end: ASIAN_END,
+        ny_enabled: NY_ENABLED,
+        ny_start: NY_START,
+        ny_end: NY_END,
       },
     });
-  } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 500 });
   }
 });
