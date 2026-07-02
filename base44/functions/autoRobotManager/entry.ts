@@ -190,7 +190,9 @@ Deno.serve(async (req) => {
             daily_profit_target: config.daily_profit_target ?? 200,
             daily_loss_limit: config.daily_loss_limit ?? 20,
             stop_after_losses: config.stop_after_losses ?? 2,
-            lot_multiplier: config.lot_multiplier ?? 2,
+            lot_multiplier: (balance > 0 && equity >= (config.multiplier_min_equity_ratio ?? 2) * balance)
+              ? (config.lot_multiplier ?? 2)
+              : 1,
             equity_guard_enabled: config.equity_guard_enabled ?? true,
             equity_guard_min_equity_pct: config.equity_guard_min_equity_pct ?? 75,
             trend_filter_enabled: config.trend_filter_enabled ?? true,

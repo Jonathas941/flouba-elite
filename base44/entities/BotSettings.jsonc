@@ -190,6 +190,11 @@
       "default": 2,
       "description": "Lot size multiplier applied to consecutive winning entries for compounding growth."
     },
+    "multiplier_min_equity_ratio": {
+      "type": "number",
+      "default": 2,
+      "description": "Equity-to-balance ratio required before the lot multiplier activates. When equity reaches this multiple of balance (e.g. 2x), compounding kicks in. Below this, lot_multiplier is forced to 1 (flat)."
+    },
     "auto_start_enabled": {
       "type": "boolean",
       "default": false,

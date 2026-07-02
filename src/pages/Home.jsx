@@ -167,7 +167,20 @@ export default function Home() {
   };
 
   const handleLaunchRobot = async (form) => {
-    const res = await mt5Api.robotStart(form.symbol, form);
+    // Lot multiplier only activates when equity reaches the configured ratio of balance (default 2x)
+    const minRatio = form.multiplier_min_equity_ratio ?? 2;
+    const multiplierActive = connected && account?.balance > 0 && account?.equity >= minRatio * account.balance;
+    const launchForm = {
+      ...form,
+      lot_multiplier: multiplierActive ? form.lot_multiplier : 1,
+      lot_size: multiplierActive
+        ? form.lot_size
+        : (form.lot_multiplier > 1 ? Math.round((form.lot_size / form.lot_multiplier) * 100) / 100 : form.lot_size),
+    };
+    if (!multiplierActive && form.lot_multiplier > 1) {
+      toast({ title: "Multiplier Disabled", description: `Equity must reach ${minRatio}x balance to activate lot multiplier.`, duration: 3000 });
+    }
+    const res = await mt5Api.robotStart(launchForm.symbol, launchForm);
     if (res?.ok && res?.data?.success === true) {
       setActivePair(form.symbol);
       setRobotStatus("Scanning Market");

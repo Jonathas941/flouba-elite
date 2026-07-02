@@ -39,6 +39,7 @@ const DEFAULT = {
   max_concurrent_trades: 2,
   risk_percentage: 2,
   lot_multiplier: 2,        // compound: double lot on consecutive winning entries
+  multiplier_min_equity_ratio: 2,  // equity must reach 2x balance before lot multiplier activates
   // SL / TP
   stop_loss: 20,
   take_profit: 40,
@@ -204,6 +205,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         liq_session_only: s.liq_session_only ?? prev.liq_session_only,
         liq_news_buffer_minutes: s.liq_news_buffer_minutes ?? prev.liq_news_buffer_minutes,
         lot_multiplier: s.lot_multiplier ?? prev.lot_multiplier,
+        multiplier_min_equity_ratio: s.multiplier_min_equity_ratio ?? prev.multiplier_min_equity_ratio,
         auto_start_enabled: s.auto_start_enabled ?? prev.auto_start_enabled,
         auto_start_time: s.auto_start_time ?? prev.auto_start_time,
         auto_stop_enabled: s.auto_stop_enabled ?? prev.auto_stop_enabled,
@@ -292,6 +294,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         liq_session_only: form.liq_session_only,
         liq_news_buffer_minutes: form.liq_news_buffer_minutes,
         lot_multiplier: form.lot_multiplier,
+        multiplier_min_equity_ratio: form.multiplier_min_equity_ratio,
         auto_start_enabled: form.auto_start_enabled,
         auto_start_time: form.auto_start_time,
         auto_stop_enabled: form.auto_stop_enabled,
@@ -391,6 +394,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   <Field label="Lot Multiplier">
                     <NumberInput value={form.lot_multiplier} onChange={set("lot_multiplier")} min={1} step={0.1} />
                   </Field>
+                  <Field label="Multiplier Equity Ratio">
+                    <NumberInput value={form.multiplier_min_equity_ratio} onChange={set("multiplier_min_equity_ratio")} min={1} step={0.5} />
+                  </Field>
+                  <p className="text-[9px] text-white/25 leading-relaxed">Multiplier only activates when equity reaches this ratio × balance (default 2x). Below it, lot size stays flat.</p>
                 </div>
               </div>
 
