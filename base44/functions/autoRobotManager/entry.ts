@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api";
 const USER_TIMEZONE = "America/Detroit";
 
+// Local session fallback (used when MT5 server /session/status is unavailable)
 function validTz(tz) {
   try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; }
   catch { return "America/New_York"; }
@@ -15,49 +16,38 @@ function validTime(str, fallback) {
   if (h < 0 || h > 23 || min < 0 || min > 59) return fallback;
   return str;
 }
-function parseHM(hm) {
-  const [h, m] = hm.split(":").map(Number);
-  return h * 60 + m;
-}
+function parseHM(hm) { const [h, m] = hm.split(":").map(Number); return h * 60 + m; }
 
-const SM_TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
-const SM_ASIAN_ENABLED = Deno.env.get("ASIAN_SESSION_ENABLED") !== "false";
-const SM_ASIAN_START = validTime(Deno.env.get("ASIAN_SESSION_START"), "19:15");
-const SM_ASIAN_END = validTime(Deno.env.get("ASIAN_SESSION_END"), "03:45");
-const SM_NY_ENABLED = Deno.env.get("NY_SESSION_ENABLED") !== "false";
-const SM_NY_START = validTime(Deno.env.get("NY_SESSION_START"), "08:00");
-const SM_NY_END = validTime(Deno.env.get("NY_SESSION_END"), "12:00");
-const SM_ASIAN_START_MIN = parseHM(SM_ASIAN_START);
-const SM_ASIAN_END_MIN = parseHM(SM_ASIAN_END);
-const SM_NY_START_MIN = parseHM(SM_NY_START);
-const SM_NY_END_MIN = parseHM(SM_NY_END);
-const SM_ROLLOVER_START = 16 * 60 + 55;
-const SM_ROLLOVER_END = 17 * 60 + 15;
+const SM_TZ = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
+const SM_ASIAN_EN = Deno.env.get("ASIAN_SESSION_ENABLED") !== "false";
+const SM_ASIAN_ST = parseHM(validTime(Deno.env.get("ASIAN_SESSION_START"), "19:15"));
+const SM_ASIAN_ET = parseHM(validTime(Deno.env.get("ASIAN_SESSION_END"), "03:45"));
+const SM_NY_EN = Deno.env.get("NY_SESSION_ENABLED") !== "false";
+const SM_NY_ST = parseHM(validTime(Deno.env.get("NY_SESSION_START"), "08:00"));
+const SM_NY_ET = parseHM(validTime(Deno.env.get("NY_SESSION_END"), "12:00"));
+const SM_ROL_ST = 16 * 60 + 55;
+const SM_ROL_ET = 17 * 60 + 15;
 
-// DST-aware two-session trading windows (America/New_York).
-// Existing open positions are still managed by the MT5 robot during blocked
-// periods — this only gates NEW auto-starts.
-function getETTime() {
+function localSessionInfo() {
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: SM_TIMEZONE, weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: SM_TZ, weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(now);
   const wd = parts.find((p) => p.type === "weekday").value;
   const hr = parseInt(parts.find((p) => p.type === "hour").value, 10) % 24;
   const mi = parseInt(parts.find((p) => p.type === "minute").value, 10);
   const dayMap = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
-  return { day: dayMap[wd], mins: hr * 60 + mi };
-}
-
-function getActiveSession(et) {
-  // Asian wraps around midnight (e.g. 19:15 → 03:45)
-  if (SM_ASIAN_ENABLED && (et.mins >= SM_ASIAN_START_MIN || et.mins < SM_ASIAN_END_MIN)) return "Asian";
-  if (SM_NY_ENABLED && et.mins >= SM_NY_START_MIN && et.mins < SM_NY_END_MIN) return "New York";
-  return null;
-}
-
-function isWeekend(et) {
-  return (et.day === 5 && et.mins >= SM_ROLLOVER_START) || et.day === 6 || (et.day === 0 && et.mins < SM_ROLLOVER_END);
+  const day = dayMap[wd];
+  const mins = hr * 60 + mi;
+  const weekend = (day === 5 && mins >= SM_ROL_ST) || day === 6 || (day === 0 && mins < SM_ROL_ET);
+  const inRollover = mins >= SM_ROL_ST && mins < SM_ROL_ET;
+  let session = null;
+  if (SM_ASIAN_EN && (mins >= SM_ASIAN_ST || mins < SM_ASIAN_ET)) session = "asian";
+  else if (SM_NY_EN && mins >= SM_NY_ST && mins < SM_NY_ET) session = "ny";
+  const blocked = !session || weekend || inRollover;
+  if (session === "asian") return { trading_blocked: blocked, risk_multiplier: 0.5, allowed_pairs: ["USDJPY","EURJPY","AUDJPY","AUDUSD","NZDUSD"], session: "asian" };
+  if (session === "ny") return { trading_blocked: blocked, risk_multiplier: 1.0, allowed_pairs: ["XAUUSD","EURUSD","GBPUSD","USDJPY"], session: "ny" };
+  return { trading_blocked: true, risk_multiplier: 0, allowed_pairs: [], session: "closed" };
 }
 
 function buildHeaders(token, config) {
@@ -160,28 +150,32 @@ Deno.serve(async (req) => {
         }
       }
 
-      // === AUTO-START: When a trading session is active ===
+      // === AUTO-START: When the MT5 server reports a session is active ===
       if (config.auto_start_enabled && !robotRunning) {
-        const et = getETTime();
-        const session = getActiveSession(et);
-        const weekend = isWeekend(et);
-        const inRollover = et.mins >= SM_ROLLOVER_START && et.mins < SM_ROLLOVER_END;
         const profitTarget = config.daily_profit_target ?? 200;
         const lossLimit = config.daily_loss_limit ?? 20;
-        // Don't restart if daily limits already hit (prevents loop with auto-stop)
         const limitsHit = dailyPnL >= profitTarget || dailyPnL <= -lossLimit;
 
-        if (session && !weekend && !inRollover && !limitsHit) {
-          // Session-specific risk overrides: Asian = 50% risk, max 2 positions
-          const riskMultiplier = session === "Asian" ? 0.5 : 1.0;
-          const maxPositions = session === "Asian"
-            ? Math.min(config.max_concurrent_trades ?? 2, 2)
-            : config.max_concurrent_trades ?? 2;
+        // Fetch session status from the MT5 server (per-user for correct pair/spread)
+        let sessionInfo = null;
+        try {
+          const sessRes = await fetch(`${BASE}/session/status`, { headers: authHeaders });
+          if (sessRes.ok) {
+            const sessJson = await sessRes.json();
+            sessionInfo = sessJson?.data || sessJson;
+          }
+        } catch {}
+        if (!sessionInfo) sessionInfo = localSessionInfo();
 
-          // For Asian session, switch to a preferred pair if current pair isn't suitable
-          const ASIAN_PREF = ["USDJPY", "EURJPY", "AUDJPY", "AUDUSD", "NZDUSD"];
-          const symbol = session === "Asian" && !ASIAN_PREF.includes(config.active_pair)
-            ? ASIAN_PREF[0]
+        const tradingBlocked = sessionInfo?.trading_blocked ?? true;
+        const riskMultiplier = sessionInfo?.risk_multiplier ?? 0;
+        const allowedPairs = sessionInfo?.allowed_pairs ?? [];
+        const sessionName = sessionInfo?.session ?? "closed";
+
+        if (!tradingBlocked && !limitsHit && riskMultiplier > 0) {
+          // Switch to an allowed pair if the current pair isn't in the server's allowed list
+          const symbol = allowedPairs.length && !allowedPairs.includes(config.active_pair)
+            ? allowedPairs[0]
             : config.active_pair ?? "XAUUSD";
 
           const startPayload = {
@@ -189,7 +183,7 @@ Deno.serve(async (req) => {
             symbol,
             trading_mode: config.trading_mode ?? "Balanced",
             lot_size: config.lot_size ?? 0.03,
-            max_concurrent_trades: maxPositions,
+            max_concurrent_trades: config.max_concurrent_trades ?? 2,
             risk_percentage: (config.risk_percentage ?? 2) * riskMultiplier,
             stop_loss: config.stop_loss ?? 20,
             take_profit: config.take_profit ?? 40,
@@ -215,7 +209,7 @@ Deno.serve(async (req) => {
           const startJson = await startRes.json().catch(() => ({}));
 
           if (startJson?.success || startRes.ok) {
-            actions.push(`AUTO-START: ${session} session active — robot launched (risk ×${riskMultiplier}, max ${maxPositions} pos, ${symbol})`);
+            actions.push(`AUTO-START: ${sessionName} session active — robot launched (risk ×${riskMultiplier}, ${symbol})`);
           } else {
             actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? "Unknown error"}`);
           }

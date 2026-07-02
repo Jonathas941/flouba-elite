@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Globe, Clock, AlertTriangle, CheckCircle2, Activity, Crosshair } from "lucide-react";
+import { Globe, Clock, AlertTriangle, CheckCircle2, Activity, Crosshair, Sun, Moon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 function QualityBar({ score, max, minRequired }) {
-  const pct = max ? (score / max) * 100 : 0;
-  const passed = score >= minRequired;
+  const pct = max && score != null ? (score / max) * 100 : 0;
+  const passed = score != null && score >= minRequired;
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -58,11 +58,11 @@ export default function MarketSessionStatus() {
   const isAsian = session === "Asian";
   const isNY = session === "New York";
   const isClosed = !session;
+  const unavailable = status.session_label === "SESSION UNAVAILABLE";
 
-  // Session accent color
-  const accent = isAsian ? "text-violet-400" : isNY ? "text-green-400" : "text-red-400";
-  const accentBg = isAsian ? "bg-violet-500/10 border-violet-500/30" : isNY ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30";
-  const accentDot = isAsian ? "bg-violet-400" : isNY ? "bg-green-400" : "bg-red-400";
+  const accent = unavailable ? "text-white/40" : isAsian ? "text-violet-400" : isNY ? "text-green-400" : "text-red-400";
+  const accentBg = unavailable ? "bg-white/5 border-white/10" : isAsian ? "bg-violet-500/10 border-violet-500/30" : isNY ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30";
+  const accentDot = unavailable ? "bg-white/30" : isAsian ? "bg-violet-400" : isNY ? "bg-green-400" : "bg-red-400";
 
   return (
     <div
@@ -83,7 +83,7 @@ export default function MarketSessionStatus() {
             animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           />
-          {isAsian ? "ASIAN ACTIVE" : isNY ? "NY ACTIVE" : "MARKET CLOSED"}
+          {status.session_label || "MARKET CLOSED"}
         </div>
       </div>
 
@@ -101,7 +101,7 @@ export default function MarketSessionStatus() {
           </p>
         </div>
 
-        {/* ET time + market open */}
+        {/* ET time + market status */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider text-white/30">ET Time</span>
           <span className="text-xs text-white/60 font-heading">
@@ -116,6 +116,14 @@ export default function MarketSessionStatus() {
           </span>
         </div>
 
+        {/* Rollover blackout warning */}
+        {status.in_rollover && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <AlertTriangle className="w-3 h-3 text-amber-400" />
+            <span className="text-[9px] text-amber-400 font-heading uppercase tracking-wider">Rollover Blackout Active</span>
+          </div>
+        )}
+
         {/* Active pair + pair status */}
         {status.active_pair && (
           <div className="flex items-center justify-between">
@@ -124,9 +132,7 @@ export default function MarketSessionStatus() {
               <p className="text-xs text-white font-heading font-bold">{status.active_pair}</p>
               {status.pair_status && status.pair_status !== "N/A" && (
                 <p className={`text-[9px] font-heading ${
-                  status.pair_status === "Preferred" ? "text-green-400" :
-                  status.pair_status.startsWith("Conditional") ? "text-amber-400" :
-                  "text-white/40"
+                  status.pair_status === "Allowed" ? "text-green-400" : "text-amber-400"
                 }`}>
                   {status.pair_status}
                 </p>
@@ -135,12 +141,12 @@ export default function MarketSessionStatus() {
           </div>
         )}
 
-        {/* Preferred pairs for active session */}
-        {session && status.preferred_pairs?.length > 0 && (
+        {/* Allowed pairs for active session */}
+        {session && status.allowed_pairs?.length > 0 && (
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-wider text-white/30">Preferred</span>
-            <span className="text-[10px] text-white/50 font-heading">
-              {status.preferred_pairs.join(" · ")}
+            <span className="text-[10px] uppercase tracking-wider text-white/30">Allowed Pairs</span>
+            <span className="text-[10px] text-white/50 font-heading text-right max-w-[60%]">
+              {status.allowed_pairs.join(" · ")}
             </span>
           </div>
         )}
@@ -158,7 +164,15 @@ export default function MarketSessionStatus() {
           </div>
         )}
 
-        {/* Trade quality score */}
+        {/* ATR */}
+        {status.atr != null && (
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-white/30">ATR</span>
+            <span className="text-xs text-white/60 font-heading">{status.atr.toFixed(2)}</span>
+          </div>
+        )}
+
+        {/* Trade quality score (0-100) */}
         {status.trade_quality_score != null && (
           <div className="space-y-1.5 pt-1">
             <div className="flex items-center justify-between">
@@ -167,7 +181,7 @@ export default function MarketSessionStatus() {
                 <span className="text-[10px] uppercase tracking-wider text-white/30">Quality Score</span>
               </div>
               <span className="text-[9px] text-white/30 font-heading">
-                min {status.min_quality_score}/{status.trade_quality_max}
+                min {status.min_quality_score}
               </span>
             </div>
             <QualityBar
@@ -175,27 +189,40 @@ export default function MarketSessionStatus() {
               max={status.trade_quality_max}
               minRequired={status.min_quality_score}
             />
-            {status.quality_checks?.length > 0 && (
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5 pt-0.5">
-                {status.quality_checks.map((c, i) => (
-                  <span key={i} className={`text-[8px] font-heading ${c.startsWith("✓") ? "text-green-400/60" : "text-red-400/60"}`}>
-                    {c}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
-        {/* Session risk info */}
+        {/* Session risk multiplier */}
         {session && (
           <div className="flex items-center justify-between pt-1 border-t border-white/5">
-            <span className="text-[10px] uppercase tracking-wider text-white/30">Risk / Max Pos</span>
+            <span className="text-[10px] uppercase tracking-wider text-white/30">Risk Multiplier</span>
             <span className="text-[10px] text-white/50 font-heading">
-              ×{status.session_risk_multiplier} · {status.session_max_positions}
+              ×{status.session_risk_multiplier}
             </span>
           </div>
         )}
+
+        {/* Session windows */}
+        <div className="pt-2 border-t border-white/5 space-y-1.5">
+          {status.asian_session_window && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Moon className="w-3 h-3 text-violet-400/60" />
+                <span className="text-[10px] uppercase tracking-wider text-white/30">Asian</span>
+              </div>
+              <span className="text-[9px] text-white/40 font-heading">{status.asian_session_window}</span>
+            </div>
+          )}
+          {status.ny_session_window && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sun className="w-3 h-3 text-green-400/60" />
+                <span className="text-[10px] uppercase tracking-wider text-white/30">NY</span>
+              </div>
+              <span className="text-[9px] text-white/40 font-heading">{status.ny_session_window}</span>
+            </div>
+          )}
+        </div>
 
         {/* Block reason */}
         {!status.allowed && status.reason && (
