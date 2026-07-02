@@ -195,6 +195,26 @@
       "default": 10,
       "description": "Minutes before/after high-impact news during which Liquidity Sweep Scalping avoids opening new trades."
     },
+    "lot_multiplier": {
+      "type": "number",
+      "default": 2,
+      "description": "Lot size multiplier applied to consecutive winning entries for compounding growth."
+    },
+    "auto_start_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "When enabled, the robot auto-starts at the configured time each day (America/Detroit timezone)."
+    },
+    "auto_start_time": {
+      "type": "string",
+      "default": "09:00",
+      "description": "Daily auto-start time in HH:MM format (America/Detroit local time)."
+    },
+    "auto_stop_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "When enabled, auto-stops the robot when daily profit target or loss limit is reached."
+    },
     "robot_status": {
       "type": "string",
       "enum": [

@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import RiskDisclaimer from "@/components/RiskDisclaimer";
 import LiquiditySweepSettings from "@/components/robotstart/LiquiditySweepSettings";
+import AutoScheduleSettings from "@/components/robotstart/AutoScheduleSettings";
 import TrendFilterSettings from "@/components/robotstart/TrendFilterSettings";
 
 const STRATEGIES = [
@@ -76,6 +77,10 @@ const DEFAULT = {
   trend_filter_enabled: true,
   trend_filter_timeframe: "M15",
   trend_filter_ema_period: 200,
+  // Auto Schedule — calendar-based auto-start and auto-stop on daily limits
+  auto_start_enabled: false,
+  auto_start_time: "09:00",
+  auto_stop_enabled: true,
 };
 
 function Field({ label, children }) {
@@ -173,6 +178,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         liq_use_vwap: s.liq_use_vwap ?? prev.liq_use_vwap,
         liq_session_only: s.liq_session_only ?? prev.liq_session_only,
         liq_news_buffer_minutes: s.liq_news_buffer_minutes ?? prev.liq_news_buffer_minutes,
+        lot_multiplier: s.lot_multiplier ?? prev.lot_multiplier,
+        auto_start_enabled: s.auto_start_enabled ?? prev.auto_start_enabled,
+        auto_start_time: s.auto_start_time ?? prev.auto_start_time,
+        auto_stop_enabled: s.auto_stop_enabled ?? prev.auto_stop_enabled,
       }));
     }).catch(() => {});
   }, [open]);
@@ -239,6 +248,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         liq_use_vwap: form.liq_use_vwap,
         liq_session_only: form.liq_session_only,
         liq_news_buffer_minutes: form.liq_news_buffer_minutes,
+        lot_multiplier: form.lot_multiplier,
+        auto_start_enabled: form.auto_start_enabled,
+        auto_start_time: form.auto_start_time,
+        auto_stop_enabled: form.auto_stop_enabled,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -499,6 +512,13 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <AutoScheduleSettings
+                form={form}
+                set={set}
+                Field={Field}
+                Toggle={Toggle}
+              />
 
               <RiskDisclaimer />
 
