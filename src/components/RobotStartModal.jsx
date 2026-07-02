@@ -30,22 +30,22 @@ const MODE_PRESETS = {
 const DEFAULT = {
   symbol: "XAUUSD",
   strategy: "Auto (AI Select)",
-  trading_mode: "Balanced",
+  trading_mode: "Conservative",
   // Lot & Risk
-  lot_size: 0.02,
-  max_concurrent_trades: 2,
+  lot_size: 0.01,
+  max_concurrent_trades: 1,
   risk_percentage: 1,
   lot_multiplier: 1,        // multiply lot on consecutive entries
   // SL / TP
-  stop_loss: 50,
-  take_profit: 100,
+  stop_loss: 20,
+  take_profit: 40,
   dynamic_stop_loss: false, // scale stop loss with live ATR instead of a fixed value
   atr_sl_multiplier: 2,
   // Daily limits
   max_daily_trades: 999999, // unlimited — daily trade cap removed
   stop_after_losses: 2,
-  daily_profit_target: 1000,
-  daily_loss_limit: 50,
+  daily_profit_target: 10,
+  daily_loss_limit: 5,
   // HFT Scalper specific — tuned for frequent small in/out positions, not trend-riding
   hft_max_trades: 15,
   hft_burst_points: 8,
