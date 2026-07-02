@@ -12,6 +12,7 @@ import DrawdownProtection from "@/components/analysis/DrawdownProtection";
 import LiveDebugPanel from "@/components/scanner/LiveDebugPanel";
 import ScannerStatusPanel from "@/components/scanner/ScannerStatusPanel";
 import TradeChecklist from "@/components/scanner/TradeChecklist";
+import EmaCrossOverlay from "@/components/scanner/EmaCrossOverlay";
 import SystemHealthCheck from "@/components/health/SystemHealthCheck";
 
 const TABS = [
@@ -97,6 +98,7 @@ export default function AIScanner() {
             <ScannerStatusPanel />
             <SessionNewsFilter onFilterChange={handleFilterChange} />
             <AIDashboard scanner={scanData?.scanner} />
+            <EmaCrossOverlay scanner={scanData?.scanner} />
             <TradeChecklist scanner={scanData?.scanner} />
             <LiveDebugPanel debugLog={scanData?.debugLog ?? []} />
           </motion.div>
