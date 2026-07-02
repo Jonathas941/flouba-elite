@@ -4,6 +4,7 @@ import { X, Play } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import RiskDisclaimer from "@/components/RiskDisclaimer";
+import LiquiditySweepSettings from "@/components/robotstart/LiquiditySweepSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -12,6 +13,7 @@ const STRATEGIES = [
   "Hybrid Manual",
   "HFT Scalper",
   "Grid Trading",
+  "Liquidity Sweep Scalping",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -57,6 +59,15 @@ const DEFAULT = {
   // Grid Trading specific — buy/sell levels stacked at fixed distance from price
   grid_distance_pips: 10,
   grid_max_levels: 5,
+  // Liquidity Sweep Scalping specific — HTF trend filter + trick-move/liquidity-sweep entry
+  liq_htf_timeframe: "M15",
+  liq_entry_timeframe: "M1",
+  liq_htf_ema_period: 200,
+  liq_rsi_overbought: 80,
+  liq_rsi_oversold: 20,
+  liq_use_vwap: true,
+  liq_session_only: true,
+  liq_news_buffer_minutes: 10,
   // Equity Guard — hard-stop that force-closes all trades if equity falls too low
   equity_guard_enabled: true,
   equity_guard_min_equity_pct: 50,
@@ -147,6 +158,13 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         grid_max_levels: s.grid_max_levels ?? prev.grid_max_levels,
         equity_guard_enabled: s.equity_guard_enabled ?? prev.equity_guard_enabled,
         equity_guard_min_equity_pct: s.equity_guard_min_equity_pct ?? prev.equity_guard_min_equity_pct,
+        liq_htf_timeframe: s.liq_htf_timeframe ?? prev.liq_htf_timeframe,
+        liq_entry_timeframe: s.liq_entry_timeframe ?? prev.liq_entry_timeframe,
+        liq_rsi_overbought: s.liq_rsi_overbought ?? prev.liq_rsi_overbought,
+        liq_rsi_oversold: s.liq_rsi_oversold ?? prev.liq_rsi_oversold,
+        liq_use_vwap: s.liq_use_vwap ?? prev.liq_use_vwap,
+        liq_session_only: s.liq_session_only ?? prev.liq_session_only,
+        liq_news_buffer_minutes: s.liq_news_buffer_minutes ?? prev.liq_news_buffer_minutes,
       }));
     }).catch(() => {});
   }, [open]);
@@ -169,6 +187,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
   const isHFT = form.strategy === "HFT Scalper";
   const isGrid = form.strategy === "Grid Trading";
+  const isLiquiditySweep = form.strategy === "Liquidity Sweep Scalping";
 
   const handleStart = async () => {
     setLoading(true);
@@ -202,6 +221,13 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         grid_max_levels: form.grid_max_levels,
         equity_guard_enabled: form.equity_guard_enabled,
         equity_guard_min_equity_pct: form.equity_guard_min_equity_pct,
+        liq_htf_timeframe: form.liq_htf_timeframe,
+        liq_entry_timeframe: form.liq_entry_timeframe,
+        liq_rsi_overbought: form.liq_rsi_overbought,
+        liq_rsi_oversold: form.liq_rsi_oversold,
+        liq_use_vwap: form.liq_use_vwap,
+        liq_session_only: form.liq_session_only,
+        liq_news_buffer_minutes: form.liq_news_buffer_minutes,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -365,6 +391,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <LiquiditySweepSettings
+                visible={isLiquiditySweep}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
 
               {/* HFT Scalper Settings — only shown when that strategy is selected */}
               <AnimatePresence>

@@ -128,6 +128,54 @@
       "default": 50,
       "description": "Minimum equity as a percentage of balance before the Equity Guard force-closes all trades and pauses the robot."
     },
+    "liq_htf_timeframe": {
+      "type": "string",
+      "enum": [
+        "M15",
+        "H1"
+      ],
+      "default": "M15",
+      "description": "Higher timeframe chart used for the Liquidity Sweep Scalping trend filter."
+    },
+    "liq_entry_timeframe": {
+      "type": "string",
+      "enum": [
+        "M1",
+        "M5"
+      ],
+      "default": "M1",
+      "description": "Lower timeframe chart used to execute Liquidity Sweep Scalping entries."
+    },
+    "liq_htf_ema_period": {
+      "type": "number",
+      "default": 200,
+      "description": "EMA period on the higher timeframe used to determine trend direction for Liquidity Sweep Scalping."
+    },
+    "liq_rsi_overbought": {
+      "type": "number",
+      "default": 80,
+      "description": "RSI level considered overbought (exhaustion) for Liquidity Sweep Scalping."
+    },
+    "liq_rsi_oversold": {
+      "type": "number",
+      "default": 20,
+      "description": "RSI level considered oversold (exhaustion) for Liquidity Sweep Scalping."
+    },
+    "liq_use_vwap": {
+      "type": "boolean",
+      "default": true,
+      "description": "When enabled, Liquidity Sweep Scalping requires price to react back inside VWAP before entering."
+    },
+    "liq_session_only": {
+      "type": "boolean",
+      "default": true,
+      "description": "When enabled, Liquidity Sweep Scalping only trades during the London-New York session overlap."
+    },
+    "liq_news_buffer_minutes": {
+      "type": "number",
+      "default": 10,
+      "description": "Minutes before/after high-impact news during which Liquidity Sweep Scalping avoids opening new trades."
+    },
     "robot_status": {
       "type": "string",
       "enum": [
