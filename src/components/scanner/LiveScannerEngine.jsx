@@ -232,6 +232,21 @@ export default function LiveScannerEngine({ onScanUpdate }) {
             </div>
           ))}
         </div>
+        {/* EMA 200 — trend confirmation & dynamic support/resistance */}
+        <div className="grid grid-cols-2 gap-1 pt-2 border-t border-white/5 mt-2">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] text-muted-foreground/60 uppercase">EMA200</span>
+            <span className={`text-[10px] font-bold leading-tight truncate ${
+              ind.ema_200 != null && ind.bid != null ? (ind.bid > ind.ema_200 ? "text-green-400" : "text-red-400") : "text-white/70"
+            }`}>{ind.ema_200?.toFixed(2) ?? "--"}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] text-muted-foreground/60 uppercase">Price vs EMA200</span>
+            <span className="text-[10px] font-bold text-white/70 leading-tight truncate">
+              {ind.ema_200 != null && ind.bid != null ? (ind.bid > ind.ema_200 ? "Above (Support)" : "Below (Resistance)") : "--"}
+            </span>
+          </div>
+        </div>
       </GlassCard>
 
       {/* Reason / conditions */}

@@ -68,8 +68,15 @@ export default function AIDashboard({ scanner }) {
 
   const adxOk    = (ind.adx_14 ?? 0) > 20;
   const atrOk    = (ind.atr_14 ?? 0) > 0;
-  const trend    = ind.ema_20 > ind.ema_50 ? "Uptrend" : "Downtrend";
-  const trendColor = trend === "Uptrend" ? "text-green-400" : "text-red-400";
+  // EMA 20/50/200 alignment confirms trend strength and marks EMA200 as dynamic support/resistance
+  const emaAligned = ind.ema_200 != null;
+  const bullAligned = ind.ema_20 > ind.ema_50 && ind.ema_50 > ind.ema_200;
+  const bearAligned = ind.ema_20 < ind.ema_50 && ind.ema_50 < ind.ema_200;
+  const trend = !emaAligned
+    ? (ind.ema_20 > ind.ema_50 ? "Uptrend" : "Downtrend")
+    : bullAligned ? "Strong Uptrend" : bearAligned ? "Strong Downtrend" : (ind.ema_20 > ind.ema_50 ? "Uptrend" : "Downtrend");
+  const trendColor = trend.includes("Up") ? "text-green-400" : "text-red-400";
+  const priceAboveEma200 = ind.ema_200 != null && ind.bid != null ? ind.bid > ind.ema_200 : null;
 
   const riskLevel = score >= 80 ? "Low" : score >= 60 ? "Medium" : "High";
 
@@ -171,6 +178,25 @@ export default function AIDashboard({ scanner }) {
         </div>
         <div className="px-2 py-2.5">
           <Metric label="Spread" value={ind.spread_pips != null ? `${ind.spread_pips}p` : "--"} small />
+        </div>
+      </div>
+
+      {/* ── Moving Averages (EMA 20/50/200) — trend confirmation & dynamic S/R ── */}
+      <div className="grid grid-cols-3 divide-x divide-white/5 rounded-xl overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="px-2 py-2.5">
+          <Metric label="EMA 20" value={ind.ema_20?.toFixed(2)} small />
+        </div>
+        <div className="px-2 py-2.5">
+          <Metric label="EMA 50" value={ind.ema_50?.toFixed(2)} small />
+        </div>
+        <div className="px-2 py-2.5">
+          <Metric
+            label="EMA 200 (S/R)"
+            value={ind.ema_200?.toFixed(2)}
+            color={priceAboveEma200 == null ? "text-white" : priceAboveEma200 ? "text-green-400" : "text-red-400"}
+            small
+          />
         </div>
       </div>
 
