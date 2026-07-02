@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Play } from "lucide-react";
+import { X, Play, Lock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import RiskDisclaimer from "@/components/RiskDisclaimer";
@@ -279,7 +279,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         daily_loss_limit: form.daily_loss_limit,
         grid_distance_pips: form.grid_distance_pips,
         grid_max_levels: form.grid_max_levels,
-        equity_guard_enabled: form.equity_guard_enabled,
+        equity_guard_enabled: true, // permanently locked ON — account safety
         equity_guard_min_equity_pct: form.equity_guard_min_equity_pct,
         trend_filter_enabled: form.trend_filter_enabled,
         trend_filter_timeframe: form.trend_filter_timeframe,
@@ -295,7 +295,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         multiplier_min_equity_ratio: form.multiplier_min_equity_ratio,
         auto_start_enabled: form.auto_start_enabled,
         auto_start_time: form.auto_start_time,
-        auto_stop_enabled: form.auto_stop_enabled,
+        auto_stop_enabled: true, // permanently locked ON — account safety
         hedge_scalp_tp_pips: form.hedge_scalp_tp_pips,
         hedge_scalp_sl_pips: form.hedge_scalp_sl_pips,
         hedge_scalp_lot_size: form.hedge_scalp_lot_size,
@@ -448,7 +448,12 @@ export default function RobotStartModal({ open, onClose, onStart }) {
               <div className="rounded-2xl border border-red-500/25 bg-red-500/5 px-4 py-4 space-y-2.5">
                 <p className="text-[9px] uppercase tracking-[0.25em] text-red-400 font-heading font-bold">🛑 Equity Guard (Hard-Stop)</p>
                 <Field label="Enable Equity Guard">
-                  <Toggle value={form.equity_guard_enabled} onChange={set("equity_guard_enabled")} />
+                  <div className="flex items-center gap-1.5">
+                    <Lock className="w-3 h-3 text-green-400" />
+                    <div className="w-11 h-6 rounded-full bg-green-500 flex items-center pointer-events-none">
+                      <div className="w-5 h-5 rounded-full bg-white shadow ml-[22px]" />
+                    </div>
+                  </div>
                 </Field>
                 {form.equity_guard_enabled && (
                   <Field label="Min Equity (% of Balance)">

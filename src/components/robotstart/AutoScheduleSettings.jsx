@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar } from "lucide-react";
+import { Calendar, Lock } from "lucide-react";
 
 export default function AutoScheduleSettings({ form, set, Field, Toggle }) {
   return (
@@ -41,9 +41,14 @@ export default function AutoScheduleSettings({ form, set, Field, Toggle }) {
         )}
       </AnimatePresence>
 
-      {/* Auto-Stop toggle */}
+      {/* Auto-Stop toggle — permanently locked ON for account safety */}
       <Field label="Auto-Stop on Limit">
-        <Toggle value={form.auto_stop_enabled} onChange={set("auto_stop_enabled")} />
+        <div className="flex items-center gap-1.5">
+          <Lock className="w-3 h-3 text-green-400" />
+          <div className="w-11 h-6 rounded-full bg-green-500 flex items-center pointer-events-none">
+            <div className="w-5 h-5 rounded-full bg-white shadow ml-[22px]" />
+          </div>
+        </div>
       </Field>
 
       <p className="text-[9px] text-white/25 leading-relaxed">
