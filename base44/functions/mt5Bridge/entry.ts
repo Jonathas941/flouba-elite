@@ -16,10 +16,19 @@ Deno.serve(async (req) => {
     const token = Deno.env.get("MT5_API_TOKEN");
     if (!token) return Response.json({ error: "MT5_API_TOKEN not set" }, { status: 500 });
 
+    // Fetch the user's MT5 credentials from BotSettings (per-user account)
+    const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id });
+    const userSettings = settings?.[0];
+
     const authHeaders = {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
     };
+
+    // Attach per-user MT5 credentials so the server connects to the right account
+    if (userSettings?.mt5_account)  authHeaders["X-MT5-Login"] = String(userSettings.mt5_account);
+    if (userSettings?.mt5_password) authHeaders["X-MT5-Password"] = userSettings.mt5_password;
+    if (userSettings?.mt5_server)   authHeaders["X-MT5-Server"] = userSettings.mt5_server;
 
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }

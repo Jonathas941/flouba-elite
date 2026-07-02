@@ -48,6 +48,7 @@ export default function ConnectMT5() {
         if (list[0].broker_name) setBroker(list[0].broker_name);
         if (list[0].mt5_account) setLogin(list[0].mt5_account);
         if (list[0].mt5_server)  setServer(list[0].mt5_server);
+        if (list[0].mt5_password) setPassword(list[0].mt5_password);
       }
     })();
   }, []);
@@ -55,7 +56,7 @@ export default function ConnectMT5() {
   const isFormValid = broker && login && password && server;
 
   const saveToDb = async (connectionStatus) => {
-    const payload = { broker_name: broker, mt5_account: login, mt5_server: server, connection_status: connectionStatus };
+    const payload = { broker_name: broker, mt5_account: login, mt5_password: password, mt5_server: server, connection_status: connectionStatus };
     if (settingsId) {
       await base44.entities.BotSettings.update(settingsId, payload);
     } else {
@@ -84,11 +85,13 @@ export default function ConnectMT5() {
     if (!isFormValid) { toast({ title: "Fill in all fields to connect.", variant: "destructive" }); return; }
     setStatus("connecting");
     setErrorMsg("");
-    // Verify the MT5 bridge is alive and the account is responding
+    // Save credentials first so the bridge can authenticate to the user's MT5 account
+    await saveToDb("Connecting");
+    // Verify the bridge can reach the user's MT5 account
     const res = await mt5Api.account();
     if (res?.ok && res?.data?.account) {
       setStatus("success");
-      if (saveCredentials) await saveToDb("Connected");
+      await saveToDb("Connected");
       toast({ title: "MT5 Connected", description: `${broker} · ${login}` });
     } else {
       setStatus("error");

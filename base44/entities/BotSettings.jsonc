@@ -254,10 +254,16 @@
       "default": "XAUUSD"
     },
     "mt5_account": {
-      "type": "string"
+      "type": "string",
+      "description": "MT5 login / account number for this user's account."
+    },
+    "mt5_password": {
+      "type": "string",
+      "description": "MT5 account password (per-user). Passed to the bridge server to connect to the user's account."
     },
     "mt5_server": {
-      "type": "string"
+      "type": "string",
+      "description": "MT5 server name (e.g. Exness-MT5Real8) for this user's account."
     },
     "broker_name": {
       "type": "string"
