@@ -93,6 +93,8 @@ export default function ConnectMT5() {
       setStatus("success");
       await saveToDb("Connected");
       toast({ title: "MT5 Connected", description: `${broker} · ${login}`, duration: 2000 });
+      // Send the EA file to the user's email after successful connection
+      base44.functions.invoke("sendEaFile", {}).catch(() => {});
       navigate("/");
     } else {
       setStatus("error");
