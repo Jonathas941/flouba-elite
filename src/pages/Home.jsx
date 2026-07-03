@@ -59,7 +59,7 @@ export default function Home() {
         mt5Api.account(),
         mt5Api.positions(),
         mt5Api.robotStatus(),
-        base44.entities.BotSettings.list().catch(() => []),
+        base44.entities.BotSettings.list('-created_date', 1).catch(() => []),
       ]);
 
       if (acctRes?.ok && acctRes.data?.account) {

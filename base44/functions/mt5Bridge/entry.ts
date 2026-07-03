@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     // Fetch the user's MT5 credentials from BotSettings (per-user account)
-    const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id });
+    const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id }, '-created_date', 1);
     const userSettings = settings?.[0];
 
     // Only use manually-entered credentials from ConnectMT5 (BotSettings).

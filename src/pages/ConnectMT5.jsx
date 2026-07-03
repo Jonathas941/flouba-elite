@@ -42,7 +42,7 @@ export default function ConnectMT5() {
 
   useEffect(() => {
     (async () => {
-      const list = await base44.entities.BotSettings.list();
+      const list = await base44.entities.BotSettings.list('-created_date', 1);
       if (list[0]) {
         setSettingsId(list[0].id);
         if (list[0].broker_name) setBroker(list[0].broker_name);
