@@ -13,45 +13,42 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const token = Deno.env.get("MT5_API_TOKEN");
-    if (!token) return Response.json({ error: "MT5_API_TOKEN not set" }, { status: 500 });
+    const globalToken = Deno.env.get("MT5_API_TOKEN");
+    if (!globalToken) return Response.json({ error: "MT5_API_TOKEN not set" }, { status: 500 });
 
     // Fetch the user's MT5 credentials from BotSettings (per-user account)
     const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id });
     const userSettings = settings?.[0];
 
-    const authHeaders = {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    };
-
-    // Attach per-user MT5 credentials so the server connects to the right account
+    // Determine which credentials to use for this user
     // Priority 1: manually-entered credentials from ConnectMT5 (BotSettings)
-    let hasCredentials = false;
-    if (userSettings?.mt5_account) {
-      authHeaders["X-MT5-Login"] = String(userSettings.mt5_account);
-      hasCredentials = true;
-    }
-    if (userSettings?.mt5_password) authHeaders["X-MT5-Password"] = userSettings.mt5_password;
-    if (userSettings?.mt5_server)   authHeaders["X-MT5-Server"] = userSettings.mt5_server;
-
     // Priority 2: provisioned API key from the MT5 server (stored on User entity)
-    if (!hasCredentials && user?.mt5_api_key) {
-      authHeaders["X-API-Key"] = user.mt5_api_key;
-      if (user?.mt5_slug) authHeaders["X-MT5-Slug"] = user.mt5_slug;
-      hasCredentials = true;
-    }
+    let hasManualCreds = !!userSettings?.mt5_account;
+    let hasProvisionedKey = !hasManualCreds && !!user?.mt5_api_key;
 
     // CRITICAL: If the user has no MT5 credentials at all, return "not connected".
     // Do NOT call the server — it would fall back to a default/admin account,
     // leaking another user's personal account details.
-    if (!hasCredentials) {
+    if (!hasManualCreds && !hasProvisionedKey) {
       return Response.json({
         ok: false,
         status: 200,
         data: { account: { connected: false }, positions: [], robot: { running: false } },
         error: "MT5 account not connected — please connect your own account.",
       }, { status: 200 });
+    }
+
+    // Build auth headers — use provisioned API key as Bearer when available,
+    // otherwise the global token + per-user login/password/server headers.
+    const authHeaders = { "Content-Type": "application/json" };
+    if (hasProvisionedKey) {
+      authHeaders["Authorization"] = `Bearer ${user.mt5_api_key}`;
+      if (user?.mt5_slug) authHeaders["X-MT5-Slug"] = user.mt5_slug;
+    } else {
+      authHeaders["Authorization"] = `Bearer ${globalToken}`;
+      if (userSettings?.mt5_account)  authHeaders["X-MT5-Login"] = String(userSettings.mt5_account);
+      if (userSettings?.mt5_password) authHeaders["X-MT5-Password"] = userSettings.mt5_password;
+      if (userSettings?.mt5_server)   authHeaders["X-MT5-Server"] = userSettings.mt5_server;
     }
 
     let body = {};
