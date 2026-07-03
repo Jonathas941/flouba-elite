@@ -56,7 +56,7 @@ export default function Admin() {
   const activeSubs = subs.filter((s) => s.status === "Active").length;
 
   return (
-    <div className="max-w-md mx-auto pb-12">
+    <div className="max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto pb-12">
       <MobileHeader title="Admin Panel" subtitle="Manage users, accounts and platform activity." onBack={() => navigate("/")} />
       <div className="px-4 space-y-4">
 

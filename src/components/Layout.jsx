@@ -32,12 +32,12 @@ export default function Layout() {
 
   return (
     <div
-      className="min-h-screen max-w-md mx-auto relative"
+      className="min-h-screen max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto relative"
       style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom))" }}
     >
       <Outlet />
 
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md sm:max-w-2xl lg:max-w-4xl z-50">
         <div
           className="flex items-center justify-around px-4 border-t border-white/8"
           style={{

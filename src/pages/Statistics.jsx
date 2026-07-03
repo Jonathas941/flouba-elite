@@ -206,7 +206,7 @@ export default function Statistics() {
   const openTrades = trades.filter((t) => t.status === "Open");
 
   return (
-    <div className="min-h-screen bg-black max-w-md mx-auto">
+    <div className="min-h-screen bg-black max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto">
       {/* Header */}
       <div className="px-4 pt-6 pb-3 flex items-center justify-between">
         <div>

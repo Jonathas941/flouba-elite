@@ -53,7 +53,7 @@ export default function AIScanner() {
   }, []);
 
   return (
-    <div className="bg-black min-h-screen max-w-md mx-auto">
+    <div className="bg-black min-h-screen max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto">
       {/* Header */}
       <div className="px-4 pt-6 pb-3">
         <h1 className="font-heading text-xl font-black text-white" style={{ textShadow: "0 0 20px rgba(220,38,38,0.6)" }}>

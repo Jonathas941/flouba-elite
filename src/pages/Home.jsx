@@ -338,7 +338,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden"
+      className="min-h-screen bg-black flex flex-col max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto relative overflow-hidden"
       onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
     >
       {pullY > 0 && (

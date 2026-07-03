@@ -107,7 +107,7 @@ export default function ConnectMT5() {
   const st = STATUS[status];
 
   return (
-    <div className="min-h-screen pb-32 max-w-md mx-auto">
+    <div className="min-h-screen pb-32 max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto">
       <MobileHeader title="Connect MT5" subtitle="Link your MetaTrader 5 account." />
 
       <div className="px-4 space-y-5">
