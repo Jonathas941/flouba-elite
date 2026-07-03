@@ -238,10 +238,10 @@ export default function Home() {
       setActivePair(form.symbol);
       setRobotStatus("Scanning Market");
       setShowStartModal(false);
-      toast({ title: "Robot Started", description: `${strategy} active on ${form.symbol}` });
+      toast({ title: "Robot Started", description: `${strategy} active on ${form.symbol}`, duration: 3000 });
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
-      toast({ title: "Start Failed", description: msg, variant: "destructive" });
+      toast({ title: "Start Failed", description: msg, variant: "destructive", duration: 4000 });
       // Still close modal and set scanning so user sees activity
       setActivePair(form.symbol);
       setRobotStatus("Scanning Market");
@@ -254,7 +254,7 @@ export default function Home() {
       await mt5Api.robotStop();
     } catch {}
     setRobotStatus("Paused");
-    toast({ title: "Robot Stopped" });
+    toast({ title: "Robot Stopped", duration: 3000 });
   };
 
   const toggleAutoStart = async () => {
