@@ -40,6 +40,7 @@ const DEFAULT = {
   risk_percentage: 2,
   lot_multiplier: 2,        // compound: double lot on consecutive winning entries
   multiplier_min_equity_ratio: 2,  // equity must reach 2x balance before lot multiplier activates
+  auto_multiplier_enabled: false,  // auto-enable compounding only after proven profitability
   // SL / TP
   stop_loss: 20,
   take_profit: 40,
@@ -206,6 +207,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         liq_news_buffer_minutes: s.liq_news_buffer_minutes ?? prev.liq_news_buffer_minutes,
         lot_multiplier: s.lot_multiplier ?? prev.lot_multiplier,
         multiplier_min_equity_ratio: s.multiplier_min_equity_ratio ?? prev.multiplier_min_equity_ratio,
+        auto_multiplier_enabled: s.auto_multiplier_enabled ?? prev.auto_multiplier_enabled,
         auto_start_enabled: s.auto_start_enabled ?? prev.auto_start_enabled,
         auto_start_time: s.auto_start_time ?? prev.auto_start_time,
         auto_stop_enabled: s.auto_stop_enabled ?? prev.auto_stop_enabled,
@@ -293,6 +295,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         liq_news_buffer_minutes: form.liq_news_buffer_minutes,
         lot_multiplier: form.lot_multiplier,
         multiplier_min_equity_ratio: form.multiplier_min_equity_ratio,
+        auto_multiplier_enabled: form.auto_multiplier_enabled,
         auto_start_enabled: form.auto_start_enabled,
         auto_start_time: form.auto_start_time,
         auto_stop_enabled: true, // permanently locked ON — account safety
@@ -395,7 +398,14 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   <Field label="Multiplier Equity Ratio">
                     <NumberInput value={form.multiplier_min_equity_ratio} onChange={set("multiplier_min_equity_ratio")} min={1} step={0.5} />
                   </Field>
-                  <p className="text-[9px] text-white/25 leading-relaxed">Multiplier only activates when equity reaches this ratio × balance (default 2x). Below it, lot size stays flat.</p>
+                  <Field label="Auto Multiplier">
+                    <Toggle value={form.auto_multiplier_enabled} onChange={set("auto_multiplier_enabled")} />
+                  </Field>
+                  <p className="text-[9px] text-white/25 leading-relaxed">
+                    {form.auto_multiplier_enabled
+                      ? "Auto: compounding activates only after 30+ closed trades, 55%+ win rate, net positive P&L, and equity ≥ 2x balance. Stays flat until proven."
+                      : "Multiplier only activates when equity reaches this ratio × balance (default 2x). Below it, lot size stays flat. Toggle Auto to let performance data decide."}
+                  </p>
                 </div>
               </div>
 

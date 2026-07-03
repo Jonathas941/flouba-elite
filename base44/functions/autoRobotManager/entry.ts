@@ -136,6 +136,33 @@ Deno.serve(async (req) => {
 
       const dailyPnL = floatingPnl + todayRealized;
 
+      // === AUTO MULTIPLIER: evaluate trade history to decide if compounding is safe ===
+      // Requires 30+ closed trades, 55%+ win rate, net positive P&L, and equity ≥ 2x balance
+      let resolvedLotMultiplier = 1;
+      let multiplierReason = "flat (auto-multiplier off or conditions not met)";
+      if (config.auto_multiplier_enabled) {
+        const totalClosed = closedTrades.length;
+        const wins = closedTrades.filter((t) => (t.profit ?? 0) > 0).length;
+        const winRate = totalClosed > 0 ? (wins / totalClosed) * 100 : 0;
+        const netPnL = closedTrades.reduce((sum, t) => sum + (t.profit ?? 0), 0);
+        const equityRatioMet = balance > 0 && equity >= (config.multiplier_min_equity_ratio ?? 2) * balance;
+
+        if (totalClosed >= 30 && winRate >= 55 && netPnL > 0 && equityRatioMet) {
+          resolvedLotMultiplier = config.lot_multiplier ?? 2;
+          multiplierReason = `compounding active (${totalClosed} trades, ${winRate.toFixed(0)}% win, $${netPnL.toFixed(2)} net, equity ${equityRatioMet ? "≥" : "<"} ${(config.multiplier_min_equity_ratio ?? 2)}x)`;
+        } else {
+          const reasons = [];
+          if (totalClosed < 30) reasons.push(`${totalClosed}/30 trades`);
+          if (winRate < 55) reasons.push(`${winRate.toFixed(0)}% win < 55%`);
+          if (netPnL <= 0) reasons.push(`net P&L $${netPnL.toFixed(2)}`);
+          if (!equityRatioMet) reasons.push("equity < 2x balance");
+          multiplierReason = `flat — not yet proven (${reasons.join(", ")})`;
+        }
+      } else if (balance > 0 && equity >= (config.multiplier_min_equity_ratio ?? 2) * balance) {
+        resolvedLotMultiplier = config.lot_multiplier ?? 2;
+        multiplierReason = "compounding active (equity gate met, auto off)";
+      }
+
       // === AUTO-STOP: Check daily profit target / loss limit ===
       if (config.auto_stop_enabled !== false && robotRunning) {
         const profitTarget = config.daily_profit_target ?? 200;
@@ -190,9 +217,7 @@ Deno.serve(async (req) => {
             daily_profit_target: config.daily_profit_target ?? 200,
             daily_loss_limit: config.daily_loss_limit ?? 20,
             stop_after_losses: config.stop_after_losses ?? 2,
-            lot_multiplier: (balance > 0 && equity >= (config.multiplier_min_equity_ratio ?? 2) * balance)
-              ? (config.lot_multiplier ?? 2)
-              : 1,
+            lot_multiplier: resolvedLotMultiplier,
             equity_guard_enabled: config.equity_guard_enabled ?? true,
             equity_guard_min_equity_pct: config.equity_guard_min_equity_pct ?? 75,
             trend_filter_enabled: config.trend_filter_enabled ?? true,
@@ -211,7 +236,8 @@ Deno.serve(async (req) => {
           const startJson = await startRes.json().catch(() => ({}));
 
           if (startJson?.success || startRes.ok) {
-            actions.push(`AUTO-START: ${sessionName} session active — robot launched (risk ×${riskMultiplier}, ${symbol})`);
+            actions.push(`AUTO-START: ${sessionName} session active — robot launched (risk ×${riskMultiplier}, ${symbol}, lot ×${resolvedLotMultiplier})`);
+            actions.push(`MULTIPLIER: ${multiplierReason}`);
           } else {
             actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? "Unknown error"}`);
           }

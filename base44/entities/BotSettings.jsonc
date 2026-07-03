@@ -195,6 +195,11 @@
       "default": 2,
       "description": "Equity-to-balance ratio required before the lot multiplier activates. When equity reaches this multiple of balance (e.g. 2x), compounding kicks in. Below this, lot_multiplier is forced to 1 (flat)."
     },
+    "auto_multiplier_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "When enabled, the lot multiplier is set automatically based on live trade performance: requires 30+ closed trades, 55%+ win rate, net positive P&L, and equity \u2265 2x balance before compounding activates. Otherwise stays flat (1x)."
+    },
     "auto_start_enabled": {
       "type": "boolean",
       "default": false,
@@ -212,38 +217,31 @@
     },
     "hedge_scalp_tp_pips": {
       "type": "number",
-      "default": 30,
-      "description": "Take profit in pips for each leg of the Hedge Scalper strategy."
+      "default": 30
     },
     "hedge_scalp_sl_pips": {
       "type": "number",
-      "default": 15,
-      "description": "Stop loss in pips for each leg. When one leg hits SL, the other is closed."
+      "default": 15
     },
     "hedge_scalp_lot_size": {
       "type": "number",
-      "default": 0.02,
-      "description": "Lot size per leg (Buy and Sell each) for the Hedge Scalper strategy."
+      "default": 0.02
     },
     "hedge_scalp_max_pairs": {
       "type": "number",
-      "default": 3,
-      "description": "Maximum simultaneous hedge pairs the strategy may hold."
+      "default": 3
     },
     "hedge_scalp_close_winner_on_sl": {
       "type": "boolean",
-      "default": true,
-      "description": "When enabled, closes the winning leg immediately when the losing leg hits SL."
+      "default": true
     },
     "hedge_scalp_reopen_delay_sec": {
       "type": "number",
-      "default": 5,
-      "description": "Seconds to wait before reopening a new hedge pair after one closes."
+      "default": 5
     },
     "hedge_scalp_trend_entry": {
       "type": "boolean",
-      "default": true,
-      "description": "Phase 1: Open positions following the HTF trend instead of immediate dual-direction."
+      "default": true
     },
     "hedge_scalp_trend_timeframe": {
       "type": "string",
@@ -264,43 +262,35 @@
         "Cross Pair",
         "Both"
       ],
-      "default": "Same Pair",
-      "description": "Phase 3: How to hedge when the market moves against the entry."
+      "default": "Same Pair"
     },
     "hedge_scalp_hedge_trigger_pips": {
       "type": "number",
-      "default": 15,
-      "description": "Phase 3: Pips against the entry before hedging is activated."
+      "default": 15
     },
     "hedge_scalp_scalp_over_hedge": {
       "type": "boolean",
-      "default": true,
-      "description": "Phase 4: Scalp small movements while hedging is active."
+      "default": true
     },
     "hedge_scalp_scalp_tp_pips": {
       "type": "number",
-      "default": 5,
-      "description": "Phase 4: Take profit in pips for scalp trades opened during hedging."
+      "default": 5
     },
     "hedge_scalp_drawdown_reduction": {
       "type": "boolean",
-      "default": true,
-      "description": "Phase 5: Close losing orders one by one when profit is made."
+      "default": true
     },
     "hedge_scalp_dd_close_ratio": {
       "type": "number",
-      "default": 1,
-      "description": "Phase 5: Pips of profit needed to close one losing order."
+      "default": 1
     },
     "hedge_scalp_pair_priority": {
       "type": "boolean",
-      "default": true,
-      "description": "Phase 6: Auto-prioritize trading on profitable pairs and reduce trading on losing pairs."
+      "default": true
     },
     "hedge_scalp_priority_lookback_trades": {
       "type": "number",
-      "default": 20,
-      "description": "Phase 6: Number of recent trades to evaluate pair performance for prioritization."
+      "default": 20
     },
     "robot_status": {
       "type": "string",
@@ -341,16 +331,13 @@
       "default": "XAUUSD"
     },
     "mt5_account": {
-      "type": "string",
-      "description": "MT5 login / account number for this user's account."
+      "type": "string"
     },
     "mt5_password": {
-      "type": "string",
-      "description": "MT5 account password (per-user). Passed to the bridge to connect to the user's account."
+      "type": "string"
     },
     "mt5_server": {
-      "type": "string",
-      "description": "MT5 server name for this user's account."
+      "type": "string"
     },
     "broker_name": {
       "type": "string"
