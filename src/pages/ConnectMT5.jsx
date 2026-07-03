@@ -93,14 +93,16 @@ export default function ConnectMT5() {
 
   useEffect(() => {
     (async () => {
-      const list = await base44.entities.BotSettings.list('-created_date', 1);
-      if (list[0]) {
-        setSettingsId(list[0].id);
-        if (list[0].broker_name) setBroker(list[0].broker_name);
-        if (list[0].mt5_account) setLogin(list[0].mt5_account);
-        if (list[0].mt5_server)  setServer(list[0].mt5_server);
-        if (list[0].mt5_password) setPassword(list[0].mt5_password);
-      }
+      try {
+        const list = await base44.entities.BotSettings.list('-created_date', 1);
+        if (list[0]) {
+          setSettingsId(list[0].id);
+          if (list[0].broker_name) setBroker(list[0].broker_name);
+          if (list[0].mt5_account) setLogin(list[0].mt5_account);
+          if (list[0].mt5_server)  setServer(list[0].mt5_server);
+          if (list[0].mt5_password) setPassword(list[0].mt5_password);
+        }
+      } catch {}
     })();
   }, []);
 
@@ -120,13 +122,22 @@ export default function ConnectMT5() {
     if (!isFormValid) return;
     setStatus("testing");
     setErrorMsg("");
-    const res = await mt5Api.status();
-    if (res?.ok && res?.data) {
-      setStatus("idle");
-      toast({ title: "Server reachable", description: "Backend is online. Proceed to Connect MT5." });
-    } else {
+    try {
+      const res = await mt5Api.status();
+      if (res?.ok && res?.data) {
+        setStatus("idle");
+        toast({ title: "Server reachable", description: "Backend is online. Proceed to Connect MT5." });
+      } else {
+        setStatus("error");
+        const msg = res?.error || "Could not reach the MT5 server.";
+        setErrorMsg(msg);
+        toast({ title: "Server unreachable", description: msg, variant: "destructive" });
+      }
+    } catch (err) {
       setStatus("error");
-      const msg = res?.error || "Could not reach the MT5 server.";
+      const msg = err?.message?.includes("Rate limit")
+        ? "Too many requests. Please wait a few seconds and try again."
+        : (err?.message || "Could not reach the MT5 server.");
       setErrorMsg(msg);
       toast({ title: "Server unreachable", description: msg, variant: "destructive" });
     }
@@ -136,20 +147,29 @@ export default function ConnectMT5() {
     if (!isFormValid) { toast({ title: "Fill in all fields to connect.", variant: "destructive" }); return; }
     setStatus("connecting");
     setErrorMsg("");
-    // Save credentials first so the bridge can authenticate to the user's MT5 account
-    await saveToDb("Connecting");
-    // Verify the bridge can reach the user's MT5 account
-    const res = await mt5Api.account();
-    if (res?.ok && res?.data?.account) {
-      setStatus("success");
-      await saveToDb("Connected");
-      toast({ title: "MT5 Connected", description: `${broker} · ${login}`, duration: 2000 });
-      // Send the EA file to the user's email after successful connection
-      base44.functions.invoke("sendEaFile", {}).catch(() => {});
-      navigate("/");
-    } else {
+    try {
+      // Save credentials first so the bridge can authenticate to the user's MT5 account
+      await saveToDb("Connecting");
+      // Verify the bridge can reach the user's MT5 account
+      const res = await mt5Api.account();
+      if (res?.ok && res?.data?.account) {
+        setStatus("success");
+        await saveToDb("Connected");
+        toast({ title: "MT5 Connected", description: `${broker} · ${login}`, duration: 2000 });
+        // Send the EA file to the user's email after successful connection
+        base44.functions.invoke("sendEaFile", {}).catch(() => {});
+        navigate("/");
+      } else {
+        setStatus("error");
+        const msg = res?.error || res?.data?.message || res?.data?.detail || "Connection failed. Check your credentials.";
+        setErrorMsg(msg);
+        toast({ title: "Connection Failed", description: msg, variant: "destructive" });
+      }
+    } catch (err) {
       setStatus("error");
-      const msg = res?.error || res?.data?.message || res?.data?.detail || "Connection failed. Check your credentials.";
+      const msg = err?.message?.includes("Rate limit")
+        ? "Too many requests. Please wait a few seconds and try again."
+        : (err?.message || "Connection failed. Check your credentials.");
       setErrorMsg(msg);
       toast({ title: "Connection Failed", description: msg, variant: "destructive" });
     }

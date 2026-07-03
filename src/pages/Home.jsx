@@ -111,7 +111,9 @@ export default function Home() {
 
     const startPoll = () => {
       clearInterval(pollRef.current);
-      pollRef.current = setInterval(load, 5000);
+      // 15s fallback poll — the bridge does auth.me + BotSettings.filter per call,
+      // so a tighter interval exhausts the Base44 rate limit. WebSocket handles real-time.
+      pollRef.current = setInterval(load, 15000);
     };
 
     const stopPoll = () => { clearInterval(pollRef.current); };
