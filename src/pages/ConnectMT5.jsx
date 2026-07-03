@@ -13,10 +13,61 @@ import {
   Loader2, CheckCircle2, ArrowRight, Bot, AlertCircle,
 } from "lucide-react";
 
-const BROKERS = [
-  "Exness", "IC Markets", "Pepperstone", "Eightcap",
-  "Axi", "FTMO", "MetaQuotes Demo", "Custom Broker",
-];
+const BROKER_SERVERS = {
+  "IC Markets": [
+    "ICMarketsSC-MT5",
+    "ICMarketsSC-MT5-2",
+    "ICMarketsSC-MT5-3",
+    "ICMarketsSC-MT5-4",
+    "ICMarketsEU-MT5",
+    "ICMarketsEU-MT5-2",
+  ],
+  "Exness": [
+    "Exness-MT5Real",
+    "Exness-MT5Real2",
+    "Exness-MT5Real3",
+    "Exness-MT5Real4",
+    "Exness-MT5Real5",
+    "Exness-MT5Real6",
+    "Exness-MT5Real7",
+    "Exness-MT5Real8",
+    "Exness-MT5Real9",
+    "Exness-MT5Trial",
+  ],
+  "Pepperstone": [
+    "Pepperstone-Edge06",
+    "Pepperstone-Edge07",
+    "Pepperstone-Edge08",
+    "Pepperstone-Edge09",
+    "Pepperstone-Edge10",
+    "Pepperstone-Edge11",
+    "Pepperstone-Edge12",
+  ],
+  "Eightcap": [
+    "Eightcap-MT5Server",
+    "Eightcap-MT5Real",
+    "Eightcap-Real",
+    "Eightcap-Standard",
+  ],
+  "Axi": [
+    "Axi-MT5",
+    "Axi-Standard",
+    "Axi-ECN",
+    "Axi-Pro",
+  ],
+  "FTMO": [
+    "FTMO-Server",
+    "FTMO-MT5",
+    "FTMO-Server2",
+  ],
+  "MetaQuotes Demo": [
+    "MetaQuotes-Demo",
+    "MetaQuotes",
+  ],
+  "Custom Broker": [],
+};
+
+const BROKERS = Object.keys(BROKER_SERVERS);
 
 const STATUS = {
   idle:       { label: "Not Connected",          color: "text-muted-foreground", bg: "bg-white/5",      icon: WifiOff },
@@ -131,7 +182,11 @@ export default function ConnectMT5() {
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Broker</p>
             <MobileSelect
               value={broker}
-              onChange={setBroker}
+              onChange={(v) => {
+                setBroker(v);
+                // Clear server if it's not valid for the newly selected broker
+                if (!BROKER_SERVERS[v]?.includes(server)) setServer("");
+              }}
               options={BROKERS}
               placeholder="Select your broker"
               label="Select Broker"
@@ -170,11 +225,21 @@ export default function ConnectMT5() {
 
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-semibold">Server</label>
-              <input
-                type="text" value={server}
-                onChange={(e) => setServer(e.target.value)} placeholder="e.g. Exness-MT5Real8"
-                className="w-full h-11 px-3 glass rounded-xl text-sm text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-red-500/50 bg-transparent"
-              />
+              {broker && BROKER_SERVERS[broker]?.length > 0 ? (
+                <MobileSelect
+                  value={server}
+                  onChange={setServer}
+                  options={BROKER_SERVERS[broker]}
+                  placeholder="Select your server"
+                  label="Select Server"
+                />
+              ) : (
+                <input
+                  type="text" value={server}
+                  onChange={(e) => setServer(e.target.value)} placeholder="e.g. Exness-MT5Real8"
+                  className="w-full h-11 px-3 glass rounded-xl text-sm text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-red-500/50 bg-transparent"
+                />
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-1 border-t border-white/5">
