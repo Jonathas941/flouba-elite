@@ -26,9 +26,33 @@ Deno.serve(async (req) => {
     };
 
     // Attach per-user MT5 credentials so the server connects to the right account
-    if (userSettings?.mt5_account)  authHeaders["X-MT5-Login"] = String(userSettings.mt5_account);
+    // Priority 1: manually-entered credentials from ConnectMT5 (BotSettings)
+    let hasCredentials = false;
+    if (userSettings?.mt5_account) {
+      authHeaders["X-MT5-Login"] = String(userSettings.mt5_account);
+      hasCredentials = true;
+    }
     if (userSettings?.mt5_password) authHeaders["X-MT5-Password"] = userSettings.mt5_password;
     if (userSettings?.mt5_server)   authHeaders["X-MT5-Server"] = userSettings.mt5_server;
+
+    // Priority 2: provisioned API key from the MT5 server (stored on User entity)
+    if (!hasCredentials && user?.mt5_api_key) {
+      authHeaders["X-API-Key"] = user.mt5_api_key;
+      if (user?.mt5_slug) authHeaders["X-MT5-Slug"] = user.mt5_slug;
+      hasCredentials = true;
+    }
+
+    // CRITICAL: If the user has no MT5 credentials at all, return "not connected".
+    // Do NOT call the server — it would fall back to a default/admin account,
+    // leaking another user's personal account details.
+    if (!hasCredentials) {
+      return Response.json({
+        ok: false,
+        status: 200,
+        data: { account: { connected: false }, positions: [], robot: { running: false } },
+        error: "MT5 account not connected — please connect your own account.",
+      }, { status: 200 });
+    }
 
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
