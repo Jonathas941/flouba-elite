@@ -257,6 +257,32 @@ export default function Home() {
     toast({ title: "Robot Stopped", duration: 3000 });
   };
 
+  const handleDisconnect = async () => {
+    // Stop robot first if it's running
+    if (connected) {
+      try { await mt5Api.robotStop(); } catch {}
+    }
+    // Clear MT5 credentials from BotSettings so the bridge no longer connects to this account
+    try {
+      const list = await base44.entities.BotSettings.list();
+      if (list?.length > 0) {
+        await base44.entities.BotSettings.update(list[0].id, {
+          mt5_account: null,
+          mt5_password: null,
+          mt5_server: null,
+          broker_name: null,
+          connection_status: "Disconnected",
+        });
+      }
+    } catch {}
+    // Reset UI state
+    setConnected(false);
+    setAccount(null);
+    setPositions([]);
+    setRobotStatus("Paused");
+    toast({ title: "MT5 Disconnected", description: "Your account has been unlinked.", duration: 3000 });
+  };
+
   const toggleAutoStart = async () => {
     const newVal = !autoStartEnabled;
     setAutoStartEnabled(newVal);
@@ -450,6 +476,18 @@ export default function Home() {
             className="w-full h-11 rounded-2xl border border-red-500/30 font-heading text-xs tracking-widest text-red-400 hover:bg-red-500/10 transition-colors"
           >
             CONNECT MT5 ACCOUNT
+          </motion.button>
+        )}
+
+        {connected && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={handleDisconnect}
+            whileTap={{ scale: 0.97 }}
+            className="w-full h-11 rounded-2xl border border-white/10 font-heading text-xs tracking-widest text-white/40 hover:bg-white/5 hover:text-red-400 hover:border-red-500/30 transition-colors"
+          >
+            DISCONNECT MT5
           </motion.button>
         )}
 
