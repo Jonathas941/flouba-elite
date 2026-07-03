@@ -13,21 +13,13 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const globalToken = Deno.env.get("MT5_API_TOKEN");
-    if (!globalToken) return Response.json({ error: "MT5_API_TOKEN not set" }, { status: 500 });
-
     // Fetch the user's MT5 credentials from BotSettings (per-user account)
     const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id });
     const userSettings = settings?.[0];
 
     // Only use manually-entered credentials from ConnectMT5 (BotSettings).
-    // No fallback to provisioned API keys or global token — each user must
-    // connect their own MT5 account. This prevents any user from seeing
-    // another user's account data.
-    const hasManualCreds = !!userSettings?.mt5_account;
-
-    // If the user has no MT5 credentials, return "not connected".
-    if (!hasManualCreds) {
+    // Each user must connect their own MT5 account — no shared credentials.
+    if (!userSettings?.mt5_account) {
       return Response.json({
         ok: false,
         status: 200,
@@ -36,8 +28,41 @@ Deno.serve(async (req) => {
       }, { status: 200 });
     }
 
+    // Get or provision the user's bridge API key, then exchange it for a scoped JWT.
+    // The JWT slug claim ensures each user can only access their own account —
+    // the ?account= query param is ignored server-side when a JWT is present.
+    let apiKey = user.mt5_api_key;
+    if (!apiKey) {
+      const provisionSecret = Deno.env.get("PROVISION_SECRET");
+      if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
+      const provisionRes = await fetch(`${BASE}/provision/user`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
+      });
+      const provisionJson = await provisionRes.json().catch(() => ({}));
+      if (!provisionJson?.success || !provisionJson?.api_key) {
+        return Response.json({ ok: false, error: "Failed to provision bridge account" }, { status: 200 });
+      }
+      apiKey = provisionJson.api_key;
+      const updateData = { mt5_api_key: apiKey };
+      if (provisionJson.slug) updateData.mt5_slug = provisionJson.slug;
+      await base44.asServiceRole.entities.User.update(user.id, updateData);
+    }
+
+    // Exchange the API key for a scoped JWT
+    const tokenRes = await fetch(`${BASE}/auth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+    const tokenJson = await tokenRes.json().catch(() => ({}));
+    if (!tokenRes.ok || !tokenJson?.token) {
+      return Response.json({ ok: false, error: "Failed to authenticate with MT5 bridge" }, { status: 200 });
+    }
+
     const authHeaders = {
-      "Authorization": `Bearer ${globalToken}`,
+      "Authorization": `Bearer ${tokenJson.token}`,
       "Content-Type": "application/json",
     };
     if (userSettings?.mt5_account)  authHeaders["X-MT5-Login"] = String(userSettings.mt5_account);

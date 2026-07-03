@@ -92,12 +92,43 @@ Deno.serve(async (req) => {
       }
     }
 
-    const token = Deno.env.get("MT5_API_TOKEN");
-    if (!token) return Response.json({ error: "MT5_API_TOKEN not set" }, { status: 500 });
+    const provisionSecret = Deno.env.get("PROVISION_SECRET");
+    if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
 
     // Get ALL BotSettings — each user has their own MT5 account credentials
     const allSettings = await base44.asServiceRole.entities.BotSettings.list();
     if (!allSettings?.length) return Response.json({ ok: true, message: "No BotSettings found" });
+
+    // Fetch all users to get their bridge API keys for JWT exchange
+    const allUsers = await base44.asServiceRole.entities.User.list();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+    // Exchange a user's api_key for a scoped JWT (auto-provisions if no key yet).
+    // The JWT slug claim enforces per-user account isolation on the bridge server.
+    async function getJwt(userId, email, name) {
+      let apiKey = userMap.get(userId)?.mt5_api_key;
+      if (!apiKey) {
+        const provisionRes = await fetch(`${BASE}/provision/user`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ base44_user_id: userId, email, name: name || email }),
+        });
+        const provisionJson = await provisionRes.json().catch(() => ({}));
+        if (!provisionJson?.success || !provisionJson?.api_key) return null;
+        apiKey = provisionJson.api_key;
+        const updateData = { mt5_api_key: apiKey };
+        if (provisionJson.slug) updateData.mt5_slug = provisionJson.slug;
+        await base44.asServiceRole.entities.User.update(userId, updateData);
+        userMap.set(userId, { ...userMap.get(userId), mt5_api_key: apiKey });
+      }
+      const tokenRes = await fetch(`${BASE}/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKey }),
+      });
+      const tokenJson = await tokenRes.json().catch(() => ({}));
+      return tokenJson?.token || null;
+    }
 
     const results = [];
     const startOfDay = new Date();
@@ -110,7 +141,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const authHeaders = buildHeaders(token, config);
+      const userData = userMap.get(config.created_by_id);
+      const jwt = await getJwt(config.created_by_id, userData?.email, userData?.full_name);
+      if (!jwt) {
+        results.push({ user: config.created_by_id, skipped: "Bridge auth failed" });
+        continue;
+      }
+      const authHeaders = buildHeaders(jwt, config);
       const actions = [];
 
       // Fetch robot status for this user's account

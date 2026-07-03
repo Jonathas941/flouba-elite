@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
 
     let targetConfigs = [];
     let useServiceRole = false;
+    let currentUser = null;
 
     if (secretMatch) {
       // Cron-secret — sync all users
@@ -36,6 +37,7 @@ Deno.serve(async (req) => {
       if (!isAuth) return Response.json({ error: "Unauthorized" }, { status: 403 });
       const user = await base44.auth.me().catch(() => null);
       if (user) {
+        currentUser = user;
         // Regular user — sync only their trades
         const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id });
         if (settings?.[0]?.mt5_account) {
@@ -49,9 +51,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    const token = Deno.env.get("MT5_API_TOKEN");
-    if (!token) return Response.json({ error: "MT5_API_TOKEN not set" }, { status: 500 });
+    const provisionSecret = Deno.env.get("PROVISION_SECRET");
+    if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
     if (!targetConfigs.length) return Response.json({ success: true, synced: 0, users: 0 });
+
+    // Fetch all users to map created_by_id → mt5_api_key for JWT exchange
+    const allUsers = await base44.asServiceRole.entities.User.list().catch(() => []);
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+    // Exchange a user's api_key for a scoped JWT (auto-provisions if no key yet)
+    async function getJwt(userId, email, name) {
+      let apiKey = userMap.get(userId)?.mt5_api_key;
+      if (!apiKey) {
+        const provisionRes = await fetch(`${BASE}/provision/user`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ base44_user_id: userId, email, name: name || email }),
+        });
+        const provisionJson = await provisionRes.json().catch(() => ({}));
+        if (!provisionJson?.success || !provisionJson?.api_key) return null;
+        apiKey = provisionJson.api_key;
+        const updateData = { mt5_api_key: apiKey };
+        if (provisionJson.slug) updateData.mt5_slug = provisionJson.slug;
+        await base44.asServiceRole.entities.User.update(userId, updateData);
+        userMap.set(userId, { ...userMap.get(userId), mt5_api_key: apiKey });
+      }
+      const tokenRes = await fetch(`${BASE}/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKey }),
+      });
+      const tokenJson = await tokenRes.json().catch(() => ({}));
+      return tokenJson?.token || null;
+    }
 
     let totalSynced = 0;
     let totalProcessed = 0;
@@ -60,8 +92,11 @@ Deno.serve(async (req) => {
       const userId = useServiceRole ? config.created_by_id : config._userId;
       if (!userId) continue;
 
+      const userData = useServiceRole ? userMap.get(userId) : currentUser;
+      const jwt = await getJwt(userId, userData?.email, userData?.full_name);
+      if (!jwt) continue;
       const authHeaders = {
-        "Authorization": `Bearer ${token}`,
+        "Authorization": `Bearer ${jwt}`,
         "Content-Type": "application/json",
         "X-MT5-Login": String(config.mt5_account),
         "X-MT5-Password": config.mt5_password,
