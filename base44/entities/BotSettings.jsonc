@@ -368,6 +368,11 @@
     },
     "total_trades": {
       "type": "number"
+    },
+    "ea_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Tracks whether the EA installation file has already been emailed to the user. Sent once on first successful MT5 connection; not resent on subsequent connections."
     }
   },
   "required": [],
