@@ -292,6 +292,116 @@
       "type": "number",
       "default": 20
     },
+    "swing_timeframe": {
+      "type": "string",
+      "enum": [
+        "M15",
+        "M30",
+        "H1"
+      ],
+      "default": "M15",
+      "description": "Swing Trend Pullback Continuation 2026 \u2014 working timeframe (closed candles only)."
+    },
+    "swing_ema_fast": {
+      "type": "number",
+      "default": 20,
+      "description": "Swing 2026 \u2014 fast EMA period."
+    },
+    "swing_ema_slow": {
+      "type": "number",
+      "default": 50,
+      "description": "Swing 2026 \u2014 slow EMA period."
+    },
+    "swing_atr_period": {
+      "type": "number",
+      "default": 14,
+      "description": "Swing 2026 \u2014 ATR period for volatility-based stop loss."
+    },
+    "swing_atr_sl_multiplier": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Swing 2026 \u2014 ATR multiplier used to compute the stop-loss distance."
+    },
+    "swing_min_rr": {
+      "type": "number",
+      "default": 2,
+      "description": "Swing 2026 \u2014 minimum reward-to-risk ratio. Never below 2 unless manually changed."
+    },
+    "swing_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Swing 2026 \u2014 default lot size."
+    },
+    "swing_max_open_trades": {
+      "type": "number",
+      "default": 2,
+      "description": "Swing 2026 \u2014 maximum simultaneous open trades."
+    },
+    "swing_max_trades_per_day": {
+      "type": "number",
+      "default": 3,
+      "description": "Swing 2026 \u2014 maximum new entries per day."
+    },
+    "swing_max_consecutive_losses": {
+      "type": "number",
+      "default": 2,
+      "description": "Swing 2026 \u2014 consecutive losing trades before the cooldown activates."
+    },
+    "swing_cooldown_hours": {
+      "type": "number",
+      "default": 8,
+      "description": "Swing 2026 \u2014 cooldown duration in hours after the consecutive-loss limit is hit."
+    },
+    "swing_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "Swing 2026 \u2014 stop new entries after this daily loss percentage."
+    },
+    "swing_max_daily_drawdown_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "Swing 2026 \u2014 stop new entries after this daily drawdown percentage."
+    },
+    "swing_max_spread_points": {
+      "type": "number",
+      "default": 30,
+      "description": "Swing 2026 \u2014 reject entries when the spread exceeds this value."
+    },
+    "swing_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "Swing 2026 \u2014 move stop loss to entry when the trade reaches 1R."
+    },
+    "swing_be_at_r": {
+      "type": "number",
+      "default": 1,
+      "description": "Swing 2026 \u2014 R multiple at which break-even is applied."
+    },
+    "swing_use_trailing": {
+      "type": "boolean",
+      "default": false,
+      "description": "Swing 2026 \u2014 optional ATR trailing stop after break-even."
+    },
+    "swing_trailing_atr_mult": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Swing 2026 \u2014 ATR multiplier for the trailing stop distance."
+    },
+    "swing_pullback_zone_atr": {
+      "type": "number",
+      "default": 0.25,
+      "description": "Swing 2026 \u2014 pullback zone radius around EMA 20 expressed as a fraction of ATR."
+    },
+    "swing_block_deep_pullback": {
+      "type": "boolean",
+      "default": true,
+      "description": "Swing 2026 \u2014 reject entries when the pullback crosses deeply through EMA 50."
+    },
+    "swing_partial_close_50": {
+      "type": "boolean",
+      "default": true,
+      "description": "Swing 2026 \u2014 close 50% of the position at 1R, run the remainder to 2R."
+    },
     "robot_status": {
       "type": "string",
       "enum": [

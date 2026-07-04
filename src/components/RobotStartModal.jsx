@@ -8,6 +8,7 @@ import LiquiditySweepSettings from "@/components/robotstart/LiquiditySweepSettin
 import AutoScheduleSettings from "@/components/robotstart/AutoScheduleSettings";
 import HedgeScalperSettings from "@/components/robotstart/HedgeScalperSettings";
 import TrendFilterSettings from "@/components/robotstart/TrendFilterSettings";
+import SwingPullbackSettings from "@/components/robotstart/SwingPullbackSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -18,6 +19,7 @@ const STRATEGIES = [
   "Grid Trading",
   "Liquidity Sweep Scalping",
   "Hedge Scalper",
+  "Swing Trend Pullback Continuation 2026",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -108,6 +110,28 @@ const DEFAULT = {
   // Phase 6: Pair prioritization
   hedge_scalp_pair_priority: true,
   hedge_scalp_priority_lookback_trades: 20,
+  // Swing Trend Pullback Continuation 2026 — trend pullback + engulfing confirmation, ATR SL, min 1:2 RR
+  swing_timeframe: "M15",
+  swing_ema_fast: 20,
+  swing_ema_slow: 50,
+  swing_atr_period: 14,
+  swing_atr_sl_multiplier: 1.5,
+  swing_min_rr: 2,
+  swing_lot_size: 0.01,
+  swing_max_open_trades: 2,
+  swing_max_trades_per_day: 3,
+  swing_max_consecutive_losses: 2,
+  swing_cooldown_hours: 8,
+  swing_max_daily_loss_pct: 2,
+  swing_max_daily_drawdown_pct: 3,
+  swing_max_spread_points: 30,
+  swing_use_break_even: true,
+  swing_be_at_r: 1,
+  swing_use_trailing: false,
+  swing_trailing_atr_mult: 1.5,
+  swing_pullback_zone_atr: 0.25,
+  swing_block_deep_pullback: true,
+  swing_partial_close_50: true,
 };
 
 function Field({ label, children }) {
@@ -228,6 +252,27 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         hedge_scalp_dd_close_ratio: s.hedge_scalp_dd_close_ratio ?? prev.hedge_scalp_dd_close_ratio,
         hedge_scalp_pair_priority: s.hedge_scalp_pair_priority ?? prev.hedge_scalp_pair_priority,
         hedge_scalp_priority_lookback_trades: s.hedge_scalp_priority_lookback_trades ?? prev.hedge_scalp_priority_lookback_trades,
+        swing_timeframe: s.swing_timeframe ?? prev.swing_timeframe,
+        swing_ema_fast: s.swing_ema_fast ?? prev.swing_ema_fast,
+        swing_ema_slow: s.swing_ema_slow ?? prev.swing_ema_slow,
+        swing_atr_period: s.swing_atr_period ?? prev.swing_atr_period,
+        swing_atr_sl_multiplier: s.swing_atr_sl_multiplier ?? prev.swing_atr_sl_multiplier,
+        swing_min_rr: s.swing_min_rr ?? prev.swing_min_rr,
+        swing_lot_size: s.swing_lot_size ?? prev.swing_lot_size,
+        swing_max_open_trades: s.swing_max_open_trades ?? prev.swing_max_open_trades,
+        swing_max_trades_per_day: s.swing_max_trades_per_day ?? prev.swing_max_trades_per_day,
+        swing_max_consecutive_losses: s.swing_max_consecutive_losses ?? prev.swing_max_consecutive_losses,
+        swing_cooldown_hours: s.swing_cooldown_hours ?? prev.swing_cooldown_hours,
+        swing_max_daily_loss_pct: s.swing_max_daily_loss_pct ?? prev.swing_max_daily_loss_pct,
+        swing_max_daily_drawdown_pct: s.swing_max_daily_drawdown_pct ?? prev.swing_max_daily_drawdown_pct,
+        swing_max_spread_points: s.swing_max_spread_points ?? prev.swing_max_spread_points,
+        swing_use_break_even: s.swing_use_break_even ?? prev.swing_use_break_even,
+        swing_be_at_r: s.swing_be_at_r ?? prev.swing_be_at_r,
+        swing_use_trailing: s.swing_use_trailing ?? prev.swing_use_trailing,
+        swing_trailing_atr_mult: s.swing_trailing_atr_mult ?? prev.swing_trailing_atr_mult,
+        swing_pullback_zone_atr: s.swing_pullback_zone_atr ?? prev.swing_pullback_zone_atr,
+        swing_block_deep_pullback: s.swing_block_deep_pullback ?? prev.swing_block_deep_pullback,
+        swing_partial_close_50: s.swing_partial_close_50 ?? prev.swing_partial_close_50,
       }));
     }).catch(() => {});
   }, [open]);
@@ -252,6 +297,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isGrid = form.strategy === "Grid Trading";
   const isLiquiditySweep = form.strategy === "Liquidity Sweep Scalping";
   const isHedgeScalper = form.strategy === "Hedge Scalper";
+  const isSwingPullback = form.strategy === "Swing Trend Pullback Continuation 2026";
 
   const handleStart = async () => {
     setLoading(true);
@@ -316,6 +362,27 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         hedge_scalp_dd_close_ratio: form.hedge_scalp_dd_close_ratio,
         hedge_scalp_pair_priority: form.hedge_scalp_pair_priority,
         hedge_scalp_priority_lookback_trades: form.hedge_scalp_priority_lookback_trades,
+        swing_timeframe: form.swing_timeframe,
+        swing_ema_fast: form.swing_ema_fast,
+        swing_ema_slow: form.swing_ema_slow,
+        swing_atr_period: form.swing_atr_period,
+        swing_atr_sl_multiplier: form.swing_atr_sl_multiplier,
+        swing_min_rr: form.swing_min_rr,
+        swing_lot_size: form.swing_lot_size,
+        swing_max_open_trades: form.swing_max_open_trades,
+        swing_max_trades_per_day: form.swing_max_trades_per_day,
+        swing_max_consecutive_losses: form.swing_max_consecutive_losses,
+        swing_cooldown_hours: form.swing_cooldown_hours,
+        swing_max_daily_loss_pct: form.swing_max_daily_loss_pct,
+        swing_max_daily_drawdown_pct: form.swing_max_daily_drawdown_pct,
+        swing_max_spread_points: form.swing_max_spread_points,
+        swing_use_break_even: form.swing_use_break_even,
+        swing_be_at_r: form.swing_be_at_r,
+        swing_use_trailing: form.swing_use_trailing,
+        swing_trailing_atr_mult: form.swing_trailing_atr_mult,
+        swing_pullback_zone_atr: form.swing_pullback_zone_atr,
+        swing_block_deep_pullback: form.swing_block_deep_pullback,
+        swing_partial_close_50: form.swing_partial_close_50,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -517,6 +584,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <HedgeScalperSettings
                 visible={isHedgeScalper}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
+
+              <SwingPullbackSettings
+                visible={isSwingPullback}
                 form={form}
                 set={set}
                 Field={Field}

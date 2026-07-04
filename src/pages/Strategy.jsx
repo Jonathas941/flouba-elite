@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
 import StrategyFilterToggles from "@/components/StrategyFilterToggles";
+import SwingPullbackLiveCard from "@/components/strategy/SwingPullbackLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
   TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle
@@ -130,6 +131,22 @@ const STRATEGY = [
       "Price tends to sweep these levels before reversing (SL hunt)",
       "Used as TP targets — book profits slightly before round numbers",
       "OB or S&D zone aligning with psych level = premium entry",
+    ],
+  },
+  {
+    icon: TrendingUp,
+    title: "Swing Trend Pullback Continuation 2026",
+    tag: "Live Entry Strategy",
+    tagColor: "bg-emerald-500/15 text-emerald-400",
+    summary: "Conservative swing-trading engine: confirms EMA 20/50 trend alignment, waits for a pullback into the EMA 20 zone, and enters only after a closed-candle engulfing confirmation. ATR-based stop loss with a minimum 1:2 reward-to-risk.",
+    details: [
+      "BUY: EMA 20 above EMA 50, both sloping up, price pulls back to EMA 20, bullish engulfing candle closes above its open.",
+      "SELL: EMA 20 below EMA 50, both sloping down, price pulls back to EMA 20, bearish engulfing candle closes below its open.",
+      "Stop Loss = ATR(14) × 1.5 beyond entry (+ optional buffer); Take Profit = risk distance × RR (default 2.0).",
+      "Break-even at 1R, optional 50% partial close at 1R, remainder runs to 2R; optional ATR trailing stop.",
+      "No grid, no martingale, no averaging down, no recovery trades — closed candles only for confirmation.",
+      "Risk locks: 2% daily loss, 3% daily drawdown, 3 trades/day, and an 8-hour cooldown after 2 consecutive losses.",
+      "Sessions (ET): Asian 19:15–03:45, London/NY overlap 08:00–12:00; blocks 16:55–17:15 rollover and Friday 16:55 → Sunday 17:10.",
     ],
   },
 ];
@@ -297,15 +314,19 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns"].map((t) => (
+        {["strategy", "patterns", "swing2026"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 rounded-xl font-heading text-xs uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Strategy Layers" : "Candle Patterns"}
+            className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
+            {t === "strategy" ? "Strategy Layers" : t === "patterns" ? "Candle Patterns" : "Swing 2026"}
           </button>
         ))}
       </div>
 
-      {tab === "strategy" ? (
+      {tab === "swing2026" ? (
+        <div className="space-y-4">
+          <SwingPullbackLiveCard />
+        </div>
+      ) : tab === "strategy" ? (
         <div className="space-y-3">
           <StrategyFilterToggles />
           {STRATEGY.map((item, i) => <StrategyBlock key={item.title} item={item} index={i} />)}
