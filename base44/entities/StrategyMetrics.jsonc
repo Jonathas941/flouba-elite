@@ -1,0 +1,152 @@
+{
+  "name": "StrategyMetrics",
+  "type": "object",
+  "properties": {
+    "strategy_key": {
+      "type": "string",
+      "enum": [
+        "swing",
+        "smc"
+      ],
+      "description": "swing = Swing Trend Pullback Continuation 2026; smc = SMC Liquidity Sweep."
+    },
+    "strategy_name": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the strategy is currently allowed to open new trades (after cooldown / loss protection)."
+    },
+    "score": {
+      "type": "number",
+      "description": "Current adaptive score (0-100)."
+    },
+    "suitability": {
+      "type": "number",
+      "description": "Current market-condition suitability score (0-100)."
+    },
+    "total_trades": {
+      "type": "number",
+      "default": 0
+    },
+    "wins": {
+      "type": "number",
+      "default": 0
+    },
+    "losses": {
+      "type": "number",
+      "default": 0
+    },
+    "win_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "gross_profit": {
+      "type": "number",
+      "default": 0
+    },
+    "gross_loss": {
+      "type": "number",
+      "default": 0
+    },
+    "net_profit": {
+      "type": "number",
+      "default": 0
+    },
+    "avg_win": {
+      "type": "number",
+      "default": 0
+    },
+    "avg_loss": {
+      "type": "number",
+      "default": 0
+    },
+    "profit_factor": {
+      "type": "number",
+      "default": 0
+    },
+    "max_drawdown": {
+      "type": "number",
+      "default": 0,
+      "description": "Largest peak-to-trough drop in cumulative net profit (absolute)."
+    },
+    "consecutive_losses": {
+      "type": "number",
+      "default": 0
+    },
+    "last_trade_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cooldown_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trades_today": {
+      "type": "number",
+      "default": 0
+    },
+    "profit_today": {
+      "type": "number",
+      "default": 0
+    },
+    "status_message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "strategy_key",
+    "strategy_name"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

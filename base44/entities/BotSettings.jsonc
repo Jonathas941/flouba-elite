@@ -193,12 +193,12 @@
     "multiplier_min_equity_ratio": {
       "type": "number",
       "default": 2,
-      "description": "Equity-to-balance ratio required before the lot multiplier activates. When equity reaches this multiple of balance (e.g. 2x), compounding kicks in. Below this, lot_multiplier is forced to 1 (flat)."
+      "description": "Equity-to-balance ratio required before the lot multiplier activates."
     },
     "auto_multiplier_enabled": {
       "type": "boolean",
       "default": false,
-      "description": "When enabled, the lot multiplier is set automatically based on live trade performance: requires 30+ closed trades, 55%+ win rate, net positive P&L, and equity \u2265 2x balance before compounding activates. Otherwise stays flat (1x)."
+      "description": "When enabled, the lot multiplier is set automatically based on live trade performance."
     },
     "auto_start_enabled": {
       "type": "boolean",
@@ -304,103 +304,83 @@
     },
     "swing_ema_fast": {
       "type": "number",
-      "default": 20,
-      "description": "Swing 2026 \u2014 fast EMA period."
+      "default": 20
     },
     "swing_ema_slow": {
       "type": "number",
-      "default": 50,
-      "description": "Swing 2026 \u2014 slow EMA period."
+      "default": 50
     },
     "swing_atr_period": {
       "type": "number",
-      "default": 14,
-      "description": "Swing 2026 \u2014 ATR period for volatility-based stop loss."
+      "default": 14
     },
     "swing_atr_sl_multiplier": {
       "type": "number",
-      "default": 1.5,
-      "description": "Swing 2026 \u2014 ATR multiplier used to compute the stop-loss distance."
+      "default": 1.5
     },
     "swing_min_rr": {
       "type": "number",
-      "default": 2,
-      "description": "Swing 2026 \u2014 minimum reward-to-risk ratio. Never below 2 unless manually changed."
+      "default": 2
     },
     "swing_lot_size": {
       "type": "number",
-      "default": 0.01,
-      "description": "Swing 2026 \u2014 default lot size."
+      "default": 0.01
     },
     "swing_max_open_trades": {
       "type": "number",
-      "default": 2,
-      "description": "Swing 2026 \u2014 maximum simultaneous open trades."
+      "default": 2
     },
     "swing_max_trades_per_day": {
       "type": "number",
-      "default": 3,
-      "description": "Swing 2026 \u2014 maximum new entries per day."
+      "default": 3
     },
     "swing_max_consecutive_losses": {
       "type": "number",
-      "default": 2,
-      "description": "Swing 2026 \u2014 consecutive losing trades before the cooldown activates."
+      "default": 2
     },
     "swing_cooldown_hours": {
       "type": "number",
-      "default": 8,
-      "description": "Swing 2026 \u2014 cooldown duration in hours after the consecutive-loss limit is hit."
+      "default": 8
     },
     "swing_max_daily_loss_pct": {
       "type": "number",
-      "default": 2,
-      "description": "Swing 2026 \u2014 stop new entries after this daily loss percentage."
+      "default": 2
     },
     "swing_max_daily_drawdown_pct": {
       "type": "number",
-      "default": 3,
-      "description": "Swing 2026 \u2014 stop new entries after this daily drawdown percentage."
+      "default": 3
     },
     "swing_max_spread_points": {
       "type": "number",
-      "default": 30,
-      "description": "Swing 2026 \u2014 reject entries when the spread exceeds this value."
+      "default": 30
     },
     "swing_use_break_even": {
       "type": "boolean",
-      "default": true,
-      "description": "Swing 2026 \u2014 move stop loss to entry when the trade reaches 1R."
+      "default": true
     },
     "swing_be_at_r": {
       "type": "number",
-      "default": 1,
-      "description": "Swing 2026 \u2014 R multiple at which break-even is applied."
+      "default": 1
     },
     "swing_use_trailing": {
       "type": "boolean",
-      "default": false,
-      "description": "Swing 2026 \u2014 optional ATR trailing stop after break-even."
+      "default": false
     },
     "swing_trailing_atr_mult": {
       "type": "number",
-      "default": 1.5,
-      "description": "Swing 2026 \u2014 ATR multiplier for the trailing stop distance."
+      "default": 1.5
     },
     "swing_pullback_zone_atr": {
       "type": "number",
-      "default": 0.25,
-      "description": "Swing 2026 \u2014 pullback zone radius around EMA 20 expressed as a fraction of ATR."
+      "default": 0.25
     },
     "swing_block_deep_pullback": {
       "type": "boolean",
-      "default": true,
-      "description": "Swing 2026 \u2014 reject entries when the pullback crosses deeply through EMA 50."
+      "default": true
     },
     "swing_partial_close_50": {
       "type": "boolean",
-      "default": true,
-      "description": "Swing 2026 \u2014 close 50% of the position at 1R, run the remainder to 2R."
+      "default": true
     },
     "robot_status": {
       "type": "string",
@@ -482,7 +462,95 @@
     "ea_sent": {
       "type": "boolean",
       "default": false,
-      "description": "Tracks whether the EA installation file has already been emailed to the user. Sent once on first successful MT5 connection; not resent on subsequent connections."
+      "description": "Tracks whether the EA installation file has already been emailed to the user."
+    },
+    "adaptive_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Master switch for the Adaptive Strategy Manager."
+    },
+    "adaptive_min_score": {
+      "type": "number",
+      "default": 70,
+      "description": "Minimum strategy score (0-100) required before a strategy may open new trades."
+    },
+    "adaptive_switch_threshold": {
+      "type": "number",
+      "default": 15,
+      "description": "A rival strategy must outscore the active one by at least this many points to trigger a switch."
+    },
+    "adaptive_bars_confirm": {
+      "type": "number",
+      "default": 3,
+      "description": "Number of completed bars the rival must keep the lead before a switch is executed."
+    },
+    "adaptive_adx_threshold": {
+      "type": "number",
+      "default": 25,
+      "description": "ADX value above which the market is considered strongly trending."
+    },
+    "adaptive_eval_window_trades": {
+      "type": "number",
+      "default": 5,
+      "description": "Minimum completed trades a strategy needs before performance-based scoring activates."
+    },
+    "adaptive_active_strategy": {
+      "type": "string",
+      "description": "Currently selected strategy name."
+    },
+    "adaptive_active_since": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "adaptive_market_regime": {
+      "type": "string"
+    },
+    "adaptive_reason": {
+      "type": "string",
+      "description": "Human-readable reason for the current strategy selection."
+    },
+    "adaptive_pending_strategy": {
+      "type": "string",
+      "description": "Rival strategy that is leading but has not yet confirmed for adaptive_bars_confirm bars."
+    },
+    "adaptive_pending_since": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "adaptive_pending_bars": {
+      "type": "number",
+      "default": 0
+    },
+    "adaptive_global_cooldown_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "adaptive_daily_target_reached": {
+      "type": "boolean",
+      "default": false
+    },
+    "adaptive_daily_target_reached_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "daily_profit_target_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "When enabled, new entries stop once the daily profit target is reached."
+    },
+    "daily_profit_target_amount": {
+      "type": "number",
+      "default": 100,
+      "description": "Fixed daily profit target in account currency. 0 disables the fixed target."
+    },
+    "daily_profit_target_percent": {
+      "type": "number",
+      "default": 0,
+      "description": "Daily profit target as a percentage of account balance. 0 disables the percentage target."
+    },
+    "stop_trading_at_daily_target": {
+      "type": "boolean",
+      "default": true
     }
   },
   "required": [],

@@ -10,6 +10,7 @@ import FloubaHeader from "@/components/dashboard/FloubaHeader";
 import MarketChartCard from "@/components/dashboard/MarketChartCard";
 import SmartControlGrid from "@/components/dashboard/SmartControlGrid";
 import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
+import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
 import BotActionButtons from "@/components/dashboard/BotActionButtons";
 import RobotStartModal from "@/components/RobotStartModal";
 
@@ -275,6 +276,9 @@ export default function Home() {
 
         {/* 3. Strategy Control */}
         <StrategyControlCard />
+
+        {/* 3b. Adaptive Strategy Manager */}
+        <AdaptiveStrategyPanel connected={connected} />
 
         {/* 4. Account snapshot when connected */}
         {connected && account && (
