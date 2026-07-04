@@ -13,6 +13,8 @@ import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
 import BotActionButtons from "@/components/dashboard/BotActionButtons";
 import RobotStartModal from "@/components/RobotStartModal";
+import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
+import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 export default function Home() {
   const { toast } = useToast();
@@ -155,7 +157,16 @@ export default function Home() {
     if (!multiplierActive && form.lot_multiplier > 1) {
       toast({ title: "Multiplier Disabled", description: `Equity must reach ${minRatio}x balance to activate lot multiplier.`, duration: 3000 });
     }
-    const res = await mt5Api.robotStart(launchForm.symbol, launchForm);
+    const tf = getStrategyTimeframes(strategy);
+    const launchFormWithTF = {
+      ...launchForm,
+      strategy,
+      strategy_timeframe: tf.main,
+      strategy_htf_timeframe: tf.htf || null,
+      strategy_confirm_timeframe: tf.confirm || null,
+      strategy_entry_timeframe: tf.entry || null,
+    };
+    const res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
     if (res?.ok && res?.data?.success === true) {
       setActivePair(form.symbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
       toast({ title: "Robot Started", description: `${strategy} active on ${form.symbol}`, duration: 3000 });
@@ -276,6 +287,9 @@ export default function Home() {
 
         {/* 3. Strategy Control */}
         <StrategyControlCard />
+
+        {/* 3a. Strategy Timeframe Engine */}
+        <StrategyTimeframePanel />
 
         {/* 3b. Adaptive Strategy Manager */}
         <AdaptiveStrategyPanel connected={connected} />
