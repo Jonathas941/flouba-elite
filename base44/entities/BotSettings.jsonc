@@ -867,6 +867,116 @@
       "type": "number",
       "default": 8
     },
+    "gmr_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Gold Morning Range Breakout \u2014 default lot size."
+    },
+    "gmr_max_open_trades": {
+      "type": "number",
+      "default": 1,
+      "description": "Gold Morning Range Breakout \u2014 max open trades at once."
+    },
+    "gmr_max_trades_per_day": {
+      "type": "number",
+      "default": 2,
+      "description": "Gold Morning Range Breakout \u2014 max trades per day."
+    },
+    "gmr_risk_reward": {
+      "type": "number",
+      "default": 2,
+      "description": "Gold Morning Range Breakout \u2014 fixed risk-to-reward ratio (TP at 2R)."
+    },
+    "gmr_sl_buffer_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Gold Morning Range Breakout \u2014 extra points beyond retest/trigger candle low (BUY) or high (SELL) for stop loss."
+    },
+    "gmr_min_body_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Gold Morning Range Breakout \u2014 minimum breakout candle body size in points."
+    },
+    "gmr_min_range_points": {
+      "type": "number",
+      "default": 20,
+      "description": "Gold Morning Range Breakout \u2014 minimum morning range size in points."
+    },
+    "gmr_max_range_points": {
+      "type": "number",
+      "default": 400,
+      "description": "Gold Morning Range Breakout \u2014 maximum morning range size in points."
+    },
+    "gmr_require_retest": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Morning Range Breakout \u2014 prefer a retest of the broken level before entry."
+    },
+    "gmr_retest_buffer_points": {
+      "type": "number",
+      "default": 10,
+      "description": "Gold Morning Range Breakout \u2014 max distance from the broken level to count as a valid retest."
+    },
+    "gmr_use_volume_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Morning Range Breakout \u2014 require breakout candle tick volume above the average volume threshold."
+    },
+    "gmr_volume_threshold_mult": {
+      "type": "number",
+      "default": 1,
+      "description": "Gold Morning Range Breakout \u2014 breakout candle tick volume must be at least this multiple of the range average tick volume."
+    },
+    "gmr_use_atr_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Morning Range Breakout \u2014 require ATR 14 to confirm healthy volatility."
+    },
+    "gmr_atr_period": {
+      "type": "number",
+      "default": 14
+    },
+    "gmr_min_atr": {
+      "type": "number",
+      "default": 0
+    },
+    "gmr_use_news_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Morning Range Breakout \u2014 reject high-impact news conditions when news data is available."
+    },
+    "gmr_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Morning Range Breakout \u2014 optionally move SL to break-even at 1R."
+    },
+    "gmr_partial_close_50": {
+      "type": "boolean",
+      "default": false,
+      "description": "Gold Morning Range Breakout \u2014 partial close 50% at 1R."
+    },
+    "gmr_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
+    "gmr_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "Gold Morning Range Breakout \u2014 daily loss limit as a percentage of balance."
+    },
+    "gmr_equity_stop_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "Gold Morning Range Breakout \u2014 equity stop loss as a percentage of balance."
+    },
+    "gmr_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "gmr_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
     "ms_htf_timeframe": {
       "type": "string",
       "enum": [

@@ -14,6 +14,7 @@ import HybridConfluenceSettings from "@/components/robotstart/HybridConfluenceSe
 import NqKillZoneSettings from "@/components/robotstart/NqKillZoneSettings";
 import MsBosRetestSettings from "@/components/robotstart/MsBosRetestSettings";
 import OrderflowOpeningRangeSettings from "@/components/robotstart/OrderflowOpeningRangeSettings";
+import GoldMorningRangeSettings from "@/components/robotstart/GoldMorningRangeSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -30,6 +31,7 @@ const STRATEGIES = [
   "NQ London Kill Zone Breakout",
   "Market Structure BOS Retest Scalper",
   "Orderflow Opening Range Breakout",
+  "Gold Morning Range Breakout",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -271,6 +273,30 @@ const DEFAULT = {
   ofor_equity_stop_pct: 3,
   ofor_max_consecutive_losses: 2,
   ofor_cooldown_hours: 8,
+  // Gold Morning Range Breakout — XAUUSD 08:00–09:30 ET morning range, M5 breakout confirmed by tick volume + ATR, retest preferred, fixed 1:2 RR, no recovery
+  gmr_lot_size: 0.01,
+  gmr_max_open_trades: 1,
+  gmr_max_trades_per_day: 2,
+  gmr_risk_reward: 2,
+  gmr_sl_buffer_points: 5,
+  gmr_min_body_points: 5,
+  gmr_min_range_points: 20,
+  gmr_max_range_points: 400,
+  gmr_require_retest: true,
+  gmr_retest_buffer_points: 10,
+  gmr_use_volume_filter: true,
+  gmr_volume_threshold_mult: 1,
+  gmr_use_atr_filter: true,
+  gmr_atr_period: 14,
+  gmr_min_atr: 0,
+  gmr_use_news_filter: true,
+  gmr_use_break_even: true,
+  gmr_partial_close_50: false,
+  gmr_max_spread_points: 30,
+  gmr_max_daily_loss_pct: 2,
+  gmr_equity_stop_pct: 3,
+  gmr_max_consecutive_losses: 2,
+  gmr_cooldown_hours: 8,
 };
 
 function Field({ label, children }) {
@@ -535,6 +561,29 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         ofor_equity_stop_pct: s.ofor_equity_stop_pct ?? prev.ofor_equity_stop_pct,
         ofor_max_consecutive_losses: s.ofor_max_consecutive_losses ?? prev.ofor_max_consecutive_losses,
         ofor_cooldown_hours: s.ofor_cooldown_hours ?? prev.ofor_cooldown_hours,
+        gmr_lot_size: s.gmr_lot_size ?? prev.gmr_lot_size,
+        gmr_max_open_trades: s.gmr_max_open_trades ?? prev.gmr_max_open_trades,
+        gmr_max_trades_per_day: s.gmr_max_trades_per_day ?? prev.gmr_max_trades_per_day,
+        gmr_risk_reward: s.gmr_risk_reward ?? prev.gmr_risk_reward,
+        gmr_sl_buffer_points: s.gmr_sl_buffer_points ?? prev.gmr_sl_buffer_points,
+        gmr_min_body_points: s.gmr_min_body_points ?? prev.gmr_min_body_points,
+        gmr_min_range_points: s.gmr_min_range_points ?? prev.gmr_min_range_points,
+        gmr_max_range_points: s.gmr_max_range_points ?? prev.gmr_max_range_points,
+        gmr_require_retest: s.gmr_require_retest ?? prev.gmr_require_retest,
+        gmr_retest_buffer_points: s.gmr_retest_buffer_points ?? prev.gmr_retest_buffer_points,
+        gmr_use_volume_filter: s.gmr_use_volume_filter ?? prev.gmr_use_volume_filter,
+        gmr_volume_threshold_mult: s.gmr_volume_threshold_mult ?? prev.gmr_volume_threshold_mult,
+        gmr_use_atr_filter: s.gmr_use_atr_filter ?? prev.gmr_use_atr_filter,
+        gmr_atr_period: s.gmr_atr_period ?? prev.gmr_atr_period,
+        gmr_min_atr: s.gmr_min_atr ?? prev.gmr_min_atr,
+        gmr_use_news_filter: s.gmr_use_news_filter ?? prev.gmr_use_news_filter,
+        gmr_use_break_even: s.gmr_use_break_even ?? prev.gmr_use_break_even,
+        gmr_partial_close_50: s.gmr_partial_close_50 ?? prev.gmr_partial_close_50,
+        gmr_max_spread_points: s.gmr_max_spread_points ?? prev.gmr_max_spread_points,
+        gmr_max_daily_loss_pct: s.gmr_max_daily_loss_pct ?? prev.gmr_max_daily_loss_pct,
+        gmr_equity_stop_pct: s.gmr_equity_stop_pct ?? prev.gmr_equity_stop_pct,
+        gmr_max_consecutive_losses: s.gmr_max_consecutive_losses ?? prev.gmr_max_consecutive_losses,
+        gmr_cooldown_hours: s.gmr_cooldown_hours ?? prev.gmr_cooldown_hours,
       }));
     }).catch(() => {});
   }, [open]);
@@ -565,6 +614,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isNqKz = form.strategy === "NQ London Kill Zone Breakout";
   const isMsBos = form.strategy === "Market Structure BOS Retest Scalper";
   const isOfOr = form.strategy === "Orderflow Opening Range Breakout";
+  const isGmr = form.strategy === "Gold Morning Range Breakout";
 
   const handleStart = async () => {
     setLoading(true);
@@ -773,6 +823,29 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         ofor_equity_stop_pct: form.ofor_equity_stop_pct,
         ofor_max_consecutive_losses: form.ofor_max_consecutive_losses,
         ofor_cooldown_hours: form.ofor_cooldown_hours,
+        gmr_lot_size: form.gmr_lot_size,
+        gmr_max_open_trades: form.gmr_max_open_trades,
+        gmr_max_trades_per_day: form.gmr_max_trades_per_day,
+        gmr_risk_reward: form.gmr_risk_reward,
+        gmr_sl_buffer_points: form.gmr_sl_buffer_points,
+        gmr_min_body_points: form.gmr_min_body_points,
+        gmr_min_range_points: form.gmr_min_range_points,
+        gmr_max_range_points: form.gmr_max_range_points,
+        gmr_require_retest: form.gmr_require_retest,
+        gmr_retest_buffer_points: form.gmr_retest_buffer_points,
+        gmr_use_volume_filter: form.gmr_use_volume_filter,
+        gmr_volume_threshold_mult: form.gmr_volume_threshold_mult,
+        gmr_use_atr_filter: form.gmr_use_atr_filter,
+        gmr_atr_period: form.gmr_atr_period,
+        gmr_min_atr: form.gmr_min_atr,
+        gmr_use_news_filter: form.gmr_use_news_filter,
+        gmr_use_break_even: form.gmr_use_break_even,
+        gmr_partial_close_50: form.gmr_partial_close_50,
+        gmr_max_spread_points: form.gmr_max_spread_points,
+        gmr_max_daily_loss_pct: form.gmr_max_daily_loss_pct,
+        gmr_equity_stop_pct: form.gmr_equity_stop_pct,
+        gmr_max_consecutive_losses: form.gmr_max_consecutive_losses,
+        gmr_cooldown_hours: form.gmr_cooldown_hours,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -1051,6 +1124,15 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <OrderflowOpeningRangeSettings
                 visible={isOfOr}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                Toggle={Toggle}
+              />
+
+              <GoldMorningRangeSettings
+                visible={isGmr}
                 form={form}
                 set={set}
                 Field={Field}

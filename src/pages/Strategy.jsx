@@ -8,9 +8,10 @@ import HybridConfluenceLiveCard from "@/components/strategy/HybridConfluenceLive
 import NqKillZoneLiveCard from "@/components/strategy/NqKillZoneLiveCard";
 import MsBosRetestLiveCard from "@/components/strategy/MsBosRetestLiveCard";
 import OrderflowOpeningRangeLiveCard from "@/components/strategy/OrderflowOpeningRangeLiveCard";
+import GoldMorningRangeLiveCard from "@/components/strategy/GoldMorningRangeLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
-  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves
+  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves, BarChart3
 } from "lucide-react";
 
 const STRATEGY = [
@@ -229,6 +230,24 @@ const STRATEGY = [
     ],
   },
   {
+    icon: BarChart3,
+    title: "Gold Morning Range Breakout",
+    tag: "XAUUSD Morning Breakout",
+    tagColor: "bg-amber-400/15 text-amber-300",
+    summary: "XAUUSD morning range breakout. Builds the 08:00–09:30 ET Gold Morning Range, then trades only closed M5 breakouts (09:30–11:00 ET) confirmed by tick volume + ATR. Retest preferred, fixed 1:2 RR, max 1 open, 2 trades/day. No grid, no martingale, no recovery.",
+    details: [
+      "MARKET: XAUUSD (Gold). Default timeframe M5. All times America/New_York (DST auto-handled).",
+      "MORNING RANGE: built from 08:00 AM to 09:30 AM ET. MorningRangeHigh / Low / Midpoint recorded, plus average tick volume during the range. No trades while the range is building.",
+      "ENTRY WINDOW: 09:30 AM to 11:00 AM ET only. At 11:00 AM hard cutoff — no new trades; existing trades run to SL/TP/managed exit.",
+      "BUY: a fully closed M5 candle closes above MorningRangeHigh (not a wick). Breakout candle body above configured minimum, tick volume above average threshold, ATR 14 healthy. Prefer a retest of MorningRangeHigh as support, then a bullish confirmation candle.",
+      "SELL: a fully closed M5 candle closes below MorningRangeLow. Same body / tick volume / ATR confirmation. Prefer a retest of MorningRangeLow as resistance, then a bearish confirmation candle.",
+      "RISK: SL below retest/trigger candle low + buffer (BUY) / above retest/trigger candle high + buffer (SELL). TP fixed at 2R. Max 1 open trade, max 2 trades/day.",
+      "FILTERS: spread filter required, reject abnormally small or oversized morning ranges, reject high-impact news when news data is available, optional break-even at 1R.",
+      "PROTECTION: 2% daily loss, 3% equity stop, daily profit target enforced, stop after 2 consecutive losses (8h cooldown). No grid, no martingale, no recovery positions. No new entries after daily target or daily loss limit.",
+      "MENTALITY: waits for a clean breakout with real participation — volume and volatility must confirm one side is in control. No confirmation = no trade.",
+    ],
+  },
+  {
     icon: ScanLine,
     title: "Hybrid Confluence Mode",
     tag: "Multi-Strategy Merge",
@@ -411,10 +430,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor", "gmr"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : "Orderflow"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : t === "ofor" ? "Orderflow" : "Gold Range"}
           </button>
         ))}
       </div>
@@ -442,6 +461,10 @@ export default function Strategy() {
       ) : tab === "ofor" ? (
         <div className="space-y-4">
           <OrderflowOpeningRangeLiveCard />
+        </div>
+      ) : tab === "gmr" ? (
+        <div className="space-y-4">
+          <GoldMorningRangeLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">
