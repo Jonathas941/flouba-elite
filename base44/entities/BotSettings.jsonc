@@ -650,6 +650,99 @@
       "default": 10,
       "description": "Hybrid Confluence Mode \u2014 points awarded for spread/session/risk conditions."
     },
+    "nqkz_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "NQ London Kill Zone Breakout \u2014 default lot size."
+    },
+    "nqkz_max_open_trades": {
+      "type": "number",
+      "default": 1,
+      "description": "NQ London Kill Zone Breakout \u2014 max open trades at once."
+    },
+    "nqkz_max_trades_per_day": {
+      "type": "number",
+      "default": 2,
+      "description": "NQ London Kill Zone Breakout \u2014 max trades per day (one BUY + one SELL)."
+    },
+    "nqkz_risk_reward": {
+      "type": "number",
+      "default": 2,
+      "description": "NQ London Kill Zone Breakout \u2014 fixed risk-to-reward ratio."
+    },
+    "nqkz_sl_buffer_points": {
+      "type": "number",
+      "default": 5,
+      "description": "NQ London Kill Zone Breakout \u2014 extra points beyond breakout candle high/low for stop loss."
+    },
+    "nqkz_breakout_buffer_points": {
+      "type": "number",
+      "default": 2,
+      "description": "NQ London Kill Zone Breakout \u2014 minimum close distance beyond Kill Zone high/low to confirm breakout."
+    },
+    "nqkz_min_body_points": {
+      "type": "number",
+      "default": 5,
+      "description": "NQ London Kill Zone Breakout \u2014 minimum breakout candle body size in points."
+    },
+    "nqkz_max_wick_body_ratio": {
+      "type": "number",
+      "default": 0.6,
+      "description": "NQ London Kill Zone Breakout \u2014 reject breakout if wick exceeds this ratio of body."
+    },
+    "nqkz_min_range_points": {
+      "type": "number",
+      "default": 20,
+      "description": "NQ London Kill Zone Breakout \u2014 minimum Kill Zone range size in points."
+    },
+    "nqkz_max_range_points": {
+      "type": "number",
+      "default": 400,
+      "description": "NQ London Kill Zone Breakout \u2014 maximum Kill Zone range size in points."
+    },
+    "nqkz_use_atr_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "NQ London Kill Zone Breakout \u2014 enable ATR volatility filter."
+    },
+    "nqkz_atr_period": {
+      "type": "number",
+      "default": 14
+    },
+    "nqkz_min_atr": {
+      "type": "number",
+      "default": 0
+    },
+    "nqkz_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "NQ London Kill Zone Breakout \u2014 move SL to break-even at 1R."
+    },
+    "nqkz_partial_close_50": {
+      "type": "boolean",
+      "default": false,
+      "description": "NQ London Kill Zone Breakout \u2014 partial close 50% at 1R."
+    },
+    "nqkz_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
+    "nqkz_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2
+    },
+    "nqkz_equity_stop_pct": {
+      "type": "number",
+      "default": 3
+    },
+    "nqkz_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "nqkz_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
     "robot_status": {
       "type": "string",
       "enum": [

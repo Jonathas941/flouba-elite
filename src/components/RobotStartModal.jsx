@@ -11,6 +11,7 @@ import TrendFilterSettings from "@/components/robotstart/TrendFilterSettings";
 import SwingPullbackSettings from "@/components/robotstart/SwingPullbackSettings";
 import EmaTrendRecoverySettings from "@/components/robotstart/EmaTrendRecoverySettings";
 import HybridConfluenceSettings from "@/components/robotstart/HybridConfluenceSettings";
+import NqKillZoneSettings from "@/components/robotstart/NqKillZoneSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -24,6 +25,7 @@ const STRATEGIES = [
   "Swing Trend Pullback Continuation 2026",
   "EMA Trend Progressive Recovery",
   "Hybrid Confluence Mode",
+  "NQ London Kill Zone Breakout",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -200,6 +202,27 @@ const DEFAULT = {
   hybrid_score_sweep: 30,
   hybrid_score_engulfing: 10,
   hybrid_score_filters: 10,
+  // NQ London Kill Zone Breakout — 03:00–09:30 ET range, 09:30–11:00 ET entries, fixed 1:2 RR, no recovery
+  nqkz_lot_size: 0.01,
+  nqkz_max_open_trades: 1,
+  nqkz_max_trades_per_day: 2,
+  nqkz_risk_reward: 2,
+  nqkz_sl_buffer_points: 5,
+  nqkz_breakout_buffer_points: 2,
+  nqkz_min_body_points: 5,
+  nqkz_max_wick_body_ratio: 0.6,
+  nqkz_min_range_points: 20,
+  nqkz_max_range_points: 400,
+  nqkz_use_atr_filter: true,
+  nqkz_atr_period: 14,
+  nqkz_min_atr: 0,
+  nqkz_use_break_even: true,
+  nqkz_partial_close_50: false,
+  nqkz_max_spread_points: 30,
+  nqkz_max_daily_loss_pct: 2,
+  nqkz_equity_stop_pct: 3,
+  nqkz_max_consecutive_losses: 2,
+  nqkz_cooldown_hours: 8,
 };
 
 function Field({ label, children }) {
@@ -402,6 +425,26 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         hybrid_score_sweep: s.hybrid_score_sweep ?? prev.hybrid_score_sweep,
         hybrid_score_engulfing: s.hybrid_score_engulfing ?? prev.hybrid_score_engulfing,
         hybrid_score_filters: s.hybrid_score_filters ?? prev.hybrid_score_filters,
+        nqkz_lot_size: s.nqkz_lot_size ?? prev.nqkz_lot_size,
+        nqkz_max_open_trades: s.nqkz_max_open_trades ?? prev.nqkz_max_open_trades,
+        nqkz_max_trades_per_day: s.nqkz_max_trades_per_day ?? prev.nqkz_max_trades_per_day,
+        nqkz_risk_reward: s.nqkz_risk_reward ?? prev.nqkz_risk_reward,
+        nqkz_sl_buffer_points: s.nqkz_sl_buffer_points ?? prev.nqkz_sl_buffer_points,
+        nqkz_breakout_buffer_points: s.nqkz_breakout_buffer_points ?? prev.nqkz_breakout_buffer_points,
+        nqkz_min_body_points: s.nqkz_min_body_points ?? prev.nqkz_min_body_points,
+        nqkz_max_wick_body_ratio: s.nqkz_max_wick_body_ratio ?? prev.nqkz_max_wick_body_ratio,
+        nqkz_min_range_points: s.nqkz_min_range_points ?? prev.nqkz_min_range_points,
+        nqkz_max_range_points: s.nqkz_max_range_points ?? prev.nqkz_max_range_points,
+        nqkz_use_atr_filter: s.nqkz_use_atr_filter ?? prev.nqkz_use_atr_filter,
+        nqkz_atr_period: s.nqkz_atr_period ?? prev.nqkz_atr_period,
+        nqkz_min_atr: s.nqkz_min_atr ?? prev.nqkz_min_atr,
+        nqkz_use_break_even: s.nqkz_use_break_even ?? prev.nqkz_use_break_even,
+        nqkz_partial_close_50: s.nqkz_partial_close_50 ?? prev.nqkz_partial_close_50,
+        nqkz_max_spread_points: s.nqkz_max_spread_points ?? prev.nqkz_max_spread_points,
+        nqkz_max_daily_loss_pct: s.nqkz_max_daily_loss_pct ?? prev.nqkz_max_daily_loss_pct,
+        nqkz_equity_stop_pct: s.nqkz_equity_stop_pct ?? prev.nqkz_equity_stop_pct,
+        nqkz_max_consecutive_losses: s.nqkz_max_consecutive_losses ?? prev.nqkz_max_consecutive_losses,
+        nqkz_cooldown_hours: s.nqkz_cooldown_hours ?? prev.nqkz_cooldown_hours,
       }));
     }).catch(() => {});
   }, [open]);
@@ -429,6 +472,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isSwingPullback = form.strategy === "Swing Trend Pullback Continuation 2026";
   const isTpr = form.strategy === "EMA Trend Progressive Recovery";
   const isHybrid = form.strategy === "Hybrid Confluence Mode";
+  const isNqKz = form.strategy === "NQ London Kill Zone Breakout";
 
   const handleStart = async () => {
     setLoading(true);
@@ -575,6 +619,26 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         hybrid_score_sweep: form.hybrid_score_sweep,
         hybrid_score_engulfing: form.hybrid_score_engulfing,
         hybrid_score_filters: form.hybrid_score_filters,
+        nqkz_lot_size: form.nqkz_lot_size,
+        nqkz_max_open_trades: form.nqkz_max_open_trades,
+        nqkz_max_trades_per_day: form.nqkz_max_trades_per_day,
+        nqkz_risk_reward: form.nqkz_risk_reward,
+        nqkz_sl_buffer_points: form.nqkz_sl_buffer_points,
+        nqkz_breakout_buffer_points: form.nqkz_breakout_buffer_points,
+        nqkz_min_body_points: form.nqkz_min_body_points,
+        nqkz_max_wick_body_ratio: form.nqkz_max_wick_body_ratio,
+        nqkz_min_range_points: form.nqkz_min_range_points,
+        nqkz_max_range_points: form.nqkz_max_range_points,
+        nqkz_use_atr_filter: form.nqkz_use_atr_filter,
+        nqkz_atr_period: form.nqkz_atr_period,
+        nqkz_min_atr: form.nqkz_min_atr,
+        nqkz_use_break_even: form.nqkz_use_break_even,
+        nqkz_partial_close_50: form.nqkz_partial_close_50,
+        nqkz_max_spread_points: form.nqkz_max_spread_points,
+        nqkz_max_daily_loss_pct: form.nqkz_max_daily_loss_pct,
+        nqkz_equity_stop_pct: form.nqkz_equity_stop_pct,
+        nqkz_max_consecutive_losses: form.nqkz_max_consecutive_losses,
+        nqkz_cooldown_hours: form.nqkz_cooldown_hours,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -829,6 +893,15 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 Field={Field}
                 NumberInput={NumberInput}
                 SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
+
+              <NqKillZoneSettings
+                visible={isNqKz}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
                 Toggle={Toggle}
               />
 

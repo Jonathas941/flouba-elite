@@ -5,9 +5,10 @@ import StrategyFilterToggles from "@/components/StrategyFilterToggles";
 import SwingPullbackLiveCard from "@/components/strategy/SwingPullbackLiveCard";
 import EmaTrendRecoveryLiveCard from "@/components/strategy/EmaTrendRecoveryLiveCard";
 import HybridConfluenceLiveCard from "@/components/strategy/HybridConfluenceLiveCard";
+import NqKillZoneLiveCard from "@/components/strategy/NqKillZoneLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
-  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine
+  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair
 } from "lucide-react";
 
 const STRATEGY = [
@@ -166,6 +167,24 @@ const STRATEGY = [
       "Protection: emergency SL = 1.8×ATR, equity stop 3%, daily loss 2%, daily profit target, 3 trades/day, 2 consecutive losses → 8h cooldown, break-even at 1R, optional 50% partial close, min 1:2 RR when single position.",
       "Hard trend reversal exit: EMA cross against, slope reversal, close beyond slow EMA by ATR distance, or equity/daily-loss limit → close all and disable recovery.",
       "Adaptive selection: only when regime is Trending, EMA alignment + slope strong, ATR healthy, spread acceptable, score ≥ 70. Never in a ranging market.",
+    ],
+  },
+  {
+    icon: Crosshair,
+    title: "NQ London Kill Zone Breakout",
+    tag: "Time-Window Breakout",
+    tagColor: "bg-indigo-500/15 text-indigo-300",
+    summary: "London Kill Zone range breakout on NQ / NAS100. Builds the 03:00–09:30 ET high-low range, then trades only closed-candle breakouts between 09:30 and 11:00 ET. Stop loss off the breakout candle, fixed 1:2 RR, one BUY + one SELL max per day. No grid, no martingale, no recovery.",
+    details: [
+      "MARKET: NQ / NAS100 / US100 (broker symbol mapped). Default timeframe M5. All times America/New_York (DST auto-handled).",
+      "KILL ZONE RANGE: built from 03:00 AM to 09:30 AM ET. KillZoneHigh = highest high; KillZoneLow = lowest low. No trades before 09:30.",
+      "ENTRY WINDOW: 09:30 AM to 11:00 AM ET only. At 11:00 AM hard cutoff — no new trades; existing trades run to SL/TP/managed exit.",
+      "BUY: a fully closed M5 candle closes above KillZoneHigh (not just a wick). Enter BUY. SL just below the breakout candle LOW + buffer. TP = 2× risk.",
+      "SELL: a fully closed M5 candle closes below KillZoneLow. Enter SELL. SL just above the breakout candle HIGH + buffer. TP = 2× risk.",
+      "One trade per direction per day (max 2 total: 1 BUY + 1 SELL). No re-entry from the same breakout level.",
+      "RISK: fixed 1:2 RR, reject if SL distance too small/large, reject if spread > max, reject on daily loss/drawdown/cooldown/target reached. Never widen SL.",
+      "FALSE BREAKOUT PROTECTION: min candle body (points), close buffer beyond the zone, reject excessive wick-to-body ratio, range size bounds, optional ATR 14 filter.",
+      "SESSION RESET: Kill Zone levels and daily trade flags reset at the next 03:00 AM ET. Never trades weekends or when the market is closed.",
     ],
   },
   {
@@ -351,10 +370,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns", "swing2026", "tpr", "hybrid"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : "Hybrid"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : "NQ KillZone"}
           </button>
         ))}
       </div>
@@ -370,6 +389,10 @@ export default function Strategy() {
       ) : tab === "hybrid" ? (
         <div className="space-y-4">
           <HybridConfluenceLiveCard />
+        </div>
+      ) : tab === "nqkz" ? (
+        <div className="space-y-4">
+          <NqKillZoneLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">
