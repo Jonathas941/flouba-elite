@@ -37,13 +37,15 @@ export default function Layout() {
     >
       <Outlet />
 
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md sm:max-w-2xl lg:max-w-4xl z-50">
+      <nav className="fixed bottom-0 left-0 right-0 w-full z-50">
         <div
-          className="flex items-center justify-around px-4 sm:px-6 lg:px-10"
+          className="mx-auto max-w-md sm:max-w-2xl lg:max-w-4xl flex items-center justify-around px-4 sm:px-6 lg:px-10"
           style={{
             background: "rgba(8,16,32,0.97)",
             backdropFilter: "blur(20px)",
             borderTop: "1px solid rgba(0,229,255,0.18)",
+            borderLeft: "1px solid rgba(0,229,255,0.10)",
+            borderRight: "1px solid rgba(0,229,255,0.10)",
             paddingTop: "12px",
             paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
           }}
