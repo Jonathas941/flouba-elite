@@ -369,6 +369,9 @@ Deno.serve(async (req) => {
       // ── Eligibility per strategy ──
       const eligible = {};
       const pend = { strategy: cfg.adaptive_pending_strategy, since: cfg.adaptive_pending_since, bars: cfg.adaptive_pending_bars || 0 };
+      const atrVal = num(ind?.atr_14 ?? ind?.atr14);
+      const priceVal = quote?.bid;
+      const riskTooHigh = atrVal != null && priceVal != null && (atrVal / priceVal) > 0.003;
       for (const k of KEYS) {
         const regimeMatch = regimeMatchFor(k, regime);
         const spreadOk = regimeInfo.spread == null || regimeInfo.spread <= (cfg.swing_max_spread_points ?? 30);
@@ -378,17 +381,17 @@ Deno.serve(async (req) => {
         const riskOk = !dailyLossHit && !dailyLossPctHit && !dailyDDHit;
         const targetOk = !dailyTargetReached;
         const scoreOk = scores[k] >= (cfg.adaptive_min_score ?? 70);
-        const ok = regimeMatch && spreadOk && sessionOk && cooldownOk && globalOk && riskOk && targetOk && scoreOk;
+        const ok = regimeMatch && spreadOk && sessionOk && cooldownOk && globalOk && riskOk && targetOk && scoreOk && !riskTooHigh;
         eligible[k] = ok;
-        let reason = "Eligible";
-        if (dailyTargetReached) reason = "Daily profit target reached — new entries disabled";
-        else if (!sessionOk) reason = `Session closed (${regimeInfo.sess.reason || ""})`;
-        else if (!spreadOk) reason = "Spread too high";
-        else if (!globalOk) reason = "Global cooldown after consecutive losses";
-        else if (!cooldownOk) reason = "Strategy cooldown after consecutive losses";
-        else if (!riskOk) reason = "Daily loss / drawdown limit reached";
-        else if (!regimeMatch) reason = `Market regime (${regime}) does not match this strategy`;
-        else if (!scoreOk) reason = `Score ${scores[k]} below minimum ${cfg.adaptive_min_score ?? 70}`;
+        let reason = "Confirmation candle valid. Entry allowed.";
+        if (dailyTargetReached) reason = "Trade rejected: daily target reached.";
+        else if (!sessionOk) reason = "Trade rejected: late session.";
+        else if (!spreadOk) reason = "Trade rejected: spread too high.";
+        else if (riskTooHigh) reason = "Trade rejected: risk too high.";
+        else if (!globalOk || !cooldownOk) reason = "Two losses detected. Cooling down.";
+        else if (!riskOk) reason = "Capital protection mode active.";
+        else if (!regimeMatch) reason = "Market structure is unclear. Waiting.";
+        else if (!scoreOk) reason = "Trade rejected: setup quality too low.";
         stats[k].status_message = reason;
         stats[k].enabled = ok;
       }
@@ -410,10 +413,10 @@ Deno.serve(async (req) => {
         : null;
 
       if (dailyTargetReached) {
-        reason = "Daily Profit Target Reached — Trading Paused Until Next Trading Day.";
+        reason = "Trade rejected: daily target reached.";
         pend.strategy = null; pend.since = null; pend.bars = 0;
       } else if (globalCooldownActive) {
-        reason = `Global cooldown after consecutive losses — until ${new Date(globalCooldownUntil).toISOString()}.`;
+        reason = "Two losses detected. Cooling down.";
       } else if (positions.length > 0) {
         reason = `Trade open — ${current} continues managing existing position. No switch while trade is open.`;
         if (!(bestRivalKey && scores[bestRivalKey] >= scores[currentKey] + threshold)) {
@@ -444,7 +447,7 @@ Deno.serve(async (req) => {
             if (regime === "Trending") reason = `Trend market detected — ${STRATEGY.swing} selected.`;
             else if (regime === "Liquidity Sweep") reason = `Liquidity sweep detected — ${STRATEGY.smc} selected.`;
             else if (eligible[currentKey]) reason = `${current} active (score ${scores[currentKey]}).`;
-            else reason = `No strategy qualifies. Waiting for better conditions.`;
+            else reason = regime === "Range" ? "Market structure is unclear. Waiting." : "Break of Structure not confirmed.";
           }
         } else {
           pend.strategy = null; pend.since = null; pend.bars = 0;
@@ -453,7 +456,7 @@ Deno.serve(async (req) => {
             newActive = STRATEGY[bestRivalKey];
             reason = `${current} no longer eligible (${stats[currentKey].status_message}) — switched to ${STRATEGY[bestRivalKey]} (score ${scores[bestRivalKey]}).`;
           } else {
-            reason = "No strategy qualifies. Waiting for better conditions.";
+            reason = regime === "Range" ? "Market structure is unclear. Waiting." : "Break of Structure not confirmed.";
           }
         }
       }

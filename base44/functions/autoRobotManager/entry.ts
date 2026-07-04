@@ -50,6 +50,49 @@ function localSessionInfo() {
   return { trading_blocked: true, risk_multiplier: 0, allowed_pairs: [], session: "closed" };
 }
 
+// ── BOT MENTALITY (Basic plan): patient, disciplined, selective, defensive ──
+// Capital protection first. Wait for confirmation. Accept missed trades.
+// No chase, no revenge, no martingale. "No trade" is a valid decision.
+function consecutiveLossesCount(closedTrades) {
+  const desc = (closedTrades || [])
+    .filter((t) => t.closed_at)
+    .sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at));
+  let n = 0;
+  for (const t of desc) { if ((t.profit ?? 0) < 0) n++; else break; }
+  return n;
+}
+
+function mentalityGuard({ dailyPnL, balance, consecLosses, sessionInfo, cfg }) {
+  // 1. Capital protection — daily loss limit / drawdown (always on)
+  const lossLimit = cfg.daily_loss_limit ?? 20;
+  const maxDailyLossPct = cfg.swing_max_daily_loss_pct ?? 2;
+  if (dailyPnL <= -lossLimit || (balance > 0 && dailyPnL <= -(maxDailyLossPct / 100) * balance))
+    return { allow: false, status: "Capital protection mode active.", block: true };
+
+  // 2. Daily profit target reached — protect the day, stop opening new trades
+  if (cfg.daily_profit_target_enabled !== false && cfg.stop_trading_at_daily_target !== false) {
+    const amt = cfg.daily_profit_target_amount ?? cfg.daily_profit_target ?? 100;
+    const pct = cfg.daily_profit_target_percent ?? 0;
+    if ((amt > 0 && dailyPnL >= amt) || (pct > 0 && balance > 0 && dailyPnL >= (pct / 100) * balance))
+      return { allow: false, status: "Trade rejected: daily target reached.", block: true };
+  }
+
+  // 3. Two consecutive losses → cooldown, no revenge, no lot increase
+  const stopAfter = cfg.stop_after_losses ?? 2;
+  if (consecLosses >= stopAfter)
+    return { allow: false, status: "Two losses detected. Cooling down.", block: true };
+
+  // 4. Session — no late-session / closed-market entries
+  if (sessionInfo?.trading_blocked) {
+    if (sessionInfo?.session === "closed")
+      return { allow: false, status: "Trade rejected: late session.", block: false };
+    return { allow: false, status: "Market closed. Waiting.", block: false };
+  }
+
+  // All hard gates passed — entry allowed once structure confirms
+  return { allow: true, status: "Confirmation candle valid. Entry allowed.", block: false };
+}
+
 function buildHeaders(token, config) {
   const h = {
     "Authorization": `Bearer ${token}`,
@@ -173,6 +216,16 @@ Deno.serve(async (req) => {
 
       const dailyPnL = floatingPnl + todayRealized;
 
+      // === BOT MENTALITY: evaluate hard gates (capital protection, daily target, cooldown, session) ===
+      const consecLosses = consecutiveLossesCount(closedTrades);
+      let sessionInfo = null;
+      try {
+        const sessRes = await fetch(`${BASE}/session/status`, { headers: authHeaders });
+        if (sessRes.ok) { const j = await sessRes.json(); sessionInfo = j?.data || j; }
+      } catch {}
+      if (!sessionInfo) sessionInfo = localSessionInfo();
+      const mentality = mentalityGuard({ dailyPnL, balance, consecLosses, sessionInfo, cfg: config });
+
       // === AUTO MULTIPLIER: evaluate trade history to decide if compounding is safe ===
       // Requires 30+ closed trades, 55%+ win rate, net positive P&L, and equity ≥ 2x balance
       let resolvedLotMultiplier = 1;
@@ -200,43 +253,19 @@ Deno.serve(async (req) => {
         multiplierReason = "compounding active (equity gate met, auto off)";
       }
 
-      // === AUTO-STOP: Check daily profit target / loss limit ===
-      if (config.auto_stop_enabled !== false && robotRunning) {
-        const profitTarget = config.daily_profit_target ?? 200;
-        const lossLimit = config.daily_loss_limit ?? 20;
-
-        if (dailyPnL >= profitTarget) {
-          await fetch(`${BASE}/robot/stop`, { method: "POST", headers: authHeaders, body: "{}" });
-          actions.push(`AUTO-STOP: Profit target $${profitTarget} reached (P&L: +$${dailyPnL.toFixed(2)})`);
-        } else if (dailyPnL <= -lossLimit) {
-          await fetch(`${BASE}/robot/stop`, { method: "POST", headers: authHeaders, body: "{}" });
-          actions.push(`AUTO-STOP: Loss limit $${lossLimit} reached (P&L: -$${Math.abs(dailyPnL).toFixed(2)})`);
-        }
+      // === BOT MENTALITY: enforce capital protection / daily target / cooldown (always on) ===
+      if (robotRunning && mentality.block) {
+        await fetch(`${BASE}/robot/stop`, { method: "POST", headers: authHeaders, body: "{}" }).catch(() => {});
+        actions.push(`MENTALITY STOP: ${mentality.status} (P&L: $${dailyPnL.toFixed(2)})`);
       }
 
-      // === AUTO-START: When the MT5 server reports a session is active ===
+      // === AUTO-START: launch only when mentality allows and a session is active ===
       if (config.auto_start_enabled && !robotRunning) {
-        const profitTarget = config.daily_profit_target ?? 200;
-        const lossLimit = config.daily_loss_limit ?? 20;
-        const limitsHit = dailyPnL >= profitTarget || dailyPnL <= -lossLimit;
-
-        // Fetch session status from the MT5 server (per-user for correct pair/spread)
-        let sessionInfo = null;
-        try {
-          const sessRes = await fetch(`${BASE}/session/status`, { headers: authHeaders });
-          if (sessRes.ok) {
-            const sessJson = await sessRes.json();
-            sessionInfo = sessJson?.data || sessJson;
-          }
-        } catch {}
-        if (!sessionInfo) sessionInfo = localSessionInfo();
-
-        const tradingBlocked = sessionInfo?.trading_blocked ?? true;
         const riskMultiplier = sessionInfo?.risk_multiplier ?? 0;
         const allowedPairs = sessionInfo?.allowed_pairs ?? [];
         const sessionName = sessionInfo?.session ?? "closed";
 
-        if (!tradingBlocked && !limitsHit && riskMultiplier > 0) {
+        if (mentality.allow && riskMultiplier > 0) {
           // Switch to an allowed pair if the current pair isn't in the server's allowed list
           const symbol = allowedPairs.length && !allowedPairs.includes(config.active_pair)
             ? allowedPairs[0]
