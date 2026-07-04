@@ -2,7 +2,7 @@ import React from "react";
 import { Menu, Bell } from "lucide-react";
 import FloubaLogo from "@/components/dashboard/FloubaLogo";
 
-export default function FloubaHeader({ onMenu, onBell }) {
+export default function FloubaHeader({ onMenu, onBell, unread = 0 }) {
   return (
     <header
       className="sticky top-0 z-40 px-4 flex items-center justify-between"
@@ -40,7 +40,12 @@ export default function FloubaHeader({ onMenu, onBell }) {
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5 text-cyan-300" strokeWidth={2} />
-        <span className="absolute top-2 right-2.5 w-1.5 h-1.5 rounded-full bg-[#ffce4d]" style={{ boxShadow: "0 0 6px rgba(255,206,77,0.9)" }} />
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-heading font-bold text-[#021024]"
+            style={{ background: "#ffce4d", boxShadow: "0 0 8px rgba(255,206,77,0.9)" }}>
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
       </button>
     </header>
   );

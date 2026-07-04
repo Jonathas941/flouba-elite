@@ -24,6 +24,7 @@ import AISignals from '@/pages/AISignals';
 import AIScanner from '@/pages/AIScanner';
 import Account from '@/pages/Account';
 import ConnectMT5 from '@/pages/ConnectMT5';
+import Notifications from '@/pages/Notifications';
 
 const PageSlide = ({ children }) => (
   <motion.div
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
             <Route path="/ai-scanner" element={<PageSlide><AIScanner /></PageSlide>} />
             <Route path="/account" element={<PageSlide><Account /></PageSlide>} />
             <Route path="/connect-mt5" element={<PageSlide><ConnectMT5 /></PageSlide>} />
+            <Route path="/notifications" element={<PageSlide><Notifications /></PageSlide>} />
           </Route>
         </Route>
         <Route path="*" element={<PageNotFound />} />

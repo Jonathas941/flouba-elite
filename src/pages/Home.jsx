@@ -5,6 +5,7 @@ import { RefreshCw, WifiOff } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
+import { logNotification } from "@/lib/notifications";
 import FloubaHeader from "@/components/dashboard/FloubaHeader";
 import MarketChartCard from "@/components/dashboard/MarketChartCard";
 import SmartControlGrid from "@/components/dashboard/SmartControlGrid";
@@ -26,6 +27,7 @@ export default function Home() {
   const [winRate, setWinRate] = useState(null);
   const [showStartModal, setShowStartModal] = useState(false);
   const [autoStartEnabled, setAutoStartEnabled] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const wsRef = useRef(null);
   const pollRef = useRef(null);
@@ -40,6 +42,9 @@ export default function Home() {
         mt5Api.robotStatus(),
         base44.entities.BotSettings.list('-created_date', 1).catch(() => []),
       ]);
+
+      // Unread notification count for the bell badge (failures ignored)
+      base44.entities.Notification.filter({ read: false }).then((u) => setUnreadCount(u?.length || 0)).catch(() => {});
 
       if (acctRes?.ok && acctRes.data?.account) {
         const a = acctRes.data.account;
@@ -153,6 +158,8 @@ export default function Home() {
     if (res?.ok && res?.data?.success === true) {
       setActivePair(form.symbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
       toast({ title: "Robot Started", description: `${strategy} active on ${form.symbol}`, duration: 3000 });
+      logNotification({ type: "bot_action", title: "Robot Started", message: `${strategy} engine launched on ${form.symbol}.`, category: "success", meta: { strategy, symbol: form.symbol } });
+      setUnreadCount((c) => c + 1);
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
       toast({ title: "Start Failed", description: msg, variant: "destructive", duration: 4000 });
@@ -164,6 +171,7 @@ export default function Home() {
     try { await mt5Api.robotStop(); } catch {}
     setRobotStatus("Paused");
     toast({ title: "Robot Paused", duration: 3000 });
+    logNotification({ type: "bot_action", title: "Robot Paused", message: "Trading robot was paused by user.", category: "info" });
   };
 
   const handleStopAll = async () => {
@@ -173,6 +181,7 @@ export default function Home() {
     } catch {}
     setRobotStatus("Paused");
     toast({ title: "Stop All Sent", description: "Robot paused · close-all requested from MT5 backend.", duration: 3500 });
+    logNotification({ type: "alert", title: "Stop All Executed", message: "Robot paused and all open positions requested to close.", category: "warning", meta: { openPositions: positions.length } });
     setTimeout(load, 1500);
   };
 
@@ -188,6 +197,7 @@ export default function Home() {
     } catch {}
     setConnected(false); setAccount(null); setPositions([]); setRobotStatus("Paused");
     toast({ title: "MT5 Disconnected", description: "Your account has been unlinked.", duration: 3000 });
+    logNotification({ type: "connection", title: "MT5 Disconnected", message: "Your MT5 account has been unlinked from Flouba Elite.", category: "danger" });
   };
 
   const toggleAutoStart = async () => {
@@ -224,7 +234,7 @@ export default function Home() {
         </div>
       )}
 
-      <FloubaHeader onMenu={() => navigate("/settings")} onBell={() => navigate("/ai-signals")} />
+      <FloubaHeader onMenu={() => navigate("/settings")} onBell={() => navigate("/notifications")} unread={unreadCount} />
 
       <div className="flex-1 px-4 pt-4 pb-8 space-y-4 max-w-md mx-auto w-full">
         {/* Live data banner / quick controls */}

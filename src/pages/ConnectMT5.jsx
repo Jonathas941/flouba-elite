@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import MobileHeader from "@/components/MobileHeader";
 import MobileSelect from "@/components/MobileSelect";
 import { mt5Api } from "@/lib/mt5Api";
+import { logNotification } from "@/lib/notifications";
 import {
   Wifi, WifiOff, ShieldCheck, Eye, EyeOff,
   Loader2, CheckCircle2, ArrowRight, Bot, AlertCircle,
@@ -156,6 +157,7 @@ export default function ConnectMT5() {
         setStatus("success");
         await saveToDb("Connected");
         toast({ title: "MT5 Connected", description: `${broker} · ${login}`, duration: 2000 });
+        logNotification({ type: "connection", title: "MT5 Connected", message: `Account ${login} connected on ${broker}.`, category: "success", meta: { broker, login } });
         // Send the EA file to the user's email after successful connection
         base44.functions.invoke("sendEaFile", {}).catch(() => {});
         navigate("/");
