@@ -57,6 +57,11 @@ const DEFAULT = {
   stop_after_losses: 2,
   daily_profit_target: 200,
   daily_loss_limit: 20,
+  // Daily Profit Target — toggleable, amount ($) or % of balance
+  daily_profit_target_enabled: true,
+  daily_profit_target_amount: 100,
+  daily_profit_target_percent: 0,
+  stop_trading_at_daily_target: true,
   // HFT Scalper specific — tuned for frequent small in/out positions, not trend-riding
   hft_max_trades: 15,
   hft_burst_points: 8,
@@ -278,6 +283,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         stop_after_losses: s.stop_after_losses ?? prev.stop_after_losses,
         daily_profit_target: s.daily_profit_target ?? prev.daily_profit_target,
         daily_loss_limit: s.daily_loss_limit ?? prev.daily_loss_limit,
+        daily_profit_target_enabled: s.daily_profit_target_enabled ?? prev.daily_profit_target_enabled,
+        daily_profit_target_amount: s.daily_profit_target_amount ?? prev.daily_profit_target_amount,
+        daily_profit_target_percent: s.daily_profit_target_percent ?? prev.daily_profit_target_percent,
+        stop_trading_at_daily_target: s.stop_trading_at_daily_target ?? prev.stop_trading_at_daily_target,
         grid_distance_pips: s.grid_distance_pips ?? prev.grid_distance_pips,
         grid_max_levels: s.grid_max_levels ?? prev.grid_max_levels,
         equity_guard_enabled: s.equity_guard_enabled ?? prev.equity_guard_enabled,
@@ -447,6 +456,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         stop_after_losses: form.stop_after_losses, // max_daily_trades kept unlimited, no UI control
         daily_profit_target: form.daily_profit_target,
         daily_loss_limit: form.daily_loss_limit,
+        daily_profit_target_enabled: form.daily_profit_target_enabled,
+        daily_profit_target_amount: form.daily_profit_target_amount,
+        daily_profit_target_percent: form.daily_profit_target_percent,
+        stop_trading_at_daily_target: form.stop_trading_at_daily_target,
         grid_distance_pips: form.grid_distance_pips,
         grid_max_levels: form.grid_max_levels,
         equity_guard_enabled: true, // permanently locked ON — account safety
@@ -691,9 +704,27 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   <Field label="Stop After Losses">
                     <NumberInput value={form.stop_after_losses} onChange={set("stop_after_losses")} min={1} />
                   </Field>
-                  <Field label="Profit Target ($)">
-                    <NumberInput value={form.daily_profit_target} onChange={set("daily_profit_target")} min={0} />
+                  <Field label="Daily Profit Target">
+                    <Toggle value={form.daily_profit_target_enabled} onChange={set("daily_profit_target_enabled")} />
                   </Field>
+                  {form.daily_profit_target_enabled && (
+                    <>
+                      <Field label="Target Amount ($)">
+                        <NumberInput value={form.daily_profit_target_amount} onChange={set("daily_profit_target_amount")} min={0} step={10} />
+                      </Field>
+                      <Field label="Target % (Balance)">
+                        <NumberInput value={form.daily_profit_target_percent} onChange={set("daily_profit_target_percent")} min={0} max={100} step={0.5} />
+                      </Field>
+                      <Field label="Stop at Target">
+                        <Toggle value={form.stop_trading_at_daily_target} onChange={set("stop_trading_at_daily_target")} />
+                      </Field>
+                      <p className="text-[9px] text-white/25 leading-relaxed">
+                        {form.daily_profit_target_percent > 0
+                          ? `Robot pauses once daily profit reaches ${form.daily_profit_target_percent}% of balance.`
+                          : `Robot pauses once daily profit reaches $${form.daily_profit_target_amount}.`}
+                      </p>
+                    </>
+                  )}
                   <Field label="Loss Limit ($)">
                     <NumberInput value={form.daily_loss_limit} onChange={set("daily_loss_limit")} min={0} />
                   </Field>
