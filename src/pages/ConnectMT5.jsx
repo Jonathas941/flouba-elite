@@ -152,8 +152,12 @@ export default function ConnectMT5() {
       // Save credentials first so the bridge can authenticate to the user's MT5 account
       await saveToDb("Connecting");
       // Verify the bridge can reach the user's MT5 account
+      // Must check account.connected === true — the account object is always
+      // present (even on a failed login), so checking it alone falsely reports success.
       const res = await mt5Api.account();
-      if (res?.ok && res?.data?.account) {
+      const acct = res?.data?.account;
+      const connected = res?.ok && res?.data?.success === true && acct?.connected === true;
+      if (connected) {
         setStatus("success");
         await saveToDb("Connected");
         toast({ title: "MT5 Connected", description: `${broker} · ${login}`, duration: 2000 });
@@ -163,7 +167,14 @@ export default function ConnectMT5() {
         navigate("/");
       } else {
         setStatus("error");
-        const msg = res?.error || res?.data?.message || res?.data?.detail || "Connection failed. Check your credentials.";
+        let msg;
+        if (acct && acct.connected === false) {
+          // Bridge authenticated, but the MT5 terminal login itself failed.
+          msg = "MT5 login failed. Double-check your account number, password, and server name — and make sure the Flouba Elite EA is installed and logged in on your MetaTrader 5 terminal.";
+        } else {
+          msg = res?.error || res?.data?.message || res?.data?.detail || "Connection failed. Check your credentials.";
+        }
+        await saveToDb("Disconnected");
         setErrorMsg(msg);
         toast({ title: "Connection Failed", description: msg, variant: "destructive" });
       }
