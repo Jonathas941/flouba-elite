@@ -103,8 +103,21 @@ export default function ConnectMT5() {
           if (list[0].mt5_server)  setServer(list[0].mt5_server);
           if (list[0].mt5_password) setPassword(list[0].mt5_password);
         }
+        // Reflect the live bridge state so the page doesn't always show "Not Connected".
+        const res = await mt5Api.account();
+        const acct = res?.data?.account;
+        if (res?.ok && res?.data?.success === true && acct?.connected === true) {
+          setStatus("success");
+          if (list[0] && list[0].connection_status !== "Connected") {
+            await base44.entities.BotSettings.update(list[0].id, { connection_status: "Connected" }).catch(() => {});
+          }
+        } else if (list[0] && list[0].connection_status === "Connected") {
+          // Stale record — bridge says disconnected, sync it.
+          await base44.entities.BotSettings.update(list[0].id, { connection_status: "Disconnected" }).catch(() => {});
+        }
       } catch {}
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isFormValid = broker && login && password && server;
