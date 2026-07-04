@@ -46,6 +46,9 @@ export const mt5Api = {
   /** Trade history (closed trades from MT5) */
   history: (limit = 50) => call("history", { limit }),
 
+  /** Live symbol quotes (bid/ask) from the MT5 terminal */
+  quotes: () => call("symbols"),
+
   /** Scanner status */
   scannerStatus: () => call("scanner_status"),
 };

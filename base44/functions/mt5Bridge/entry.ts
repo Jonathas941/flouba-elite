@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
       close:          ["POST", "/trade/close"],
       close_all:      ["POST", "/trade/close_all"],
       history:        ["GET",  "/history"],
+      symbols:        ["GET",  "/symbols"],
       scanner_status: ["GET",  "/scanner/status"],
     };
 
