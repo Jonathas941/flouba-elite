@@ -42,9 +42,9 @@ export default function Settings() {
   );
 
   return (
-    <div className="space-y-4 pb-6">
+    <div className="space-y-4 pb-4">
       <MobileHeader title="Bot Settings" subtitle="Tune your robot's behavior and risk." />
-      <div className="px-4 space-y-4">
+      <div className="px-4 sm:px-6 lg:px-8 space-y-4">
 
         {/* Trading Mode */}
         <GlassCard>
@@ -112,7 +112,7 @@ export default function Settings() {
           <ToggleRow label="New York Session" checked={s.new_york_session} onChange={(v) => set("new_york_session", v)} />
         </GlassCard>
 
-        <Button onClick={save} className="w-full h-13 py-3 rounded-2xl bg-red-600 hover:bg-red-500 neon-red font-heading tracking-widest">
+        <Button onClick={save} className="w-full h-12 py-3 rounded-2xl bg-red-600 hover:bg-red-500 neon-red font-heading tracking-widest mb-24">
           <Save className="w-4 h-4 mr-2" /> SAVE SETTINGS
         </Button>
       </div>
