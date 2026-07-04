@@ -39,7 +39,7 @@ export default function Layout() {
 
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md sm:max-w-2xl lg:max-w-4xl z-50">
         <div
-          className="flex items-center justify-around px-4"
+          className="flex items-center justify-around px-4 sm:px-6 lg:px-10"
           style={{
             background: "rgba(8,16,32,0.97)",
             backdropFilter: "blur(20px)",
@@ -55,13 +55,13 @@ export default function Layout() {
                 key={item.to}
                 onClick={() => handleTabPress(item.to)}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-1 px-3 transition-all",
+                  "flex flex-col items-center gap-1.5 py-1 px-3 sm:px-5 lg:px-8 transition-all",
                   active ? "text-cyan-300" : "text-white/30"
                 )}
                 style={active ? { filter: "drop-shadow(0 0 6px rgba(0,229,255,0.7))" } : undefined}
               >
-                <item.icon className="w-5 h-5" />
-                <span className={cn("text-[10px] uppercase tracking-wider font-heading font-bold", active && "text-cyan-300")}>
+                <item.icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />
+                <span className={cn("text-[10px] sm:text-xs lg:text-sm uppercase tracking-wider font-heading font-bold", active && "text-cyan-300")}>
                   {item.label}
                 </span>
               </button>
