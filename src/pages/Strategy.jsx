@@ -6,6 +6,7 @@ import SwingPullbackLiveCard from "@/components/strategy/SwingPullbackLiveCard";
 import EmaTrendRecoveryLiveCard from "@/components/strategy/EmaTrendRecoveryLiveCard";
 import HybridConfluenceLiveCard from "@/components/strategy/HybridConfluenceLiveCard";
 import NqKillZoneLiveCard from "@/components/strategy/NqKillZoneLiveCard";
+import MsBosRetestLiveCard from "@/components/strategy/MsBosRetestLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
   TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair
@@ -167,6 +168,25 @@ const STRATEGY = [
       "Protection: emergency SL = 1.8×ATR, equity stop 3%, daily loss 2%, daily profit target, 3 trades/day, 2 consecutive losses → 8h cooldown, break-even at 1R, optional 50% partial close, min 1:2 RR when single position.",
       "Hard trend reversal exit: EMA cross against, slope reversal, close beyond slow EMA by ATR distance, or equity/daily-loss limit → close all and disable recovery.",
       "Adaptive selection: only when regime is Trending, EMA alignment + slope strong, ATR healthy, spread acceptable, score ≥ 70. Never in a ranging market.",
+    ],
+  },
+  {
+    icon: GitBranch,
+    title: "Market Structure BOS Retest Scalper",
+    tag: "Price-Action BOS",
+    tagColor: "bg-violet-500/15 text-violet-300",
+    summary: "Pure price-action scalper: H1 market structure → M5 Break of Structure → retest the broken level → confirmation candle → entry. Fixed 1:2 RR with stop off the confirmation candle. No indicators, no grid, no martingale, no recovery.",
+    details: [
+      "MARKETS: XAUUSD, NQ / NAS100, US30, forex majors, crypto (broker permitting). HTF H1, entry M5, optional confirm M15.",
+      "H1 STRUCTURE: Bullish = higher highs + higher lows; Bearish = lower highs + lower lows; Range = mixed (no trade until a clear BOS).",
+      "SELL: H1 bearish/reversal → M5 closes below a confirmed swing low/higher low → wait for retest → bearish confirmation (engulfing, long upper wick, or bearish close) → SELL. SL above confirmation candle high + buffer, TP 2× risk. No repeat SELL from the same broken level.",
+      "BUY: H1 bullish/reversal → M5 closes above a confirmed swing high/lower high → wait for retest → bullish confirmation (engulfing, long lower wick, or bullish close) → BUY. SL below confirmation candle low + buffer, TP 2× risk. No repeat BUY from the same broken level.",
+      "BOS RULES: a closed M5 candle must close beyond the marked swing high/low — wick-only breakouts do not count.",
+      "RETEST RULES: price revisits or comes within a configurable distance of the broken level; old resistance becomes new support (and vice versa).",
+      "CONFIRMATION: bullish — bullish engulfing, long lower-wick rejection, or strong bullish close from retest. Bearish — bearish engulfing, long upper-wick rejection, or strong bearish close. Entry only after the confirmation candle closes.",
+      "RISK: lot 0.01, max 1 open trade, max 3/day, fixed 1:2 RR, SL beyond confirmation candle + buffer, TP exactly 2R, optional break-even at 1R, optional 50% partial at 1R.",
+      "PROTECTION: 2% daily loss, 3% daily drawdown, stop after 2 consecutive losses for 8 hours, reject high spread, reject outside enabled sessions.",
+      "SESSIONS (ET): Asian 19:15–03:45, London/NY overlap 08:00–12:00. Blocks 16:55–17:15 rollover and Friday 16:55 → Sunday 17:10. No trades after daily profit target.",
     ],
   },
   {
@@ -370,10 +390,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : "NQ KillZone"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : "BOS Retest"}
           </button>
         ))}
       </div>
@@ -393,6 +413,10 @@ export default function Strategy() {
       ) : tab === "nqkz" ? (
         <div className="space-y-4">
           <NqKillZoneLiveCard />
+        </div>
+      ) : tab === "msbos" ? (
+        <div className="space-y-4">
+          <MsBosRetestLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">

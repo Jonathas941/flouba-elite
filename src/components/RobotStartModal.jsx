@@ -12,6 +12,7 @@ import SwingPullbackSettings from "@/components/robotstart/SwingPullbackSettings
 import EmaTrendRecoverySettings from "@/components/robotstart/EmaTrendRecoverySettings";
 import HybridConfluenceSettings from "@/components/robotstart/HybridConfluenceSettings";
 import NqKillZoneSettings from "@/components/robotstart/NqKillZoneSettings";
+import MsBosRetestSettings from "@/components/robotstart/MsBosRetestSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -26,6 +27,7 @@ const STRATEGIES = [
   "EMA Trend Progressive Recovery",
   "Hybrid Confluence Mode",
   "NQ London Kill Zone Breakout",
+  "Market Structure BOS Retest Scalper",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -223,6 +225,25 @@ const DEFAULT = {
   nqkz_equity_stop_pct: 3,
   nqkz_max_consecutive_losses: 2,
   nqkz_cooldown_hours: 8,
+  // Market Structure BOS Retest Scalper — H1 structure → M5 BOS → retest → confirmation candle, fixed 1:2 RR, no indicators
+  ms_htf_timeframe: "H1",
+  ms_entry_timeframe: "M5",
+  ms_confirm_timeframe: "M15",
+  ms_swing_lookback: 20,
+  ms_require_confirmation: true,
+  ms_retest_buffer_points: 10,
+  ms_lot_size: 0.01,
+  ms_max_open_trades: 1,
+  ms_max_trades_per_day: 3,
+  ms_risk_reward: 2,
+  ms_sl_buffer_points: 5,
+  ms_use_break_even: true,
+  ms_partial_close_50: false,
+  ms_max_spread_points: 30,
+  ms_max_daily_loss_pct: 2,
+  ms_max_daily_drawdown_pct: 3,
+  ms_max_consecutive_losses: 2,
+  ms_cooldown_hours: 8,
 };
 
 function Field({ label, children }) {
@@ -445,6 +466,24 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         nqkz_equity_stop_pct: s.nqkz_equity_stop_pct ?? prev.nqkz_equity_stop_pct,
         nqkz_max_consecutive_losses: s.nqkz_max_consecutive_losses ?? prev.nqkz_max_consecutive_losses,
         nqkz_cooldown_hours: s.nqkz_cooldown_hours ?? prev.nqkz_cooldown_hours,
+        ms_htf_timeframe: s.ms_htf_timeframe ?? prev.ms_htf_timeframe,
+        ms_entry_timeframe: s.ms_entry_timeframe ?? prev.ms_entry_timeframe,
+        ms_confirm_timeframe: s.ms_confirm_timeframe ?? prev.ms_confirm_timeframe,
+        ms_swing_lookback: s.ms_swing_lookback ?? prev.ms_swing_lookback,
+        ms_require_confirmation: s.ms_require_confirmation ?? prev.ms_require_confirmation,
+        ms_retest_buffer_points: s.ms_retest_buffer_points ?? prev.ms_retest_buffer_points,
+        ms_lot_size: s.ms_lot_size ?? prev.ms_lot_size,
+        ms_max_open_trades: s.ms_max_open_trades ?? prev.ms_max_open_trades,
+        ms_max_trades_per_day: s.ms_max_trades_per_day ?? prev.ms_max_trades_per_day,
+        ms_risk_reward: s.ms_risk_reward ?? prev.ms_risk_reward,
+        ms_sl_buffer_points: s.ms_sl_buffer_points ?? prev.ms_sl_buffer_points,
+        ms_use_break_even: s.ms_use_break_even ?? prev.ms_use_break_even,
+        ms_partial_close_50: s.ms_partial_close_50 ?? prev.ms_partial_close_50,
+        ms_max_spread_points: s.ms_max_spread_points ?? prev.ms_max_spread_points,
+        ms_max_daily_loss_pct: s.ms_max_daily_loss_pct ?? prev.ms_max_daily_loss_pct,
+        ms_max_daily_drawdown_pct: s.ms_max_daily_drawdown_pct ?? prev.ms_max_daily_drawdown_pct,
+        ms_max_consecutive_losses: s.ms_max_consecutive_losses ?? prev.ms_max_consecutive_losses,
+        ms_cooldown_hours: s.ms_cooldown_hours ?? prev.ms_cooldown_hours,
       }));
     }).catch(() => {});
   }, [open]);
@@ -473,6 +512,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isTpr = form.strategy === "EMA Trend Progressive Recovery";
   const isHybrid = form.strategy === "Hybrid Confluence Mode";
   const isNqKz = form.strategy === "NQ London Kill Zone Breakout";
+  const isMsBos = form.strategy === "Market Structure BOS Retest Scalper";
 
   const handleStart = async () => {
     setLoading(true);
@@ -639,6 +679,24 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         nqkz_equity_stop_pct: form.nqkz_equity_stop_pct,
         nqkz_max_consecutive_losses: form.nqkz_max_consecutive_losses,
         nqkz_cooldown_hours: form.nqkz_cooldown_hours,
+        ms_htf_timeframe: form.ms_htf_timeframe,
+        ms_entry_timeframe: form.ms_entry_timeframe,
+        ms_confirm_timeframe: form.ms_confirm_timeframe,
+        ms_swing_lookback: form.ms_swing_lookback,
+        ms_require_confirmation: form.ms_require_confirmation,
+        ms_retest_buffer_points: form.ms_retest_buffer_points,
+        ms_lot_size: form.ms_lot_size,
+        ms_max_open_trades: form.ms_max_open_trades,
+        ms_max_trades_per_day: form.ms_max_trades_per_day,
+        ms_risk_reward: form.ms_risk_reward,
+        ms_sl_buffer_points: form.ms_sl_buffer_points,
+        ms_use_break_even: form.ms_use_break_even,
+        ms_partial_close_50: form.ms_partial_close_50,
+        ms_max_spread_points: form.ms_max_spread_points,
+        ms_max_daily_loss_pct: form.ms_max_daily_loss_pct,
+        ms_max_daily_drawdown_pct: form.ms_max_daily_drawdown_pct,
+        ms_max_consecutive_losses: form.ms_max_consecutive_losses,
+        ms_cooldown_hours: form.ms_cooldown_hours,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -902,6 +960,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 set={set}
                 Field={Field}
                 NumberInput={NumberInput}
+                Toggle={Toggle}
+              />
+
+              <MsBosRetestSettings
+                visible={isMsBos}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                SelectInput={SelectInput}
                 Toggle={Toggle}
               />
 

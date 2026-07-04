@@ -743,6 +743,107 @@
       "type": "number",
       "default": 8
     },
+    "ms_htf_timeframe": {
+      "type": "string",
+      "enum": [
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "default": "H1",
+      "description": "Market Structure BOS Retest Scalper \u2014 higher timeframe for structure."
+    },
+    "ms_entry_timeframe": {
+      "type": "string",
+      "enum": [
+        "M5",
+        "M15"
+      ],
+      "default": "M5",
+      "description": "Market Structure BOS Retest Scalper \u2014 entry timeframe for BOS."
+    },
+    "ms_confirm_timeframe": {
+      "type": "string",
+      "enum": [
+        "M15",
+        "M30",
+        "H1"
+      ],
+      "default": "M15",
+      "description": "Market Structure BOS Retest Scalper \u2014 optional confirmation timeframe."
+    },
+    "ms_swing_lookback": {
+      "type": "number",
+      "default": 20,
+      "description": "Market Structure BOS Retest Scalper \u2014 bars to look back for swing high/low."
+    },
+    "ms_require_confirmation": {
+      "type": "boolean",
+      "default": true,
+      "description": "Market Structure BOS Retest Scalper \u2014 require a confirmation candle at retest."
+    },
+    "ms_retest_buffer_points": {
+      "type": "number",
+      "default": 10,
+      "description": "Market Structure BOS Retest Scalper \u2014 max distance from broken level to count as a retest."
+    },
+    "ms_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Market Structure BOS Retest Scalper \u2014 default lot size."
+    },
+    "ms_max_open_trades": {
+      "type": "number",
+      "default": 1,
+      "description": "Market Structure BOS Retest Scalper \u2014 max open trades at once."
+    },
+    "ms_max_trades_per_day": {
+      "type": "number",
+      "default": 3,
+      "description": "Market Structure BOS Retest Scalper \u2014 max trades per day."
+    },
+    "ms_risk_reward": {
+      "type": "number",
+      "default": 2,
+      "description": "Market Structure BOS Retest Scalper \u2014 fixed risk-to-reward ratio."
+    },
+    "ms_sl_buffer_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Market Structure BOS Retest Scalper \u2014 extra points beyond confirmation candle high/low for stop loss."
+    },
+    "ms_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "Market Structure BOS Retest Scalper \u2014 move SL to break-even at 1R."
+    },
+    "ms_partial_close_50": {
+      "type": "boolean",
+      "default": false,
+      "description": "Market Structure BOS Retest Scalper \u2014 partial close 50% at 1R."
+    },
+    "ms_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
+    "ms_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "Market Structure BOS Retest Scalper \u2014 daily loss limit as a percentage of balance."
+    },
+    "ms_max_daily_drawdown_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "Market Structure BOS Retest Scalper \u2014 daily drawdown limit as a percentage of balance."
+    },
+    "ms_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "ms_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
     "robot_status": {
       "type": "string",
       "enum": [
