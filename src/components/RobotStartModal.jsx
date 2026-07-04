@@ -9,6 +9,7 @@ import AutoScheduleSettings from "@/components/robotstart/AutoScheduleSettings";
 import HedgeScalperSettings from "@/components/robotstart/HedgeScalperSettings";
 import TrendFilterSettings from "@/components/robotstart/TrendFilterSettings";
 import SwingPullbackSettings from "@/components/robotstart/SwingPullbackSettings";
+import EmaTrendRecoverySettings from "@/components/robotstart/EmaTrendRecoverySettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -20,6 +21,7 @@ const STRATEGIES = [
   "Liquidity Sweep Scalping",
   "Hedge Scalper",
   "Swing Trend Pullback Continuation 2026",
+  "EMA Trend Progressive Recovery",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -132,6 +134,29 @@ const DEFAULT = {
   swing_pullback_zone_atr: 0.25,
   swing_block_deep_pullback: true,
   swing_partial_close_50: true,
+  // EMA Trend Progressive Recovery — EMA 6/25 trend + single capped recovery position, ATR emergency SL, basket TP
+  tpr_ema_fast: 6,
+  tpr_ema_slow: 25,
+  tpr_atr_period: 14,
+  tpr_min_ema_distance: 0,
+  tpr_trend_strength: 0,
+  tpr_lot_size: 0.01,
+  tpr_max_open_positions: 2,
+  tpr_max_recovery_positions: 1,
+  tpr_lot_multiplier: 1.0,
+  tpr_max_lot_multiplier: 1.25,
+  tpr_recovery_atr_mult: 1.2,
+  tpr_basket_profit_target: 10,
+  tpr_emergency_sl_atr: 1.8,
+  tpr_equity_stop_pct: 3,
+  tpr_daily_loss_limit_pct: 2,
+  tpr_max_trades_per_day: 3,
+  tpr_max_consecutive_losses: 2,
+  tpr_cooldown_hours: 8,
+  tpr_use_break_even: true,
+  tpr_partial_close_50: true,
+  tpr_min_rr: 2,
+  tpr_max_spread_points: 30,
 };
 
 function Field({ label, children }) {
@@ -273,6 +298,28 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         swing_pullback_zone_atr: s.swing_pullback_zone_atr ?? prev.swing_pullback_zone_atr,
         swing_block_deep_pullback: s.swing_block_deep_pullback ?? prev.swing_block_deep_pullback,
         swing_partial_close_50: s.swing_partial_close_50 ?? prev.swing_partial_close_50,
+        tpr_ema_fast: s.tpr_ema_fast ?? prev.tpr_ema_fast,
+        tpr_ema_slow: s.tpr_ema_slow ?? prev.tpr_ema_slow,
+        tpr_atr_period: s.tpr_atr_period ?? prev.tpr_atr_period,
+        tpr_min_ema_distance: s.tpr_min_ema_distance ?? prev.tpr_min_ema_distance,
+        tpr_trend_strength: s.tpr_trend_strength ?? prev.tpr_trend_strength,
+        tpr_lot_size: s.tpr_lot_size ?? prev.tpr_lot_size,
+        tpr_max_open_positions: s.tpr_max_open_positions ?? prev.tpr_max_open_positions,
+        tpr_max_recovery_positions: s.tpr_max_recovery_positions ?? prev.tpr_max_recovery_positions,
+        tpr_lot_multiplier: s.tpr_lot_multiplier ?? prev.tpr_lot_multiplier,
+        tpr_max_lot_multiplier: s.tpr_max_lot_multiplier ?? prev.tpr_max_lot_multiplier,
+        tpr_recovery_atr_mult: s.tpr_recovery_atr_mult ?? prev.tpr_recovery_atr_mult,
+        tpr_basket_profit_target: s.tpr_basket_profit_target ?? prev.tpr_basket_profit_target,
+        tpr_emergency_sl_atr: s.tpr_emergency_sl_atr ?? prev.tpr_emergency_sl_atr,
+        tpr_equity_stop_pct: s.tpr_equity_stop_pct ?? prev.tpr_equity_stop_pct,
+        tpr_daily_loss_limit_pct: s.tpr_daily_loss_limit_pct ?? prev.tpr_daily_loss_limit_pct,
+        tpr_max_trades_per_day: s.tpr_max_trades_per_day ?? prev.tpr_max_trades_per_day,
+        tpr_max_consecutive_losses: s.tpr_max_consecutive_losses ?? prev.tpr_max_consecutive_losses,
+        tpr_cooldown_hours: s.tpr_cooldown_hours ?? prev.tpr_cooldown_hours,
+        tpr_use_break_even: s.tpr_use_break_even ?? prev.tpr_use_break_even,
+        tpr_partial_close_50: s.tpr_partial_close_50 ?? prev.tpr_partial_close_50,
+        tpr_min_rr: s.tpr_min_rr ?? prev.tpr_min_rr,
+        tpr_max_spread_points: s.tpr_max_spread_points ?? prev.tpr_max_spread_points,
       }));
     }).catch(() => {});
   }, [open]);
@@ -298,6 +345,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isLiquiditySweep = form.strategy === "Liquidity Sweep Scalping";
   const isHedgeScalper = form.strategy === "Hedge Scalper";
   const isSwingPullback = form.strategy === "Swing Trend Pullback Continuation 2026";
+  const isTpr = form.strategy === "EMA Trend Progressive Recovery";
 
   const handleStart = async () => {
     setLoading(true);
@@ -383,6 +431,28 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         swing_pullback_zone_atr: form.swing_pullback_zone_atr,
         swing_block_deep_pullback: form.swing_block_deep_pullback,
         swing_partial_close_50: form.swing_partial_close_50,
+        tpr_ema_fast: form.tpr_ema_fast,
+        tpr_ema_slow: form.tpr_ema_slow,
+        tpr_atr_period: form.tpr_atr_period,
+        tpr_min_ema_distance: form.tpr_min_ema_distance,
+        tpr_trend_strength: form.tpr_trend_strength,
+        tpr_lot_size: form.tpr_lot_size,
+        tpr_max_open_positions: form.tpr_max_open_positions,
+        tpr_max_recovery_positions: form.tpr_max_recovery_positions,
+        tpr_lot_multiplier: form.tpr_lot_multiplier,
+        tpr_max_lot_multiplier: form.tpr_max_lot_multiplier,
+        tpr_recovery_atr_mult: form.tpr_recovery_atr_mult,
+        tpr_basket_profit_target: form.tpr_basket_profit_target,
+        tpr_emergency_sl_atr: form.tpr_emergency_sl_atr,
+        tpr_equity_stop_pct: form.tpr_equity_stop_pct,
+        tpr_daily_loss_limit_pct: form.tpr_daily_loss_limit_pct,
+        tpr_max_trades_per_day: form.tpr_max_trades_per_day,
+        tpr_max_consecutive_losses: form.tpr_max_consecutive_losses,
+        tpr_cooldown_hours: form.tpr_cooldown_hours,
+        tpr_use_break_even: form.tpr_use_break_even,
+        tpr_partial_close_50: form.tpr_partial_close_50,
+        tpr_min_rr: form.tpr_min_rr,
+        tpr_max_spread_points: form.tpr_max_spread_points,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -594,6 +664,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <SwingPullbackSettings
                 visible={isSwingPullback}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
+
+              <EmaTrendRecoverySettings
+                visible={isTpr}
                 form={form}
                 set={set}
                 Field={Field}

@@ -15,6 +15,12 @@ const REGIME_TONE = {
   "Session Closed": { color: "#ff6b6b", icon: Pause, label: "Session Closed" },
 };
 
+const STRATS = [
+  { key: "swing", label: "Swing Trend Pullback", accent: "#5fe8ff", name: "Swing Trend Pullback Continuation 2026" },
+  { key: "smc", label: "SMC Liquidity Sweep", accent: "#b388ff", name: "Liquidity Sweep Scalping" },
+  { key: "tpr", label: "EMA Trend Recovery", accent: "#ffce4d", name: "EMA Trend Progressive Recovery" },
+];
+
 function fmtET(d) {
   if (!d) return "--";
   return new Intl.DateTimeFormat("en-US", {
@@ -34,7 +40,7 @@ function countdown(iso) {
 export default function AdaptiveStrategyPanel({ connected }) {
   const { toast } = useToast();
   const [settings, setSettings] = useState(null);
-  const [metrics, setMetrics] = useState({ swing: null, smc: null });
+  const [metrics, setMetrics] = useState({ swing: null, smc: null, tpr: null });
   const [lastSwitch, setLastSwitch] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
   const [showSwitchLog, setShowSwitchLog] = useState(false);
@@ -48,10 +54,9 @@ export default function AdaptiveStrategyPanel({ connected }) {
         base44.entities.StrategySwitchLog.list("-created_date", 1).catch(() => []),
       ]);
       setSettings(stg?.[0] || null);
-      const map = { swing: null, smc: null };
+      const map = { swing: null, smc: null, tpr: null };
       for (const m of mtr || []) {
-        if (m.strategy_key === "swing") map.swing = m;
-        else if (m.strategy_key === "smc") map.smc = m;
+        if (map[m.strategy_key] !== undefined) map[m.strategy_key] = m;
       }
       setMetrics(map);
       setLastSwitch(sw?.[0] || null);
@@ -69,12 +74,13 @@ export default function AdaptiveStrategyPanel({ connected }) {
   const rt = REGIME_TONE[regime] || REGIME_TONE.Range;
   const RegimeIcon = rt.icon;
   const active = s.adaptive_active_strategy || "Swing Trend Pullback Continuation 2026";
+  const activeShort = STRATS.find((x) => x.name === active)?.label || "Swing Pullback";
   const reason = s.adaptive_reason || "Adaptive manager idle.";
   const targetReached = s.adaptive_daily_target_reached === true;
   const pendStrategy = s.adaptive_pending_strategy;
   const pendBars = s.adaptive_pending_bars || 0;
 
-  const realizedToday = (metrics.swing?.profit_today || 0) + (metrics.smc?.profit_today || 0);
+  const realizedToday = STRATS.reduce((sum, st) => sum + (metrics[st.key]?.profit_today || 0), 0);
   const targetAmount = s.daily_profit_target_amount ?? 100;
   const targetPct = s.daily_profit_target_percent ?? 0;
   const balance = s.balance || 0;
@@ -145,16 +151,15 @@ export default function AdaptiveStrategyPanel({ connected }) {
           </div>
           <div className="rounded-xl px-3 py-2.5 bg-white/5 border border-white/10">
             <p className="text-[8px] uppercase tracking-[0.2em] text-white/45 font-heading">Active Strategy</p>
-            <p className="font-heading font-bold text-[11px] text-white mt-1 leading-tight">
-              {active === "Liquidity Sweep Scalping" ? "SMC Liquidity Sweep" : "Swing Pullback"}
-            </p>
+            <p className="font-heading font-bold text-[11px] text-white mt-1 leading-tight">{activeShort}</p>
           </div>
         </div>
 
         {/* Strategy score cards */}
         <div className="px-4 pt-3 space-y-2">
-          <ScoreRow label="Swing Trend Pullback" short="Swing" metric={metrics.swing} accent="#5fe8ff" active={active === "Swing Trend Pullback Continuation 2026"} pend={pendStrategy === "Swing Trend Pullback Continuation 2026"} pendBars={pendBars} barsConfirm={s.adaptive_bars_confirm ?? 3} />
-          <ScoreRow label="SMC Liquidity Sweep" short="SMC" metric={metrics.smc} accent="#b388ff" active={active === "Liquidity Sweep Scalping"} pend={pendStrategy === "Liquidity Sweep Scalping"} pendBars={pendBars} barsConfirm={s.adaptive_bars_confirm ?? 3} />
+          {STRATS.map((st) => (
+            <ScoreRow key={st.key} label={st.label} short={st.short} metric={metrics[st.key]} accent={st.accent} active={active === st.name} pend={pendStrategy === st.name} pendBars={pendBars} barsConfirm={s.adaptive_bars_confirm ?? 3} />
+          ))}
         </div>
 
         {/* Daily profit target progress */}
@@ -183,6 +188,7 @@ export default function AdaptiveStrategyPanel({ connected }) {
         <div className="grid grid-cols-2 gap-2 px-4 pt-3">
           <CooldownChip label="Swing Cooldown" until={metrics.swing?.cooldown_until} />
           <CooldownChip label="SMC Cooldown" until={metrics.smc?.cooldown_until} />
+          <CooldownChip label="TPR Cooldown" until={metrics.tpr?.cooldown_until} />
           <CooldownChip label="Global Cooldown" until={s.adaptive_global_cooldown_until} wide />
         </div>
 

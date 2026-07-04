@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
 import StrategyFilterToggles from "@/components/StrategyFilterToggles";
 import SwingPullbackLiveCard from "@/components/strategy/SwingPullbackLiveCard";
+import EmaTrendRecoveryLiveCard from "@/components/strategy/EmaTrendRecoveryLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
   TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle
@@ -147,6 +148,23 @@ const STRATEGY = [
       "No grid, no martingale, no averaging down, no recovery trades — closed candles only for confirmation.",
       "Risk locks: 2% daily loss, 3% daily drawdown, 3 trades/day, and an 8-hour cooldown after 2 consecutive losses.",
       "Sessions (ET): Asian 19:15–03:45, London/NY overlap 08:00–12:00; blocks 16:55–17:15 rollover and Friday 16:55 → Sunday 17:10.",
+    ],
+  },
+  {
+    icon: Gauge,
+    title: "EMA Trend Progressive Recovery",
+    tag: "Trend + Capped Recovery",
+    tagColor: "bg-amber-500/15 text-amber-400",
+    summary: "Controlled trend-following recovery. One initial entry on EMA 6/25 alignment + pullback confirmation, then a single capped recovery position only while the EMA trend stays valid. ATR emergency SL, basket TP, equity stop. No unlimited grid, no martingale.",
+    details: [
+      "Trend: EMA 6 > EMA 25 (bullish) or EMA 6 < EMA 25 (bearish), both sloping, EMA distance above minimum, price near the fast EMA zone.",
+      "Initial BUY/SELL: EMA alignment + rising/falling slopes + pullback to fast EMA + confirmation candle + spread/session/risk checks. Default 0.01 lot.",
+      "Recovery (max 1 by default): only when the original trade still aligns with the EMA trend, price has moved against by ≥ 1.2×ATR, spread normal, no cooldown, below all drawdown/equity stops, and max recovery count not reached. Recovery lot never exceeds 1.25×.",
+      "Never add recovery when EMA fast crosses against slow, in a weak/flat/high-spread market, after Friday 16:55 ET, or during rollover.",
+      "Basket exit: weighted-average entry, basket take-profit closes all positions together at the configured target; hard emergency basket stop on equity-stop breach.",
+      "Protection: emergency SL = 1.8×ATR, equity stop 3%, daily loss 2%, daily profit target, 3 trades/day, 2 consecutive losses → 8h cooldown, break-even at 1R, optional 50% partial close, min 1:2 RR when single position.",
+      "Hard trend reversal exit: EMA cross against, slope reversal, close beyond slow EMA by ATR distance, or equity/daily-loss limit → close all and disable recovery.",
+      "Adaptive selection: only when regime is Trending, EMA alignment + slope strong, ATR healthy, spread acceptable, score ≥ 70. Never in a ranging market.",
     ],
   },
 ];
@@ -314,10 +332,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns", "swing2026"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Strategy Layers" : t === "patterns" ? "Candle Patterns" : "Swing 2026"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : "EMA Recovery"}
           </button>
         ))}
       </div>
@@ -325,6 +343,10 @@ export default function Strategy() {
       {tab === "swing2026" ? (
         <div className="space-y-4">
           <SwingPullbackLiveCard />
+        </div>
+      ) : tab === "tpr" ? (
+        <div className="space-y-4">
+          <EmaTrendRecoveryLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">

@@ -5,8 +5,22 @@ const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.rike
 const STRATEGY = {
   swing: "Swing Trend Pullback Continuation 2026",
   smc: "Liquidity Sweep Scalping",
+  tpr: "EMA Trend Progressive Recovery",
 };
+const KEYS = ["swing", "smc", "tpr"];
 const DEFAULT_STRATEGY = STRATEGY.swing;
+
+function keyFor(name) {
+  if (name === STRATEGY.smc) return "smc";
+  if (name === STRATEGY.tpr) return "tpr";
+  return "swing";
+}
+function regimeMatchFor(k, regime) {
+  if (k === "swing") return regime === "Trending";
+  if (k === "smc") return regime === "Liquidity Sweep";
+  if (k === "tpr") return regime === "Trending";
+  return false;
+}
 const BAR_SECONDS = 15 * 60; // M15 working timeframe
 const GLOBAL_COOLDOWN_HOURS = 8;
 
@@ -74,9 +88,13 @@ function detectRegime(ind, quote, cfg) {
 }
 
 function suitability(key, regime) {
-  if (regime === "Trending") return key === "swing" ? 100 : 50;
+  if (regime === "Trending") {
+    if (key === "swing") return 100;
+    if (key === "tpr") return 100;
+    return 50;
+  }
   if (regime === "Liquidity Sweep") return key === "smc" ? 100 : 45;
-  if (regime === "Range") return key === "swing" ? 20 : 25;
+  if (regime === "Range") return key === "swing" ? 20 : key === "tpr" ? 10 : 25;
   return 0;
 }
 
@@ -272,15 +290,15 @@ Deno.serve(async (req) => {
       ).catch(() => []);
       const closed = (closedTrades || []).filter((t) => t.closed_at);
 
-      const byStrategy = { swing: [], smc: [] };
+      const byStrategy = { swing: [], smc: [], tpr: [] };
       for (const t of closed) {
         const sName = strategyAtTime(windows, t.closed_at);
-        if (sName === STRATEGY.swing) byStrategy.swing.push(t);
-        else if (sName === STRATEGY.smc) byStrategy.smc.push(t);
+        const k = keyFor(sName);
+        if (byStrategy[k]) byStrategy[k].push(t);
       }
 
       const stats = {};
-      for (const k of ["swing", "smc"]) {
+      for (const k of KEYS) {
         stats[k] = computeStats(byStrategy[k], balance);
       }
 
@@ -300,9 +318,9 @@ Deno.serve(async (req) => {
 
       // ── Per-strategy cooldown ──
       const cooldowns = {};
-      for (const k of ["swing", "smc"]) {
-        const maxConsec = k === "swing" ? (cfg.swing_max_consecutive_losses ?? 2) : 2;
-        const cooldownH = k === "swing" ? (cfg.swing_cooldown_hours ?? 8) : 8;
+      for (const k of KEYS) {
+        const maxConsec = k === "swing" ? (cfg.swing_max_consecutive_losses ?? 2) : k === "tpr" ? (cfg.tpr_max_consecutive_losses ?? 2) : 2;
+        const cooldownH = k === "swing" ? (cfg.swing_cooldown_hours ?? 8) : k === "tpr" ? (cfg.tpr_cooldown_hours ?? 8) : 8;
         const s = stats[k];
         let cu = null;
         if (s.consecutive_losses >= maxConsec && s.last_trade_time) {
@@ -343,7 +361,7 @@ Deno.serve(async (req) => {
 
       // ── Scores ──
       const scores = {};
-      for (const k of ["swing", "smc"]) {
+      for (const k of KEYS) {
         stats[k].balance = balance;
         scores[k] = scoreStrategy(k, stats[k], regime, cfg);
       }
@@ -351,8 +369,8 @@ Deno.serve(async (req) => {
       // ── Eligibility per strategy ──
       const eligible = {};
       const pend = { strategy: cfg.adaptive_pending_strategy, since: cfg.adaptive_pending_since, bars: cfg.adaptive_pending_bars || 0 };
-      for (const k of ["swing", "smc"]) {
-        const regimeMatch = (k === "swing" && regime === "Trending") || (k === "smc" && regime === "Liquidity Sweep");
+      for (const k of KEYS) {
+        const regimeMatch = regimeMatchFor(k, regime);
         const spreadOk = regimeInfo.spread == null || regimeInfo.spread <= (cfg.swing_max_spread_points ?? 30);
         const sessionOk = regimeInfo.sess.open;
         const cooldownOk = !cooldowns[k] || new Date(cooldowns[k]).getTime() <= Date.now();
@@ -375,9 +393,9 @@ Deno.serve(async (req) => {
         stats[k].enabled = ok;
       }
 
-      // ── Active strategy decision ──
+      // ── Active strategy decision (generalized over all strategies) ──
       let current = cfg.adaptive_active_strategy || DEFAULT_STRATEGY;
-      let currentKey = current === STRATEGY.smc ? "smc" : "swing";
+      let currentKey = keyFor(current);
 
       let reason = "";
       let newActive = current;
@@ -385,36 +403,40 @@ Deno.serve(async (req) => {
       const threshold = cfg.adaptive_switch_threshold ?? 15;
       const barsConfirm = cfg.adaptive_bars_confirm ?? 3;
 
+      // Best eligible rival (highest score among eligible, excluding current)
+      const eligibleRivals = KEYS.filter((k) => k !== currentKey && eligible[k]);
+      const bestRivalKey = eligibleRivals.length
+        ? eligibleRivals.reduce((best, k) => scores[k] > scores[best] ? k : best, eligibleRivals[0])
+        : null;
+
       if (dailyTargetReached) {
         reason = "Daily Profit Target Reached — Trading Paused Until Next Trading Day.";
         pend.strategy = null; pend.since = null; pend.bars = 0;
       } else if (globalCooldownActive) {
-        reason = `SMC paused after consecutive losses — global cooldown until ${new Date(globalCooldownUntil).toISOString()}.`;
+        reason = `Global cooldown after consecutive losses — until ${new Date(globalCooldownUntil).toISOString()}.`;
       } else if (positions.length > 0) {
         reason = `Trade open — ${current} continues managing existing position. No switch while trade is open.`;
-        const rivalKey = currentKey === "swing" ? "smc" : "swing";
-        if (!(eligible[rivalKey] && scores[rivalKey] >= scores[currentKey] + threshold)) {
+        if (!(bestRivalKey && scores[bestRivalKey] >= scores[currentKey] + threshold)) {
           pend.strategy = null; pend.since = null; pend.bars = 0;
         }
       } else {
-        const rivalKey = currentKey === "swing" ? "smc" : "swing";
         if (eligible[currentKey]) {
-          if (eligible[rivalKey] && scores[rivalKey] >= scores[currentKey] + threshold) {
-            if (pend.strategy !== STRATEGY[rivalKey]) {
-              pend.strategy = STRATEGY[rivalKey];
+          if (bestRivalKey && scores[bestRivalKey] >= scores[currentKey] + threshold) {
+            if (pend.strategy !== STRATEGY[bestRivalKey]) {
+              pend.strategy = STRATEGY[bestRivalKey];
               pend.since = new Date().toISOString();
               pend.bars = 0;
-              reason = `${STRATEGY[rivalKey]} leading by ${scores[rivalKey] - scores[currentKey]} pts — confirming over ${barsConfirm} bars.`;
+              reason = `${STRATEGY[bestRivalKey]} leading by ${scores[bestRivalKey] - scores[currentKey]} pts — confirming over ${barsConfirm} bars.`;
             } else {
               const sinceMs = pend.since ? new Date(pend.since).getTime() : Date.now();
               const barsElapsed = Math.floor((Date.now() - sinceMs) / (BAR_SECONDS * 1000));
               pend.bars = barsElapsed;
               if (barsElapsed >= barsConfirm) {
                 switched = true;
-                newActive = STRATEGY[rivalKey];
-                reason = `${regime} detected — ${STRATEGY[rivalKey]} selected (score ${scores[rivalKey]} vs ${scores[currentKey]}, confirmed ${barsElapsed} bars).`;
+                newActive = STRATEGY[bestRivalKey];
+                reason = `${regime} detected — ${STRATEGY[bestRivalKey]} selected (score ${scores[bestRivalKey]} vs ${scores[currentKey]}, confirmed ${barsElapsed} bars).`;
               } else {
-                reason = `${STRATEGY[rivalKey]} leading by ${scores[rivalKey] - scores[currentKey]} pts — confirming ${barsElapsed}/${barsConfirm} bars.`;
+                reason = `${STRATEGY[bestRivalKey]} leading by ${scores[bestRivalKey] - scores[currentKey]} pts — confirming ${barsElapsed}/${barsConfirm} bars.`;
               }
             }
           } else {
@@ -426,10 +448,10 @@ Deno.serve(async (req) => {
           }
         } else {
           pend.strategy = null; pend.since = null; pend.bars = 0;
-          if (eligible[rivalKey]) {
+          if (bestRivalKey) {
             switched = true;
-            newActive = STRATEGY[rivalKey];
-            reason = `${current} no longer eligible (${stats[currentKey].status_message}) — switched to ${STRATEGY[rivalKey]} (score ${scores[rivalKey]}).`;
+            newActive = STRATEGY[bestRivalKey];
+            reason = `${current} no longer eligible (${stats[currentKey].status_message}) — switched to ${STRATEGY[bestRivalKey]} (score ${scores[bestRivalKey]}).`;
           } else {
             reason = "No strategy qualifies. Waiting for better conditions.";
           }
@@ -437,7 +459,7 @@ Deno.serve(async (req) => {
       }
 
       if (switched) {
-        const toKey = newActive === STRATEGY.smc ? "smc" : "swing";
+        const toKey = keyFor(newActive);
         await base44.asServiceRole.entities.StrategySwitchLog.create({
           created_by_id: userId,
           from_strategy: current,
@@ -476,7 +498,7 @@ Deno.serve(async (req) => {
           } catch {}
         }
         current = newActive;
-        currentKey = current === STRATEGY.smc ? "smc" : "swing";
+        currentKey = keyFor(current);
         pend.strategy = null; pend.since = null; pend.bars = 0;
       }
 
@@ -487,7 +509,7 @@ Deno.serve(async (req) => {
       const metricByStrategy = {};
       for (const m of existingMetrics) metricByStrategy[m.strategy_name] = m;
 
-      for (const k of ["swing", "smc"]) {
+      for (const k of KEYS) {
         const name = STRATEGY[k];
         const s = stats[k];
         const payload = {
@@ -542,7 +564,7 @@ Deno.serve(async (req) => {
         regime,
         active: current,
         switched,
-        scores: { swing: scores.swing, smc: scores.smc },
+        scores: { swing: scores.swing, smc: scores.smc, tpr: scores.tpr },
         eligible,
         realizedToday: Math.round(realizedToday * 100) / 100,
         dailyTargetReached,

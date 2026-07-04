@@ -110,28 +110,23 @@
     },
     "grid_distance_pips": {
       "type": "number",
-      "default": 10,
-      "description": "Distance in pips between grid levels for the Grid Trading strategy."
+      "default": 10
     },
     "grid_max_levels": {
       "type": "number",
-      "default": 5,
-      "description": "Maximum number of grid levels (stacked positions) the Grid Trading strategy may open."
+      "default": 5
     },
     "equity_guard_enabled": {
       "type": "boolean",
-      "default": true,
-      "description": "Hard-stop protection: closes all positions and pauses the robot if equity falls below the configured % of balance."
+      "default": true
     },
     "equity_guard_min_equity_pct": {
       "type": "number",
-      "default": 50,
-      "description": "Minimum equity as a percentage of balance before the Equity Guard force-closes all trades and pauses the robot."
+      "default": 50
     },
     "trend_filter_enabled": {
       "type": "boolean",
-      "default": true,
-      "description": "Global HTF trend filter: only allows Buy when price is above the HTF 200 EMA, and Sell when below it."
+      "default": true
     },
     "trend_filter_timeframe": {
       "type": "string",
@@ -187,33 +182,27 @@
     },
     "lot_multiplier": {
       "type": "number",
-      "default": 2,
-      "description": "Lot size multiplier applied to consecutive winning entries for compounding growth."
+      "default": 2
     },
     "multiplier_min_equity_ratio": {
       "type": "number",
-      "default": 2,
-      "description": "Equity-to-balance ratio required before the lot multiplier activates."
+      "default": 2
     },
     "auto_multiplier_enabled": {
       "type": "boolean",
-      "default": false,
-      "description": "When enabled, the lot multiplier is set automatically based on live trade performance."
+      "default": false
     },
     "auto_start_enabled": {
       "type": "boolean",
-      "default": false,
-      "description": "When enabled, the robot auto-starts at the configured time each day (America/Detroit timezone)."
+      "default": false
     },
     "auto_start_time": {
       "type": "string",
-      "default": "09:00",
-      "description": "Daily auto-start time in HH:MM format (America/Detroit local time)."
+      "default": "09:00"
     },
     "auto_stop_enabled": {
       "type": "boolean",
-      "default": true,
-      "description": "When enabled, auto-stops the robot when daily profit target or loss limit is reached."
+      "default": true
     },
     "hedge_scalp_tp_pips": {
       "type": "number",
@@ -299,8 +288,7 @@
         "M30",
         "H1"
       ],
-      "default": "M15",
-      "description": "Swing Trend Pullback Continuation 2026 \u2014 working timeframe (closed candles only)."
+      "default": "M15"
     },
     "swing_ema_fast": {
       "type": "number",
@@ -382,6 +370,109 @@
       "type": "boolean",
       "default": true
     },
+    "tpr_ema_fast": {
+      "type": "number",
+      "default": 6,
+      "description": "EMA Trend Progressive Recovery \u2014 fast EMA period."
+    },
+    "tpr_ema_slow": {
+      "type": "number",
+      "default": 25,
+      "description": "EMA Trend Progressive Recovery \u2014 slow EMA period."
+    },
+    "tpr_atr_period": {
+      "type": "number",
+      "default": 14,
+      "description": "EMA Trend Progressive Recovery \u2014 ATR period."
+    },
+    "tpr_min_ema_distance": {
+      "type": "number",
+      "default": 0,
+      "description": "EMA Trend Progressive Recovery \u2014 minimum distance between EMA fast and slow (price units) before the trend is considered strong."
+    },
+    "tpr_trend_strength": {
+      "type": "number",
+      "default": 0,
+      "description": "EMA Trend Progressive Recovery \u2014 minimum EMA slope threshold to confirm trend strength."
+    },
+    "tpr_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "EMA Trend Progressive Recovery \u2014 default lot size."
+    },
+    "tpr_max_open_positions": {
+      "type": "number",
+      "default": 2,
+      "description": "EMA Trend Progressive Recovery \u2014 maximum total open positions (initial + recovery)."
+    },
+    "tpr_max_recovery_positions": {
+      "type": "number",
+      "default": 1,
+      "description": "EMA Trend Progressive Recovery \u2014 maximum recovery positions added to an initial trade."
+    },
+    "tpr_lot_multiplier": {
+      "type": "number",
+      "default": 1,
+      "description": "EMA Trend Progressive Recovery \u2014 lot multiplier for recovery positions (capped by tpr_max_lot_multiplier)."
+    },
+    "tpr_max_lot_multiplier": {
+      "type": "number",
+      "default": 1.25,
+      "description": "EMA Trend Progressive Recovery \u2014 hard cap on the recovery lot multiplier. Never exceeded."
+    },
+    "tpr_recovery_atr_mult": {
+      "type": "number",
+      "default": 1.2,
+      "description": "EMA Trend Progressive Recovery \u2014 adverse distance (\u00d7ATR) the price must move before a recovery position is allowed."
+    },
+    "tpr_basket_profit_target": {
+      "type": "number",
+      "default": 10,
+      "description": "EMA Trend Progressive Recovery \u2014 basket floating profit target ($) that closes all positions together."
+    },
+    "tpr_emergency_sl_atr": {
+      "type": "number",
+      "default": 1.8,
+      "description": "EMA Trend Progressive Recovery \u2014 emergency stop loss distance (\u00d7ATR) from entry."
+    },
+    "tpr_equity_stop_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "EMA Trend Progressive Recovery \u2014 equity stop loss as a percentage of balance."
+    },
+    "tpr_daily_loss_limit_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "EMA Trend Progressive Recovery \u2014 daily loss limit as a percentage of balance."
+    },
+    "tpr_max_trades_per_day": {
+      "type": "number",
+      "default": 3
+    },
+    "tpr_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "tpr_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
+    "tpr_use_break_even": {
+      "type": "boolean",
+      "default": true
+    },
+    "tpr_partial_close_50": {
+      "type": "boolean",
+      "default": true
+    },
+    "tpr_min_rr": {
+      "type": "number",
+      "default": 2
+    },
+    "tpr_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
     "robot_status": {
       "type": "string",
       "enum": [
@@ -461,42 +552,34 @@
     },
     "ea_sent": {
       "type": "boolean",
-      "default": false,
-      "description": "Tracks whether the EA installation file has already been emailed to the user."
+      "default": false
     },
     "adaptive_enabled": {
       "type": "boolean",
-      "default": false,
-      "description": "Master switch for the Adaptive Strategy Manager."
+      "default": false
     },
     "adaptive_min_score": {
       "type": "number",
-      "default": 70,
-      "description": "Minimum strategy score (0-100) required before a strategy may open new trades."
+      "default": 70
     },
     "adaptive_switch_threshold": {
       "type": "number",
-      "default": 15,
-      "description": "A rival strategy must outscore the active one by at least this many points to trigger a switch."
+      "default": 15
     },
     "adaptive_bars_confirm": {
       "type": "number",
-      "default": 3,
-      "description": "Number of completed bars the rival must keep the lead before a switch is executed."
+      "default": 3
     },
     "adaptive_adx_threshold": {
       "type": "number",
-      "default": 25,
-      "description": "ADX value above which the market is considered strongly trending."
+      "default": 25
     },
     "adaptive_eval_window_trades": {
       "type": "number",
-      "default": 5,
-      "description": "Minimum completed trades a strategy needs before performance-based scoring activates."
+      "default": 5
     },
     "adaptive_active_strategy": {
-      "type": "string",
-      "description": "Currently selected strategy name."
+      "type": "string"
     },
     "adaptive_active_since": {
       "type": "string",
@@ -506,12 +589,10 @@
       "type": "string"
     },
     "adaptive_reason": {
-      "type": "string",
-      "description": "Human-readable reason for the current strategy selection."
+      "type": "string"
     },
     "adaptive_pending_strategy": {
-      "type": "string",
-      "description": "Rival strategy that is leading but has not yet confirmed for adaptive_bars_confirm bars."
+      "type": "string"
     },
     "adaptive_pending_since": {
       "type": "string",
@@ -535,18 +616,15 @@
     },
     "daily_profit_target_enabled": {
       "type": "boolean",
-      "default": true,
-      "description": "When enabled, new entries stop once the daily profit target is reached."
+      "default": true
     },
     "daily_profit_target_amount": {
       "type": "number",
-      "default": 100,
-      "description": "Fixed daily profit target in account currency. 0 disables the fixed target."
+      "default": 100
     },
     "daily_profit_target_percent": {
       "type": "number",
-      "default": 0,
-      "description": "Daily profit target as a percentage of account balance. 0 disables the percentage target."
+      "default": 0
     },
     "stop_trading_at_daily_target": {
       "type": "boolean",

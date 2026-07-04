@@ -6,9 +6,10 @@
       "type": "string",
       "enum": [
         "swing",
-        "smc"
+        "smc",
+        "tpr"
       ],
-      "description": "swing = Swing Trend Pullback Continuation 2026; smc = SMC Liquidity Sweep."
+      "description": "swing = Swing Trend Pullback Continuation 2026; smc = SMC Liquidity Sweep; tpr = EMA Trend Progressive Recovery."
     },
     "strategy_name": {
       "type": "string"
