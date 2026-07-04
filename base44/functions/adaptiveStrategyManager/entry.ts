@@ -250,6 +250,7 @@ Deno.serve(async (req) => {
       const jwt = await getJwt(userId, userData?.email, userData?.full_name);
       if (!jwt) { results.push({ user: userId, skipped: "Bridge auth failed" }); continue; }
       const authHeaders = buildHeaders(jwt, cfg);
+      const isBasic = (cfg.bot_mentality || "Premium") === "Basic";
 
       // ── Fetch live market data ──
       let ind = null, quote = null, positions = [], account = null, robotRunning = false;
@@ -383,15 +384,15 @@ Deno.serve(async (req) => {
         const scoreOk = scores[k] >= (cfg.adaptive_min_score ?? 70);
         const ok = regimeMatch && spreadOk && sessionOk && cooldownOk && globalOk && riskOk && targetOk && scoreOk && !riskTooHigh;
         eligible[k] = ok;
-        let reason = "Confirmation candle valid. Entry allowed.";
-        if (dailyTargetReached) reason = "Trade rejected: daily target reached.";
-        else if (!sessionOk) reason = "Trade rejected: late session.";
-        else if (!spreadOk) reason = "Trade rejected: spread too high.";
-        else if (riskTooHigh) reason = "Trade rejected: risk too high.";
-        else if (!globalOk || !cooldownOk) reason = "Two losses detected. Cooling down.";
+        let reason = isBasic ? "Confirmation candle valid. Entry allowed." : "Strong setup detected.";
+        if (dailyTargetReached) reason = isBasic ? "Trade rejected: daily target reached." : "Daily profit target reached. Protecting gains.";
+        else if (!sessionOk) reason = isBasic ? "Trade rejected: late session." : "Entry rejected: outside session.";
+        else if (!spreadOk) reason = isBasic ? "Trade rejected: spread too high." : "Entry rejected: spread too high.";
+        else if (riskTooHigh) reason = "Entry rejected: risk too high.";
+        else if (!globalOk || !cooldownOk) reason = isBasic ? "Two losses detected. Cooling down." : "Loss accepted. No revenge trade.";
         else if (!riskOk) reason = "Capital protection mode active.";
-        else if (!regimeMatch) reason = "Market structure is unclear. Waiting.";
-        else if (!scoreOk) reason = "Trade rejected: setup quality too low.";
+        else if (!regimeMatch) reason = isBasic ? "Market structure is unclear. Waiting." : "Market scanning at high frequency.";
+        else if (!scoreOk) reason = isBasic ? "Trade rejected: setup quality too low." : "Entry rejected: setup quality too low.";
         stats[k].status_message = reason;
         stats[k].enabled = ok;
       }
@@ -413,10 +414,10 @@ Deno.serve(async (req) => {
         : null;
 
       if (dailyTargetReached) {
-        reason = "Trade rejected: daily target reached.";
+        reason = isBasic ? "Trade rejected: daily target reached." : "Daily profit target reached. Protecting gains.";
         pend.strategy = null; pend.since = null; pend.bars = 0;
       } else if (globalCooldownActive) {
-        reason = "Two losses detected. Cooling down.";
+        reason = isBasic ? "Two losses detected. Cooling down." : "Loss accepted. No revenge trade.";
       } else if (positions.length > 0) {
         reason = `Trade open — ${current} continues managing existing position. No switch while trade is open.`;
         if (!(bestRivalKey && scores[bestRivalKey] >= scores[currentKey] + threshold)) {
@@ -444,10 +445,10 @@ Deno.serve(async (req) => {
             }
           } else {
             pend.strategy = null; pend.since = null; pend.bars = 0;
-            if (regime === "Trending") reason = `Trend market detected — ${STRATEGY.swing} selected.`;
-            else if (regime === "Liquidity Sweep") reason = `Liquidity sweep detected — ${STRATEGY.smc} selected.`;
-            else if (eligible[currentKey]) reason = `${current} active (score ${scores[currentKey]}).`;
-            else reason = regime === "Range" ? "Market structure is unclear. Waiting." : "Break of Structure not confirmed.";
+            if (regime === "Trending") reason = isBasic ? `Trend market detected — ${STRATEGY.swing} selected.` : "Momentum strong. Strategy active.";
+            else if (regime === "Liquidity Sweep") reason = isBasic ? `Liquidity sweep detected — ${STRATEGY.smc} selected.` : "Momentum strong. Strategy active.";
+            else if (eligible[currentKey]) reason = isBasic ? `${current} active (score ${scores[currentKey]}).` : "Momentum strong. Strategy active.";
+            else reason = isBasic ? (regime === "Range" ? "Market structure is unclear. Waiting." : "Break of Structure not confirmed.") : "Market scanning at high frequency.";
           }
         } else {
           pend.strategy = null; pend.since = null; pend.bars = 0;
@@ -456,7 +457,7 @@ Deno.serve(async (req) => {
             newActive = STRATEGY[bestRivalKey];
             reason = `${current} no longer eligible (${stats[currentKey].status_message}) — switched to ${STRATEGY[bestRivalKey]} (score ${scores[bestRivalKey]}).`;
           } else {
-            reason = regime === "Range" ? "Market structure is unclear. Waiting." : "Break of Structure not confirmed.";
+            reason = isBasic ? (regime === "Range" ? "Market structure is unclear. Waiting." : "Break of Structure not confirmed.") : "Market scanning at high frequency.";
           }
         }
       }

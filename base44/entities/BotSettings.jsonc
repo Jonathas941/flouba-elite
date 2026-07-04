@@ -11,6 +11,15 @@
       ],
       "default": "Balanced"
     },
+    "bot_mentality": {
+      "type": "string",
+      "enum": [
+        "Basic",
+        "Premium"
+      ],
+      "default": "Premium",
+      "description": "Bot execution mentality. Basic = patient/selective/defensive; Premium = aggressive execution with controlled risk."
+    },
     "lot_size_mode": {
       "type": "string",
       "enum": [

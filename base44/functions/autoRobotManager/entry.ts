@@ -63,34 +63,33 @@ function consecutiveLossesCount(closedTrades) {
 }
 
 function mentalityGuard({ dailyPnL, balance, consecLosses, sessionInfo, cfg }) {
+  const isBasic = (cfg.bot_mentality || "Premium") === "Basic";
   // 1. Capital protection — daily loss limit / drawdown (always on)
   const lossLimit = cfg.daily_loss_limit ?? 20;
   const maxDailyLossPct = cfg.swing_max_daily_loss_pct ?? 2;
   if (dailyPnL <= -lossLimit || (balance > 0 && dailyPnL <= -(maxDailyLossPct / 100) * balance))
     return { allow: false, status: "Capital protection mode active.", block: true };
 
-  // 2. Daily profit target reached — protect the day, stop opening new trades
+  // 2. Daily profit target reached — stop opening new trades, protect the day
   if (cfg.daily_profit_target_enabled !== false && cfg.stop_trading_at_daily_target !== false) {
     const amt = cfg.daily_profit_target_amount ?? cfg.daily_profit_target ?? 100;
     const pct = cfg.daily_profit_target_percent ?? 0;
     if ((amt > 0 && dailyPnL >= amt) || (pct > 0 && balance > 0 && dailyPnL >= (pct / 100) * balance))
-      return { allow: false, status: "Trade rejected: daily target reached.", block: true };
+      return { allow: false, status: isBasic ? "Trade rejected: daily target reached." : "Daily profit target reached. Protecting gains.", block: true };
   }
 
-  // 3. Two consecutive losses → cooldown, no revenge, no lot increase
+  // 3. Consecutive losses → cooldown, no revenge, no lot increase
   const stopAfter = cfg.stop_after_losses ?? 2;
   if (consecLosses >= stopAfter)
-    return { allow: false, status: "Two losses detected. Cooling down.", block: true };
+    return { allow: false, status: isBasic ? "Two losses detected. Cooling down." : "Loss accepted. No revenge trade.", block: true };
 
-  // 4. Session — no late-session / closed-market entries
+  // 4. Session — no outside-session / closed-market entries
   if (sessionInfo?.trading_blocked) {
-    if (sessionInfo?.session === "closed")
-      return { allow: false, status: "Trade rejected: late session.", block: false };
-    return { allow: false, status: "Market closed. Waiting.", block: false };
+    return { allow: false, status: isBasic ? "Trade rejected: late session." : "Entry rejected: outside session.", block: false };
   }
 
-  // All hard gates passed — entry allowed once structure confirms
-  return { allow: true, status: "Confirmation candle valid. Entry allowed.", block: false };
+  // All hard gates passed — execute on first valid closed-candle confirmation
+  return { allow: true, status: isBasic ? "Confirmation candle valid. Entry allowed." : "All conditions confirmed. Executing now.", block: false };
 }
 
 function buildHeaders(token, config) {
