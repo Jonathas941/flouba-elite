@@ -236,7 +236,7 @@ export default function Home() {
 
       <FloubaHeader onMenu={() => navigate("/settings")} onBell={() => navigate("/notifications")} unread={unreadCount} />
 
-      <div className="flex-1 px-4 pt-4 pb-8 space-y-4 max-w-md mx-auto w-full">
+      <div className="flex-1 px-4 sm:px-6 lg:px-8 pt-4 pb-8 space-y-4 max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto w-full">
         {/* Live data banner / quick controls */}
         <div className="flex items-center justify-between">
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-heading font-bold uppercase tracking-widest ${connected ? "text-[#00ff9d]" : "text-[#ff6b6b]"}`}
