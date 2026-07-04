@@ -105,7 +105,8 @@ export default function HybridConfluenceLiveCard() {
       setAccount(a);
       setInd(scan?.ok ? scan.data?.scanner?.indicators || scan.data?.indicators || null : null);
       const syms = quotes?.ok ? (quotes.data?.symbols || []) : [];
-      const sym = (Array.isArray(syms) ? syms : []).find((s) => (s.symbol || "").toUpperCase() === "XAUUSD") || (Array.isArray(syms) ? syms[0] : null);
+      const pair = (stg?.[0]?.active_pair || "XAUUSD").toUpperCase();
+      const sym = (Array.isArray(syms) ? syms : []).find((s) => (s.symbol || "").toUpperCase() === pair) || (Array.isArray(syms) ? syms : []).find((s) => (s.symbol || "").toUpperCase() === "XAUUSD") || (Array.isArray(syms) ? syms[0] : null);
       setQuote(sym && sym.bid != null ? { bid: Number(sym.bid), ask: Number(sym.ask), spread: sym.spread != null ? Number(sym.spread) : Number(sym.ask) - Number(sym.bid) } : null);
       setPositions(pos?.ok ? pos.data?.positions || [] : []);
       setTrades(Array.isArray(tr) ? tr : []);
@@ -120,6 +121,7 @@ export default function HybridConfluenceLiveCard() {
   }, []);
 
   const s = settings || {};
+  const pair = (s.active_pair || "XAUUSD").toUpperCase();
   const ema6 = ind?.ema_6 ?? ind?.ema6 ?? null;
   const ema20 = ind?.ema_20 ?? ind?.ema20 ?? null;
   const ema25 = ind?.ema_25 ?? ind?.ema25 ?? null;
@@ -227,7 +229,7 @@ export default function HybridConfluenceLiveCard() {
   const spreadOk = spread == null || spread <= (s.hybrid_max_spread_points ?? 30);
 
   // open positions for XAUUSD
-  const basket = positions.filter((p) => (p.symbol || "").toUpperCase() === "XAUUSD");
+  const basket = positions.filter((p) => (p.symbol || "").toUpperCase() === pair);
   const openCount = basket.length;
   const recoveryCount = Math.max(0, openCount - 1);
   const maxPos = s.hybrid_max_positions ?? 2;
@@ -314,7 +316,7 @@ export default function HybridConfluenceLiveCard() {
             </div>
             <div>
               <h3 className="font-heading text-sm font-black text-white tracking-wide leading-tight">{STRATEGY_NAME}</h3>
-              <p className="text-[10px] text-white/40">Trend · Pullback · Liquidity Sweep · Confluence</p>
+              <p className="text-[10px] text-white/40">{pair} · Trend · Pullback · Liquidity Sweep</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
