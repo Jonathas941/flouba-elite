@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
+import StrategyFilterToggles from "@/components/StrategyFilterToggles";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
   TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle
@@ -306,6 +307,7 @@ export default function Strategy() {
 
       {tab === "strategy" ? (
         <div className="space-y-3">
+          <StrategyFilterToggles />
           {STRATEGY.map((item, i) => <StrategyBlock key={item.title} item={item} index={i} />)}
 
           {/* Confluence Guide */}
