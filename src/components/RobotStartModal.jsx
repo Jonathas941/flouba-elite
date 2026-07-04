@@ -10,6 +10,7 @@ import HedgeScalperSettings from "@/components/robotstart/HedgeScalperSettings";
 import TrendFilterSettings from "@/components/robotstart/TrendFilterSettings";
 import SwingPullbackSettings from "@/components/robotstart/SwingPullbackSettings";
 import EmaTrendRecoverySettings from "@/components/robotstart/EmaTrendRecoverySettings";
+import HybridConfluenceSettings from "@/components/robotstart/HybridConfluenceSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -22,6 +23,7 @@ const STRATEGIES = [
   "Hedge Scalper",
   "Swing Trend Pullback Continuation 2026",
   "EMA Trend Progressive Recovery",
+  "Hybrid Confluence Mode",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -157,6 +159,42 @@ const DEFAULT = {
   tpr_partial_close_50: true,
   tpr_min_rr: 2,
   tpr_max_spread_points: 30,
+  // Hybrid Confluence Mode — EMA trend + EMA pullback + SMC liquidity sweep merged as confirmation layers
+  hybrid_timeframe: "M15",
+  hybrid_ema_6: 6,
+  hybrid_ema_20: 20,
+  hybrid_ema_25: 25,
+  hybrid_ema_50: 50,
+  hybrid_atr_period: 14,
+  hybrid_min_ema_distance: 0,
+  hybrid_min_atr: 0,
+  hybrid_pullback_zone_atr: 0.25,
+  hybrid_max_pullback_depth_atr: 0.5,
+  hybrid_swing_lookback: 20,
+  hybrid_require_engulfing: true,
+  hybrid_lot_size: 0.01,
+  hybrid_max_positions: 2,
+  hybrid_max_recovery_positions: 1,
+  hybrid_lot_multiplier: 1.0,
+  hybrid_max_lot_multiplier: 1.25,
+  hybrid_recovery_atr_mult: 1.2,
+  hybrid_sl_atr_min: 1.5,
+  hybrid_sl_atr_max: 1.8,
+  hybrid_min_rr: 2,
+  hybrid_use_break_even: true,
+  hybrid_partial_close_50: true,
+  hybrid_max_trades_per_day: 3,
+  hybrid_max_consecutive_losses: 2,
+  hybrid_cooldown_hours: 8,
+  hybrid_max_daily_loss_pct: 2,
+  hybrid_equity_stop_pct: 3,
+  hybrid_max_spread_points: 30,
+  hybrid_min_score: 80,
+  hybrid_score_trend: 30,
+  hybrid_score_pullback: 20,
+  hybrid_score_sweep: 30,
+  hybrid_score_engulfing: 10,
+  hybrid_score_filters: 10,
 };
 
 function Field({ label, children }) {
@@ -320,6 +358,41 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         tpr_partial_close_50: s.tpr_partial_close_50 ?? prev.tpr_partial_close_50,
         tpr_min_rr: s.tpr_min_rr ?? prev.tpr_min_rr,
         tpr_max_spread_points: s.tpr_max_spread_points ?? prev.tpr_max_spread_points,
+        hybrid_timeframe: s.hybrid_timeframe ?? prev.hybrid_timeframe,
+        hybrid_ema_6: s.hybrid_ema_6 ?? prev.hybrid_ema_6,
+        hybrid_ema_20: s.hybrid_ema_20 ?? prev.hybrid_ema_20,
+        hybrid_ema_25: s.hybrid_ema_25 ?? prev.hybrid_ema_25,
+        hybrid_ema_50: s.hybrid_ema_50 ?? prev.hybrid_ema_50,
+        hybrid_atr_period: s.hybrid_atr_period ?? prev.hybrid_atr_period,
+        hybrid_min_ema_distance: s.hybrid_min_ema_distance ?? prev.hybrid_min_ema_distance,
+        hybrid_min_atr: s.hybrid_min_atr ?? prev.hybrid_min_atr,
+        hybrid_pullback_zone_atr: s.hybrid_pullback_zone_atr ?? prev.hybrid_pullback_zone_atr,
+        hybrid_max_pullback_depth_atr: s.hybrid_max_pullback_depth_atr ?? prev.hybrid_max_pullback_depth_atr,
+        hybrid_swing_lookback: s.hybrid_swing_lookback ?? prev.hybrid_swing_lookback,
+        hybrid_require_engulfing: s.hybrid_require_engulfing ?? prev.hybrid_require_engulfing,
+        hybrid_lot_size: s.hybrid_lot_size ?? prev.hybrid_lot_size,
+        hybrid_max_positions: s.hybrid_max_positions ?? prev.hybrid_max_positions,
+        hybrid_max_recovery_positions: s.hybrid_max_recovery_positions ?? prev.hybrid_max_recovery_positions,
+        hybrid_lot_multiplier: s.hybrid_lot_multiplier ?? prev.hybrid_lot_multiplier,
+        hybrid_max_lot_multiplier: s.hybrid_max_lot_multiplier ?? prev.hybrid_max_lot_multiplier,
+        hybrid_recovery_atr_mult: s.hybrid_recovery_atr_mult ?? prev.hybrid_recovery_atr_mult,
+        hybrid_sl_atr_min: s.hybrid_sl_atr_min ?? prev.hybrid_sl_atr_min,
+        hybrid_sl_atr_max: s.hybrid_sl_atr_max ?? prev.hybrid_sl_atr_max,
+        hybrid_min_rr: s.hybrid_min_rr ?? prev.hybrid_min_rr,
+        hybrid_use_break_even: s.hybrid_use_break_even ?? prev.hybrid_use_break_even,
+        hybrid_partial_close_50: s.hybrid_partial_close_50 ?? prev.hybrid_partial_close_50,
+        hybrid_max_trades_per_day: s.hybrid_max_trades_per_day ?? prev.hybrid_max_trades_per_day,
+        hybrid_max_consecutive_losses: s.hybrid_max_consecutive_losses ?? prev.hybrid_max_consecutive_losses,
+        hybrid_cooldown_hours: s.hybrid_cooldown_hours ?? prev.hybrid_cooldown_hours,
+        hybrid_max_daily_loss_pct: s.hybrid_max_daily_loss_pct ?? prev.hybrid_max_daily_loss_pct,
+        hybrid_equity_stop_pct: s.hybrid_equity_stop_pct ?? prev.hybrid_equity_stop_pct,
+        hybrid_max_spread_points: s.hybrid_max_spread_points ?? prev.hybrid_max_spread_points,
+        hybrid_min_score: s.hybrid_min_score ?? prev.hybrid_min_score,
+        hybrid_score_trend: s.hybrid_score_trend ?? prev.hybrid_score_trend,
+        hybrid_score_pullback: s.hybrid_score_pullback ?? prev.hybrid_score_pullback,
+        hybrid_score_sweep: s.hybrid_score_sweep ?? prev.hybrid_score_sweep,
+        hybrid_score_engulfing: s.hybrid_score_engulfing ?? prev.hybrid_score_engulfing,
+        hybrid_score_filters: s.hybrid_score_filters ?? prev.hybrid_score_filters,
       }));
     }).catch(() => {});
   }, [open]);
@@ -346,6 +419,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isHedgeScalper = form.strategy === "Hedge Scalper";
   const isSwingPullback = form.strategy === "Swing Trend Pullback Continuation 2026";
   const isTpr = form.strategy === "EMA Trend Progressive Recovery";
+  const isHybrid = form.strategy === "Hybrid Confluence Mode";
 
   const handleStart = async () => {
     setLoading(true);
@@ -453,6 +527,41 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         tpr_partial_close_50: form.tpr_partial_close_50,
         tpr_min_rr: form.tpr_min_rr,
         tpr_max_spread_points: form.tpr_max_spread_points,
+        hybrid_timeframe: form.hybrid_timeframe,
+        hybrid_ema_6: form.hybrid_ema_6,
+        hybrid_ema_20: form.hybrid_ema_20,
+        hybrid_ema_25: form.hybrid_ema_25,
+        hybrid_ema_50: form.hybrid_ema_50,
+        hybrid_atr_period: form.hybrid_atr_period,
+        hybrid_min_ema_distance: form.hybrid_min_ema_distance,
+        hybrid_min_atr: form.hybrid_min_atr,
+        hybrid_pullback_zone_atr: form.hybrid_pullback_zone_atr,
+        hybrid_max_pullback_depth_atr: form.hybrid_max_pullback_depth_atr,
+        hybrid_swing_lookback: form.hybrid_swing_lookback,
+        hybrid_require_engulfing: form.hybrid_require_engulfing,
+        hybrid_lot_size: form.hybrid_lot_size,
+        hybrid_max_positions: form.hybrid_max_positions,
+        hybrid_max_recovery_positions: form.hybrid_max_recovery_positions,
+        hybrid_lot_multiplier: form.hybrid_lot_multiplier,
+        hybrid_max_lot_multiplier: form.hybrid_max_lot_multiplier,
+        hybrid_recovery_atr_mult: form.hybrid_recovery_atr_mult,
+        hybrid_sl_atr_min: form.hybrid_sl_atr_min,
+        hybrid_sl_atr_max: form.hybrid_sl_atr_max,
+        hybrid_min_rr: form.hybrid_min_rr,
+        hybrid_use_break_even: form.hybrid_use_break_even,
+        hybrid_partial_close_50: form.hybrid_partial_close_50,
+        hybrid_max_trades_per_day: form.hybrid_max_trades_per_day,
+        hybrid_max_consecutive_losses: form.hybrid_max_consecutive_losses,
+        hybrid_cooldown_hours: form.hybrid_cooldown_hours,
+        hybrid_max_daily_loss_pct: form.hybrid_max_daily_loss_pct,
+        hybrid_equity_stop_pct: form.hybrid_equity_stop_pct,
+        hybrid_max_spread_points: form.hybrid_max_spread_points,
+        hybrid_min_score: form.hybrid_min_score,
+        hybrid_score_trend: form.hybrid_score_trend,
+        hybrid_score_pullback: form.hybrid_score_pullback,
+        hybrid_score_sweep: form.hybrid_score_sweep,
+        hybrid_score_engulfing: form.hybrid_score_engulfing,
+        hybrid_score_filters: form.hybrid_score_filters,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -674,6 +783,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <EmaTrendRecoverySettings
                 visible={isTpr}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
+
+              <HybridConfluenceSettings
+                visible={isHybrid}
                 form={form}
                 set={set}
                 Field={Field}

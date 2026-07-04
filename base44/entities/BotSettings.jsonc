@@ -473,6 +473,183 @@
       "type": "number",
       "default": 30
     },
+    "hybrid_timeframe": {
+      "type": "string",
+      "enum": [
+        "M5",
+        "M15",
+        "M30",
+        "H1"
+      ],
+      "default": "M15",
+      "description": "Hybrid Confluence Mode \u2014 chart timeframe used across all layers."
+    },
+    "hybrid_ema_6": {
+      "type": "number",
+      "default": 6,
+      "description": "Hybrid Confluence Mode \u2014 fast EMA period."
+    },
+    "hybrid_ema_20": {
+      "type": "number",
+      "default": 20,
+      "description": "Hybrid Confluence Mode \u2014 pullback EMA period."
+    },
+    "hybrid_ema_25": {
+      "type": "number",
+      "default": 25,
+      "description": "Hybrid Confluence Mode \u2014 mid EMA period paired with EMA 6."
+    },
+    "hybrid_ema_50": {
+      "type": "number",
+      "default": 50,
+      "description": "Hybrid Confluence Mode \u2014 slow EMA period."
+    },
+    "hybrid_atr_period": {
+      "type": "number",
+      "default": 14,
+      "description": "Hybrid Confluence Mode \u2014 ATR period."
+    },
+    "hybrid_min_ema_distance": {
+      "type": "number",
+      "default": 0,
+      "description": "Hybrid Confluence Mode \u2014 minimum EMA distance to confirm trend strength."
+    },
+    "hybrid_min_atr": {
+      "type": "number",
+      "default": 0,
+      "description": "Hybrid Confluence Mode \u2014 minimum ATR (volatility floor) to allow merging."
+    },
+    "hybrid_pullback_zone_atr": {
+      "type": "number",
+      "default": 0.25,
+      "description": "Hybrid Confluence Mode \u2014 ATR distance from EMA 20 defining the pullback zone."
+    },
+    "hybrid_max_pullback_depth_atr": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Hybrid Confluence Mode \u2014 max ATR depth price may close beyond EMA 50 before pullback is invalidated."
+    },
+    "hybrid_swing_lookback": {
+      "type": "number",
+      "default": 20,
+      "description": "Hybrid Confluence Mode \u2014 bars to look back for confirmed swing high/low."
+    },
+    "hybrid_require_engulfing": {
+      "type": "boolean",
+      "default": true,
+      "description": "Hybrid Confluence Mode \u2014 require a bullish/bearish engulfing candle after the sweep."
+    },
+    "hybrid_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Hybrid Confluence Mode \u2014 default lot size."
+    },
+    "hybrid_max_positions": {
+      "type": "number",
+      "default": 2,
+      "description": "Hybrid Confluence Mode \u2014 maximum total positions (initial + recovery)."
+    },
+    "hybrid_max_recovery_positions": {
+      "type": "number",
+      "default": 1,
+      "description": "Hybrid Confluence Mode \u2014 maximum controlled recovery positions."
+    },
+    "hybrid_lot_multiplier": {
+      "type": "number",
+      "default": 1,
+      "description": "Hybrid Confluence Mode \u2014 recovery lot multiplier (capped by hybrid_max_lot_multiplier)."
+    },
+    "hybrid_max_lot_multiplier": {
+      "type": "number",
+      "default": 1.25,
+      "description": "Hybrid Confluence Mode \u2014 hard cap on the recovery lot multiplier."
+    },
+    "hybrid_recovery_atr_mult": {
+      "type": "number",
+      "default": 1.2,
+      "description": "Hybrid Confluence Mode \u2014 adverse ATR distance before a recovery position is allowed."
+    },
+    "hybrid_sl_atr_min": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Hybrid Confluence Mode \u2014 minimum ATR multiplier for the initial stop loss (beyond sweep wick)."
+    },
+    "hybrid_sl_atr_max": {
+      "type": "number",
+      "default": 1.8,
+      "description": "Hybrid Confluence Mode \u2014 maximum ATR multiplier for the initial stop loss (beyond sweep wick)."
+    },
+    "hybrid_min_rr": {
+      "type": "number",
+      "default": 2,
+      "description": "Hybrid Confluence Mode \u2014 minimum risk-reward ratio."
+    },
+    "hybrid_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "Hybrid Confluence Mode \u2014 move SL to break-even at 1R."
+    },
+    "hybrid_partial_close_50": {
+      "type": "boolean",
+      "default": true,
+      "description": "Hybrid Confluence Mode \u2014 partial close 50% at 1R."
+    },
+    "hybrid_max_trades_per_day": {
+      "type": "number",
+      "default": 3
+    },
+    "hybrid_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "hybrid_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
+    "hybrid_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "Hybrid Confluence Mode \u2014 daily loss limit as a percentage of balance."
+    },
+    "hybrid_equity_stop_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "Hybrid Confluence Mode \u2014 equity stop loss as a percentage of balance."
+    },
+    "hybrid_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
+    "hybrid_min_score": {
+      "type": "number",
+      "default": 80,
+      "description": "Hybrid Confluence Mode \u2014 minimum confluence score (out of 100) required to open a trade."
+    },
+    "hybrid_score_trend": {
+      "type": "number",
+      "default": 30,
+      "description": "Hybrid Confluence Mode \u2014 points awarded for trend alignment."
+    },
+    "hybrid_score_pullback": {
+      "type": "number",
+      "default": 20,
+      "description": "Hybrid Confluence Mode \u2014 points awarded for pullback quality."
+    },
+    "hybrid_score_sweep": {
+      "type": "number",
+      "default": 30,
+      "description": "Hybrid Confluence Mode \u2014 points awarded for liquidity sweep quality."
+    },
+    "hybrid_score_engulfing": {
+      "type": "number",
+      "default": 10,
+      "description": "Hybrid Confluence Mode \u2014 points awarded for engulfing confirmation."
+    },
+    "hybrid_score_filters": {
+      "type": "number",
+      "default": 10,
+      "description": "Hybrid Confluence Mode \u2014 points awarded for spread/session/risk conditions."
+    },
     "robot_status": {
       "type": "string",
       "enum": [

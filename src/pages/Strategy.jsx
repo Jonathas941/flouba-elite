@@ -4,9 +4,10 @@ import GlassCard from "@/components/GlassCard";
 import StrategyFilterToggles from "@/components/StrategyFilterToggles";
 import SwingPullbackLiveCard from "@/components/strategy/SwingPullbackLiveCard";
 import EmaTrendRecoveryLiveCard from "@/components/strategy/EmaTrendRecoveryLiveCard";
+import HybridConfluenceLiveCard from "@/components/strategy/HybridConfluenceLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
-  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle
+  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine
 } from "lucide-react";
 
 const STRATEGY = [
@@ -165,6 +166,24 @@ const STRATEGY = [
       "Protection: emergency SL = 1.8×ATR, equity stop 3%, daily loss 2%, daily profit target, 3 trades/day, 2 consecutive losses → 8h cooldown, break-even at 1R, optional 50% partial close, min 1:2 RR when single position.",
       "Hard trend reversal exit: EMA cross against, slope reversal, close beyond slow EMA by ATR distance, or equity/daily-loss limit → close all and disable recovery.",
       "Adaptive selection: only when regime is Trending, EMA alignment + slope strong, ATR healthy, spread acceptable, score ≥ 70. Never in a ranging market.",
+    ],
+  },
+  {
+    icon: ScanLine,
+    title: "Hybrid Confluence Mode",
+    tag: "Multi-Strategy Merge",
+    tagColor: "bg-cyan-500/15 text-cyan-300",
+    summary: "Merges EMA Trend (direction) + Swing Pullback (setup) + SMC Liquidity Sweep (confirmation) into a single high-quality entry. Strategies act as confirmation layers — never separate trades. One controlled recovery only, max 2 positions, no martingale.",
+    details: [
+      "TREND LAYER (30 pts): EMA 6 above EMA 25 AND EMA 20 above EMA 50, all sloping upward (buy) or downward (sell), EMA distance above minimum, ATR above volatility floor.",
+      "PULLBACK LAYER (20 pts): price retraces toward the EMA 20 zone (within configurable ATR distance), and does not close deeply beyond EMA 50.",
+      "SMC CONFIRMATION LAYER (30 pts): price sweeps a confirmed swing low (buy) or swing high (sell), the closed candle returns back through it, and a bullish/bearish engulfing candle forms immediately after. Entry only after candle close.",
+      "ENGULFING CONFIRMATION (10 pts): directional engulfing matches the trend and sweep bias.",
+      "FILTERS (10 pts): spread below max, session open, no cooldown, daily loss & drawdown limits not hit, daily target not reached, no opposite position, no duplicate from the same swing.",
+      "ENTRY: only when total confluence score ≥ 80/100 and all layers agree in direction. One trade per confluence — no separate strategy trades.",
+      "POSITION MANAGEMENT: initial lot 0.01, max 2 total positions, SL 1.5–1.8×ATR beyond sweep wick, TP min 1:2 RR, break-even at 1R, optional 50% partial at 1R, final target 2R.",
+      "RECOVERY: one controlled recovery position only while EMA trend stays valid, price has moved against ≥ 1.2×ATR, no EMA reversal, spread normal, max positions not reached. Recovery lot never exceeds 1.25×.",
+      "DO NOT MERGE WHEN: flat/ranging market, EMAs too close or crossing, ATR too low, high spread, rollover, cooldown, daily target reached, or after 2 consecutive losses.",
     ],
   },
 ];
@@ -332,10 +351,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns", "swing2026", "tpr"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr", "hybrid"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : "EMA Recovery"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : "Hybrid"}
           </button>
         ))}
       </div>
@@ -347,6 +366,10 @@ export default function Strategy() {
       ) : tab === "tpr" ? (
         <div className="space-y-4">
           <EmaTrendRecoveryLiveCard />
+        </div>
+      ) : tab === "hybrid" ? (
+        <div className="space-y-4">
+          <HybridConfluenceLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">
