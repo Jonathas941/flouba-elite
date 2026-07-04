@@ -25,6 +25,7 @@ import AIScanner from '@/pages/AIScanner';
 import Account from '@/pages/Account';
 import ConnectMT5 from '@/pages/ConnectMT5';
 import Notifications from '@/pages/Notifications';
+import Redeem from '@/pages/Redeem';
 
 const PageSlide = ({ children }) => (
   <motion.div
@@ -76,6 +77,7 @@ const AuthenticatedApp = () => {
             <Route path="/account" element={<PageSlide><Account /></PageSlide>} />
             <Route path="/connect-mt5" element={<PageSlide><ConnectMT5 /></PageSlide>} />
             <Route path="/notifications" element={<PageSlide><Notifications /></PageSlide>} />
+            <Route path="/redeem" element={<PageSlide><Redeem /></PageSlide>} />
           </Route>
         </Route>
         <Route path="*" element={<PageNotFound />} />

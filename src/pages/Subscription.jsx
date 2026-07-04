@@ -20,12 +20,8 @@ export default function Subscription() {
 
   useEffect(() => { (async () => setCurrent((await base44.entities.Subscription.list())[0]))(); }, []);
 
-  const choose = async (plan) => {
-    const data = { plan, status: "Active" };
-    if (current) await base44.entities.Subscription.update(current.id, data);
-    else setCurrent(await base44.entities.Subscription.create(data));
-    setCurrent((p) => ({ ...(p || {}), ...data }));
-    toast({ title: `${plan} selected`, description: "Subscription activated." });
+  const choose = (plan) => {
+    navigate("/redeem", { state: { plan } });
   };
 
   return (
@@ -63,7 +59,7 @@ export default function Subscription() {
                 disabled={active}
                 className="w-full h-12 rounded-2xl bg-red-600 hover:bg-red-500 neon-red font-heading tracking-widest disabled:opacity-50"
               >
-                {active ? "CURRENT PLAN" : "CHOOSE PLAN"}
+                {active ? "CURRENT PLAN" : "REDEEM KEY"}
               </Button>
             </GlassCard>
           );
