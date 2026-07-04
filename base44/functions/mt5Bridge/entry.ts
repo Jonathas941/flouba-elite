@@ -33,6 +33,13 @@ Deno.serve(async (req) => {
     // the ?account= query param is ignored server-side when a JWT is present.
     let apiKey = user.mt5_api_key;
     if (!apiKey) {
+      // Paywall: only provision a bridge API key for users with an active paid subscription.
+      const subs = await base44.entities.Subscription.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
+      const sub = subs?.[0];
+      const subActive = sub && sub.status === "Active" && (!sub.expires_date || new Date(sub.expires_date) >= new Date(new Date().toDateString()));
+      if (!subActive) {
+        return Response.json({ ok: false, error: "No active subscription. Subscribe to a plan to activate your bridge API key.", needs_subscription: true }, { status: 200 });
+      }
       const provisionSecret = Deno.env.get("PROVISION_SECRET");
       if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
       const provisionRes = await fetch(`${BASE}/provision/user`, {

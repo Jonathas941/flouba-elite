@@ -64,6 +64,14 @@ Deno.serve(async (req) => {
 
     for (const user of usersToProvision) {
       try {
+        // Paywall: skip users without an active paid subscription
+        const userSubs = await base44.asServiceRole.entities.Subscription.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
+        const usub = userSubs?.[0];
+        const subActive = usub && usub.status === "Active" && (!usub.expires_date || new Date(usub.expires_date) >= new Date(new Date().toDateString()));
+        if (!subActive) {
+          results.push({ user_id: user.id, email: user.email, success: false, error: "No active subscription — skipped", needs_subscription: true });
+          continue;
+        }
     const provisionRes = await fetch(PROVISION_URL, {
       method: "POST",
       headers: {

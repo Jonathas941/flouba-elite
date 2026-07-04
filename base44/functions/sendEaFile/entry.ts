@@ -17,6 +17,14 @@ Deno.serve(async (req) => {
     const email = body.email || user.email;
     if (!email) return Response.json({ error: "No email address on file" }, { status: 400 });
 
+    // ── Paywall: only deliver the EA + private API key to users with an active paid subscription ──
+    const subs = await base44.entities.Subscription.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
+    const sub = subs?.[0];
+    const subActive = sub && sub.status === "Active" && (!sub.expires_date || new Date(sub.expires_date) >= new Date(new Date().toDateString()));
+    if (!subActive) {
+      return Response.json({ error: "No active subscription. Subscribe to a plan to receive your EA file and bridge API key.", needs_subscription: true }, { status: 402 });
+    }
+
     const eaUrl = Deno.env.get("EA_FILE_URL");
     if (!eaUrl) return Response.json({ error: "EA_FILE_URL secret not set" }, { status: 500 });
 
