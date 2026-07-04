@@ -7,9 +7,10 @@ import EmaTrendRecoveryLiveCard from "@/components/strategy/EmaTrendRecoveryLive
 import HybridConfluenceLiveCard from "@/components/strategy/HybridConfluenceLiveCard";
 import NqKillZoneLiveCard from "@/components/strategy/NqKillZoneLiveCard";
 import MsBosRetestLiveCard from "@/components/strategy/MsBosRetestLiveCard";
+import OrderflowOpeningRangeLiveCard from "@/components/strategy/OrderflowOpeningRangeLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
-  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair
+  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves
 } from "lucide-react";
 
 const STRATEGY = [
@@ -208,6 +209,26 @@ const STRATEGY = [
     ],
   },
   {
+    icon: Waves,
+    title: "Orderflow Opening Range Breakout",
+    tag: "Order-Flow Breakout",
+    tagColor: "bg-fuchsia-500/15 text-fuchsia-300",
+    summary: "Opening Range breakout on NQ / NAS100. Builds the 09:30–10:00 ET opening range, then trades only closed-candle breakouts (10:00–11:00 ET) confirmed by order-flow / volume participation. Prefers a retest of the broken level. Fixed 1:2 RR, max 1 open, 2 trades/day. No grid, no martingale, no recovery.",
+    details: [
+      "MARKET: NQ / NAS100 / US100 (broker symbol mapped). Default timeframe M5. All times America/New_York (DST auto-handled).",
+      "OPENING RANGE: built from 09:30 AM to 10:00 AM ET. OpeningRangeHigh / Low / Midpoint recorded. No trades while the range is building.",
+      "ENTRY WINDOW: 10:00 AM to 11:00 AM ET only. At 11:00 AM hard cutoff — no new trades; existing trades run to SL/TP/managed exit.",
+      "BUY: a fully closed M5 candle closes above OpeningRangeHigh (not just a wick). Order-flow confirmed (positive delta / buyer imbalance, aggressive buy volume, or volume expansion vs average).",
+      "SELL: a fully closed M5 candle closes below OpeningRangeLow. Order-flow confirmed (negative delta / seller imbalance, aggressive sell volume, or volume expansion vs average).",
+      "RETEST (preferred): price pulls back to the broken level and holds beyond it; entry after a bullish/bearish confirmation candle from the retest.",
+      "RISK: SL below retest candle low or below OpeningRangeHigh (BUY) / above retest candle high or above OpeningRangeLow (SELL) — whichever is safer. TP = previous session high/low, next volume node, or minimum 1:2 RR. Fixed 1:2 default.",
+      "ORDER-FLOW FILTER: validate only when delta imbalance in breakout direction, large aggressive market orders, volume expansion vs average, or price accepts outside the range instead of immediately returning inside.",
+      "FALSE BREAKOUT REJECT: wick-only close back inside, delta opposite direction, weak breakout volume, immediate re-entry into the range, high spread, or abnormally small/large opening range.",
+      "PROTECTION: lot 0.01, max 1 open trade, max 2/day, stop after 2 consecutive losses (8h cooldown), 2% daily loss, 3% equity stop, daily profit target enforced. No grid, no martingale, no averaging down. No new entries after 11:00 AM ET.",
+      "MENTALITY: the bot waits for acceptance, not just breakout. Price outside the range alone is not enough — volume and order flow must confirm one side is in control. No clean confirmation = no trade.",
+    ],
+  },
+  {
     icon: ScanLine,
     title: "Hybrid Confluence Mode",
     tag: "Multi-Strategy Merge",
@@ -390,10 +411,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : "BOS Retest"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : "Orderflow"}
           </button>
         ))}
       </div>
@@ -417,6 +438,10 @@ export default function Strategy() {
       ) : tab === "msbos" ? (
         <div className="space-y-4">
           <MsBosRetestLiveCard />
+        </div>
+      ) : tab === "ofor" ? (
+        <div className="space-y-4">
+          <OrderflowOpeningRangeLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">

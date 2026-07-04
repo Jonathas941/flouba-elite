@@ -752,6 +752,121 @@
       "type": "number",
       "default": 8
     },
+    "ofor_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Orderflow Opening Range Breakout \u2014 default lot size."
+    },
+    "ofor_max_open_trades": {
+      "type": "number",
+      "default": 1,
+      "description": "Orderflow Opening Range Breakout \u2014 max open trades at once."
+    },
+    "ofor_max_trades_per_day": {
+      "type": "number",
+      "default": 2,
+      "description": "Orderflow Opening Range Breakout \u2014 max trades per day."
+    },
+    "ofor_risk_reward": {
+      "type": "number",
+      "default": 2,
+      "description": "Orderflow Opening Range Breakout \u2014 fixed minimum risk-to-reward ratio."
+    },
+    "ofor_sl_buffer_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Orderflow Opening Range Breakout \u2014 extra points beyond retest candle / range level for stop loss."
+    },
+    "ofor_breakout_buffer_points": {
+      "type": "number",
+      "default": 2,
+      "description": "Orderflow Opening Range Breakout \u2014 minimum close distance beyond Opening Range high/low to confirm breakout."
+    },
+    "ofor_min_body_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Orderflow Opening Range Breakout \u2014 minimum breakout candle body size in points."
+    },
+    "ofor_max_wick_body_ratio": {
+      "type": "number",
+      "default": 0.6,
+      "description": "Orderflow Opening Range Breakout \u2014 reject breakout if wick exceeds this ratio of body."
+    },
+    "ofor_min_range_points": {
+      "type": "number",
+      "default": 20,
+      "description": "Orderflow Opening Range Breakout \u2014 minimum Opening Range size in points."
+    },
+    "ofor_max_range_points": {
+      "type": "number",
+      "default": 400,
+      "description": "Orderflow Opening Range Breakout \u2014 maximum Opening Range size in points."
+    },
+    "ofor_require_retest": {
+      "type": "boolean",
+      "default": true,
+      "description": "Orderflow Opening Range Breakout \u2014 require a pullback/retest of the broken level before entry."
+    },
+    "ofor_retest_buffer_points": {
+      "type": "number",
+      "default": 10,
+      "description": "Orderflow Opening Range Breakout \u2014 max distance from the broken level to count as a valid retest."
+    },
+    "ofor_use_orderflow_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Orderflow Opening Range Breakout \u2014 require order-flow / volume confirmation in breakout direction."
+    },
+    "ofor_volume_expansion_mult": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Orderflow Opening Range Breakout \u2014 breakout candle volume vs recent average to confirm participation."
+    },
+    "ofor_use_atr_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Orderflow Opening Range Breakout \u2014 enable ATR volatility filter."
+    },
+    "ofor_atr_period": {
+      "type": "number",
+      "default": 14
+    },
+    "ofor_min_atr": {
+      "type": "number",
+      "default": 0
+    },
+    "ofor_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "Orderflow Opening Range Breakout \u2014 move SL to break-even at 1R."
+    },
+    "ofor_partial_close_50": {
+      "type": "boolean",
+      "default": false,
+      "description": "Orderflow Opening Range Breakout \u2014 partial close 50% at 1R."
+    },
+    "ofor_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
+    "ofor_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "Orderflow Opening Range Breakout \u2014 daily loss limit as a percentage of balance."
+    },
+    "ofor_equity_stop_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "Orderflow Opening Range Breakout \u2014 equity stop loss as a percentage of balance."
+    },
+    "ofor_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "ofor_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
     "ms_htf_timeframe": {
       "type": "string",
       "enum": [

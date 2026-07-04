@@ -13,6 +13,7 @@ import EmaTrendRecoverySettings from "@/components/robotstart/EmaTrendRecoverySe
 import HybridConfluenceSettings from "@/components/robotstart/HybridConfluenceSettings";
 import NqKillZoneSettings from "@/components/robotstart/NqKillZoneSettings";
 import MsBosRetestSettings from "@/components/robotstart/MsBosRetestSettings";
+import OrderflowOpeningRangeSettings from "@/components/robotstart/OrderflowOpeningRangeSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -28,6 +29,7 @@ const STRATEGIES = [
   "Hybrid Confluence Mode",
   "NQ London Kill Zone Breakout",
   "Market Structure BOS Retest Scalper",
+  "Orderflow Opening Range Breakout",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -244,6 +246,31 @@ const DEFAULT = {
   ms_max_daily_drawdown_pct: 3,
   ms_max_consecutive_losses: 2,
   ms_cooldown_hours: 8,
+  // Orderflow Opening Range Breakout — 09:30–10:00 ET opening range, breakout confirmed by order-flow/volume, retest preferred, fixed 1:2 RR, no recovery
+  ofor_lot_size: 0.01,
+  ofor_max_open_trades: 1,
+  ofor_max_trades_per_day: 2,
+  ofor_risk_reward: 2,
+  ofor_sl_buffer_points: 5,
+  ofor_breakout_buffer_points: 2,
+  ofor_min_body_points: 5,
+  ofor_max_wick_body_ratio: 0.6,
+  ofor_min_range_points: 20,
+  ofor_max_range_points: 400,
+  ofor_require_retest: true,
+  ofor_retest_buffer_points: 10,
+  ofor_use_orderflow_filter: true,
+  ofor_volume_expansion_mult: 1.5,
+  ofor_use_atr_filter: true,
+  ofor_atr_period: 14,
+  ofor_min_atr: 0,
+  ofor_use_break_even: true,
+  ofor_partial_close_50: false,
+  ofor_max_spread_points: 30,
+  ofor_max_daily_loss_pct: 2,
+  ofor_equity_stop_pct: 3,
+  ofor_max_consecutive_losses: 2,
+  ofor_cooldown_hours: 8,
 };
 
 function Field({ label, children }) {
@@ -484,6 +511,30 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         ms_max_daily_drawdown_pct: s.ms_max_daily_drawdown_pct ?? prev.ms_max_daily_drawdown_pct,
         ms_max_consecutive_losses: s.ms_max_consecutive_losses ?? prev.ms_max_consecutive_losses,
         ms_cooldown_hours: s.ms_cooldown_hours ?? prev.ms_cooldown_hours,
+        ofor_lot_size: s.ofor_lot_size ?? prev.ofor_lot_size,
+        ofor_max_open_trades: s.ofor_max_open_trades ?? prev.ofor_max_open_trades,
+        ofor_max_trades_per_day: s.ofor_max_trades_per_day ?? prev.ofor_max_trades_per_day,
+        ofor_risk_reward: s.ofor_risk_reward ?? prev.ofor_risk_reward,
+        ofor_sl_buffer_points: s.ofor_sl_buffer_points ?? prev.ofor_sl_buffer_points,
+        ofor_breakout_buffer_points: s.ofor_breakout_buffer_points ?? prev.ofor_breakout_buffer_points,
+        ofor_min_body_points: s.ofor_min_body_points ?? prev.ofor_min_body_points,
+        ofor_max_wick_body_ratio: s.ofor_max_wick_body_ratio ?? prev.ofor_max_wick_body_ratio,
+        ofor_min_range_points: s.ofor_min_range_points ?? prev.ofor_min_range_points,
+        ofor_max_range_points: s.ofor_max_range_points ?? prev.ofor_max_range_points,
+        ofor_require_retest: s.ofor_require_retest ?? prev.ofor_require_retest,
+        ofor_retest_buffer_points: s.ofor_retest_buffer_points ?? prev.ofor_retest_buffer_points,
+        ofor_use_orderflow_filter: s.ofor_use_orderflow_filter ?? prev.ofor_use_orderflow_filter,
+        ofor_volume_expansion_mult: s.ofor_volume_expansion_mult ?? prev.ofor_volume_expansion_mult,
+        ofor_use_atr_filter: s.ofor_use_atr_filter ?? prev.ofor_use_atr_filter,
+        ofor_atr_period: s.ofor_atr_period ?? prev.ofor_atr_period,
+        ofor_min_atr: s.ofor_min_atr ?? prev.ofor_min_atr,
+        ofor_use_break_even: s.ofor_use_break_even ?? prev.ofor_use_break_even,
+        ofor_partial_close_50: s.ofor_partial_close_50 ?? prev.ofor_partial_close_50,
+        ofor_max_spread_points: s.ofor_max_spread_points ?? prev.ofor_max_spread_points,
+        ofor_max_daily_loss_pct: s.ofor_max_daily_loss_pct ?? prev.ofor_max_daily_loss_pct,
+        ofor_equity_stop_pct: s.ofor_equity_stop_pct ?? prev.ofor_equity_stop_pct,
+        ofor_max_consecutive_losses: s.ofor_max_consecutive_losses ?? prev.ofor_max_consecutive_losses,
+        ofor_cooldown_hours: s.ofor_cooldown_hours ?? prev.ofor_cooldown_hours,
       }));
     }).catch(() => {});
   }, [open]);
@@ -513,6 +564,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isHybrid = form.strategy === "Hybrid Confluence Mode";
   const isNqKz = form.strategy === "NQ London Kill Zone Breakout";
   const isMsBos = form.strategy === "Market Structure BOS Retest Scalper";
+  const isOfOr = form.strategy === "Orderflow Opening Range Breakout";
 
   const handleStart = async () => {
     setLoading(true);
@@ -697,6 +749,30 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         ms_max_daily_drawdown_pct: form.ms_max_daily_drawdown_pct,
         ms_max_consecutive_losses: form.ms_max_consecutive_losses,
         ms_cooldown_hours: form.ms_cooldown_hours,
+        ofor_lot_size: form.ofor_lot_size,
+        ofor_max_open_trades: form.ofor_max_open_trades,
+        ofor_max_trades_per_day: form.ofor_max_trades_per_day,
+        ofor_risk_reward: form.ofor_risk_reward,
+        ofor_sl_buffer_points: form.ofor_sl_buffer_points,
+        ofor_breakout_buffer_points: form.ofor_breakout_buffer_points,
+        ofor_min_body_points: form.ofor_min_body_points,
+        ofor_max_wick_body_ratio: form.ofor_max_wick_body_ratio,
+        ofor_min_range_points: form.ofor_min_range_points,
+        ofor_max_range_points: form.ofor_max_range_points,
+        ofor_require_retest: form.ofor_require_retest,
+        ofor_retest_buffer_points: form.ofor_retest_buffer_points,
+        ofor_use_orderflow_filter: form.ofor_use_orderflow_filter,
+        ofor_volume_expansion_mult: form.ofor_volume_expansion_mult,
+        ofor_use_atr_filter: form.ofor_use_atr_filter,
+        ofor_atr_period: form.ofor_atr_period,
+        ofor_min_atr: form.ofor_min_atr,
+        ofor_use_break_even: form.ofor_use_break_even,
+        ofor_partial_close_50: form.ofor_partial_close_50,
+        ofor_max_spread_points: form.ofor_max_spread_points,
+        ofor_max_daily_loss_pct: form.ofor_max_daily_loss_pct,
+        ofor_equity_stop_pct: form.ofor_equity_stop_pct,
+        ofor_max_consecutive_losses: form.ofor_max_consecutive_losses,
+        ofor_cooldown_hours: form.ofor_cooldown_hours,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -970,6 +1046,15 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 Field={Field}
                 NumberInput={NumberInput}
                 SelectInput={SelectInput}
+                Toggle={Toggle}
+              />
+
+              <OrderflowOpeningRangeSettings
+                visible={isOfOr}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
                 Toggle={Toggle}
               />
 
