@@ -1325,13 +1325,23 @@
       "type": "string",
       "format": "date-time"
     },
+    "adaptive_session_baseline": {
+      "type": "number",
+      "default": 0,
+      "description": "Realized P&L baseline for the current session target. Target = realized - baseline; advances after cooldown."
+    },
     "daily_profit_target_enabled": {
       "type": "boolean",
       "default": true
     },
     "daily_profit_target_amount": {
       "type": "number",
-      "default": 100
+      "default": 200
+    },
+    "session_cooldown_minutes": {
+      "type": "number",
+      "default": 60,
+      "description": "Cooldown (minutes) the bot waits after hitting the session profit target before resuming trading in the next session."
     },
     "daily_profit_target_percent": {
       "type": "number",

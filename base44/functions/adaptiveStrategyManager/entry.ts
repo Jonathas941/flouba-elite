@@ -363,23 +363,42 @@ Deno.serve(async (req) => {
       const dailyLossPctHit = balance > 0 && realizedToday <= -(maxDailyLossPct / 100) * balance;
       const dailyDDHit = balance > 0 && realizedToday <= -(maxDailyDDPct / 100) * balance;
 
-      // ── Daily profit target ──
-      const targetAmount = cfg.daily_profit_target_amount ?? 100;
+      // ── Session profit target with cooldown ──
+      // Target measured from a session baseline (realized P&L at last cooldown reset).
+      // After hit, trading pauses for session_cooldown_minutes, then baseline advances
+      // so a fresh target can be pursued in the next session.
+      const targetAmount = cfg.daily_profit_target_amount ?? 200;
       const targetPct = cfg.daily_profit_target_percent ?? 0;
-      const targetByAmount = targetAmount > 0 && realizedToday >= targetAmount;
-      const targetByPct = targetPct > 0 && balance > 0 && realizedToday >= (targetPct / 100) * balance;
-      const targetEnabled = cfg.daily_profit_target_enabled !== false;
-      const stopAtTarget = cfg.stop_trading_at_daily_target !== false;
-      let targetReached = false;
-      if (targetEnabled && stopAtTarget && (targetByAmount || targetByPct)) targetReached = true;
-
+      const cooldownMin = cfg.session_cooldown_minutes ?? 60;
+      let baseline = cfg.adaptive_session_baseline ?? 0;
       let prevReachedAt = cfg.adaptive_daily_target_reached_at || null;
       let prevReached = cfg.adaptive_daily_target_reached === true;
-      if (prevReached && prevReachedAt && nyDateKey(prevReachedAt) !== todayKey) {
-        prevReached = false; prevReachedAt = null;
+
+      // Day rollover → realizedToday resets to 0, so reset baseline + target state.
+      if (realizedToday < baseline) {
+        baseline = 0;
+        prevReached = false;
+        prevReachedAt = null;
       }
-      const dailyTargetReached = targetReached || prevReached;
-      const dailyTargetReachedAt = dailyTargetReached ? (targetReached ? new Date().toISOString() : prevReachedAt) : null;
+      // Cooldown elapsed → resume: advance baseline so the next target is measured fresh.
+      if (prevReached && prevReachedAt &&
+          (Date.now() - new Date(prevReachedAt).getTime() >= cooldownMin * 60 * 1000)) {
+        baseline = realizedToday;
+        prevReached = false;
+        prevReachedAt = null;
+      }
+
+      const sessionRealized = realizedToday - baseline;
+      const targetByAmount = targetAmount > 0 && sessionRealized >= targetAmount;
+      const targetByPct = targetPct > 0 && balance > 0 && sessionRealized >= (targetPct / 100) * balance;
+      const targetEnabled = cfg.daily_profit_target_enabled !== false;
+      const stopAtTarget = cfg.stop_trading_at_daily_target !== false;
+      const targetJustReached = targetEnabled && stopAtTarget && !prevReached && (targetByAmount || targetByPct);
+
+      const dailyTargetReached = targetJustReached || prevReached;
+      const dailyTargetReachedAt = dailyTargetReached
+        ? (targetJustReached ? new Date().toISOString() : prevReachedAt)
+        : null;
 
       // ── Scores ──
       const scores = {};
@@ -535,7 +554,7 @@ Deno.serve(async (req) => {
               risk_percentage: cfg.risk_percentage ?? 1,
               stop_loss: cfg.stop_loss ?? 20,
               take_profit: cfg.take_profit ?? 40,
-              daily_profit_target: cfg.daily_profit_target ?? 100,
+              daily_profit_target: cfg.daily_profit_target ?? 200,
               daily_loss_limit: cfg.daily_loss_limit ?? 20,
               stop_after_losses: cfg.stop_after_losses ?? 2,
               equity_guard_enabled: cfg.equity_guard_enabled ?? true,
@@ -625,6 +644,7 @@ Deno.serve(async (req) => {
         adaptive_global_cooldown_until: globalCooldownUntil,
         adaptive_daily_target_reached: dailyTargetReached,
         adaptive_daily_target_reached_at: dailyTargetReachedAt,
+        adaptive_session_baseline: baseline,
       }).catch(() => {});
 
       results.push({

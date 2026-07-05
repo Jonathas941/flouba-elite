@@ -70,7 +70,8 @@ const DEFAULT = {
   daily_loss_limit: 20,
   // Daily Profit Target — toggleable, amount ($) or % of balance
   daily_profit_target_enabled: true,
-  daily_profit_target_amount: 100,
+  daily_profit_target_amount: 200,
+  session_cooldown_minutes: 60,
   daily_profit_target_percent: 0,
   stop_trading_at_daily_target: true,
   // HFT Scalper specific — tuned for frequent small in/out positions, not trend-riding
@@ -406,6 +407,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         daily_loss_limit: s.daily_loss_limit ?? prev.daily_loss_limit,
         daily_profit_target_enabled: s.daily_profit_target_enabled ?? prev.daily_profit_target_enabled,
         daily_profit_target_amount: s.daily_profit_target_amount ?? prev.daily_profit_target_amount,
+        session_cooldown_minutes: s.session_cooldown_minutes ?? prev.session_cooldown_minutes,
         daily_profit_target_percent: s.daily_profit_target_percent ?? prev.daily_profit_target_percent,
         stop_trading_at_daily_target: s.stop_trading_at_daily_target ?? prev.stop_trading_at_daily_target,
         grid_distance_pips: s.grid_distance_pips ?? prev.grid_distance_pips,
@@ -691,6 +693,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         daily_loss_limit: form.daily_loss_limit,
         daily_profit_target_enabled: form.daily_profit_target_enabled,
         daily_profit_target_amount: form.daily_profit_target_amount,
+        session_cooldown_minutes: form.session_cooldown_minutes,
         daily_profit_target_percent: form.daily_profit_target_percent,
         stop_trading_at_daily_target: form.stop_trading_at_daily_target,
         grid_distance_pips: form.grid_distance_pips,
@@ -1049,7 +1052,13 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                         <Toggle value={form.stop_trading_at_daily_target} onChange={set("stop_trading_at_daily_target")} />
                       </Field>
                       <p className="text-[9px] text-white/25 leading-relaxed">
-                        Pauses at {form.daily_profit_target_percent > 0 ? `${form.daily_profit_target_percent}%` : `$${form.daily_profit_target_amount}`} daily profit.
+                        Pauses at {form.daily_profit_target_percent > 0 ? `${form.daily_profit_target_percent}%` : `$${form.daily_profit_target_amount}`} session profit.
+                      </p>
+                      <Field label="Cooldown (min)">
+                        <NumberInput value={form.session_cooldown_minutes} onChange={set("session_cooldown_minutes")} min={0} step={5} />
+                      </Field>
+                      <p className="text-[9px] text-white/25 leading-relaxed">
+                        Waits this long after hitting target before resuming.
                       </p>
                     </>
                   )}

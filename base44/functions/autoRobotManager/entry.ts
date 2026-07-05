@@ -70,12 +70,20 @@ function mentalityGuard({ dailyPnL, balance, consecLosses, sessionInfo, cfg }) {
   if (dailyPnL <= -lossLimit || (balance > 0 && dailyPnL <= -(maxDailyLossPct / 100) * balance))
     return { allow: false, status: "Capital protection mode active.", block: true };
 
-  // 2. Daily profit target reached — stop opening new trades, protect the day
+  // 2. Session profit target with cooldown — block while cooling down, then resume next session
   if (cfg.daily_profit_target_enabled !== false && cfg.stop_trading_at_daily_target !== false) {
-    const amt = cfg.daily_profit_target_amount ?? cfg.daily_profit_target ?? 100;
+    const amt = cfg.daily_profit_target_amount ?? cfg.daily_profit_target ?? 200;
     const pct = cfg.daily_profit_target_percent ?? 0;
-    if ((amt > 0 && dailyPnL >= amt) || (pct > 0 && balance > 0 && dailyPnL >= (pct / 100) * balance))
-      return { allow: false, status: isBasic ? "Trade rejected: daily target reached." : "Daily profit target reached. Protecting gains.", block: true };
+    const baseline = cfg.adaptive_session_baseline ?? 0;
+    const cooldownMin = cfg.session_cooldown_minutes ?? 60;
+    const reachedAt = cfg.adaptive_daily_target_reached_at;
+    const inCooldown = cfg.adaptive_daily_target_reached && reachedAt &&
+      (Date.now() - new Date(reachedAt).getTime() < cooldownMin * 60 * 1000);
+    if (inCooldown)
+      return { allow: false, status: isBasic ? "Trade rejected: session target reached. Cooling down." : "Session target reached. Cooling down before next session.", block: true };
+    const sessionPnL = dailyPnL - baseline;
+    if ((amt > 0 && sessionPnL >= amt) || (pct > 0 && balance > 0 && sessionPnL >= (pct / 100) * balance))
+      return { allow: false, status: isBasic ? "Trade rejected: session target reached." : "Session profit target reached. Protecting gains.", block: true };
   }
 
   // 3. Consecutive losses → cooldown, no revenge, no lot increase
