@@ -7,7 +7,7 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import FloubaHeader from "@/components/dashboard/FloubaHeader";
-import MarketChartCard from "@/components/dashboard/MarketChartCard";
+import GlobalMarketGlobe from "@/components/dashboard/GlobalMarketGlobe";
 import SmartControlGrid from "@/components/dashboard/SmartControlGrid";
 import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
@@ -279,8 +279,8 @@ export default function Home() {
           </motion.div>
         )}
 
-        {/* 1. Live Market Chart */}
-        <MarketChartCard connected={connected} account={account} activePair={activePair} setActivePair={setActivePair} positions={positions} />
+        {/* 1. Global Market Intelligence — 3D AI globe */}
+        <GlobalMarketGlobe connected={connected} navigate={navigate} />
 
         {/* 2. Smart Control Grid */}
         <SmartControlGrid connected={connected} robotStatus={robotStatus} account={account} positions={positions} winRate={winRate} navigate={navigate} />
