@@ -954,7 +954,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
             <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">
               <div>
                 <h2 className="font-heading font-black text-white text-sm uppercase tracking-widest">Start Robot</h2>
-                <p className="text-[10px] text-white/30">Configure strategy &amp; risk before launch</p>
+                <p className="text-[10px] text-white/30">Strategy &amp; risk</p>
               </div>
               <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center">
                 <X className="w-4 h-4 text-white/40" />
@@ -1003,8 +1003,8 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   </Field>
                   <p className="text-[9px] text-white/25 leading-relaxed">
                     {form.auto_multiplier_enabled
-                      ? "Auto: compounding activates only after 30+ closed trades, 55%+ win rate, net positive P&L, and equity ≥ 2x balance. Stays flat until proven."
-                      : "Multiplier only activates when equity reaches this ratio × balance (default 2x). Below it, lot size stays flat. Toggle Auto to let performance data decide."}
+                      ? "Auto: compounding activates only after proven profitability."
+                      : "Multiplier activates when equity reaches this ratio × balance."}
                   </p>
                 </div>
               </div>
@@ -1031,9 +1031,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 </div>
                 {form.dynamic_stop_loss && (
                   <p className="text-[9px] text-white/25 leading-relaxed mt-2">
-                    {dynamicSlPoints
-                      ? `Live ATR${atrPreview ? ` (${atrPreview.toFixed(3)})` : ""} → Stop Loss ≈ ${dynamicSlPoints} pips. Recalculated at launch.`
-                      : "Fetching live volatility (ATR)…"}
+                    {dynamicSlPoints ? `SL ≈ ${dynamicSlPoints} pips (live ATR).` : "Fetching live ATR…"}
                   </p>
                 )}
               </div>
@@ -1060,9 +1058,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                         <Toggle value={form.stop_trading_at_daily_target} onChange={set("stop_trading_at_daily_target")} />
                       </Field>
                       <p className="text-[9px] text-white/25 leading-relaxed">
-                        {form.daily_profit_target_percent > 0
-                          ? `Robot pauses once daily profit reaches ${form.daily_profit_target_percent}% of balance.`
-                          : `Robot pauses once daily profit reaches $${form.daily_profit_target_amount}.`}
+                        Pauses at {form.daily_profit_target_percent > 0 ? `${form.daily_profit_target_percent}%` : `$${form.daily_profit_target_amount}`} daily profit.
                       </p>
                     </>
                   )}
@@ -1088,7 +1084,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     <NumberInput value={form.equity_guard_min_equity_pct} onChange={set("equity_guard_min_equity_pct")} min={1} max={99} />
                   </Field>
                 )}
-                <p className="text-[9px] text-white/25 leading-relaxed">Force-closes all trades and pauses the robot if equity drops below this % of balance.</p>
+                <p className="text-[9px] text-white/25 leading-relaxed">Closes all trades if equity drops below this %.</p>
               </div>
 
               <TrendFilterSettings
@@ -1117,7 +1113,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                       <Field label="Max Grid Levels">
                         <NumberInput value={form.grid_max_levels} onChange={set("grid_max_levels")} min={1} />
                       </Field>
-                      <p className="text-[9px] text-white/25 leading-relaxed">Opens Buy/Sell orders at fixed distances from price and stacks further positions as each level is hit. Equity Guard is strongly recommended with this strategy.</p>
+                      <p className="text-[9px] text-white/25 leading-relaxed">Stacks Buy/Sell orders at fixed price intervals.</p>
                     </div>
                   </motion.div>
                 )}
@@ -1232,65 +1228,49 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                       <p className="text-[9px] uppercase tracking-[0.25em] text-amber-400 font-heading font-bold">⚡ HFT Scalper Settings</p>
 
                       {/* Multi-trade stacking */}
-                      <div>
-                        <p className="text-[8px] uppercase tracking-widest text-white/25 font-heading mb-2">Trade Stacking</p>
-                        <div className="space-y-2.5">
-                          <Field label="Max Stacked Trades">
-                            <NumberInput value={form.hft_max_trades} onChange={set("hft_max_trades")} min={1} />
-                          </Field>
-                          <Field label="Burst Trigger (pts)">
-                            <NumberInput value={form.hft_burst_points} onChange={set("hft_burst_points")} min={1} />
-                          </Field>
-                          <Field label="Basket TP (pts)">
-                            <NumberInput value={form.hft_basket_tp_pts} onChange={set("hft_basket_tp_pts")} min={1} />
-                          </Field>
-                        </div>
-                      </div>
-
-                      {/* Protection */}
-                      <div>
-                        <p className="text-[8px] uppercase tracking-widest text-white/25 font-heading mb-2">Protection</p>
-                        <div className="space-y-2.5">
-                          <Field label="Hard SL (pts)">
-                            <NumberInput value={form.hft_stop_loss_pts} onChange={set("hft_stop_loss_pts")} min={1} />
-                          </Field>
-                          <Field label="Max Spread (pts)">
-                            <NumberInput value={form.hft_max_spread} onChange={set("hft_max_spread")} min={1} />
-                          </Field>
-                          <Field label="Trailing Dist (pts)">
-                            <NumberInput value={form.hft_trailing_dist} onChange={set("hft_trailing_dist")} min={1} />
-                          </Field>
-                        </div>
+                      <div className="space-y-2.5">
+                        <Field label="Max Stacked Trades">
+                          <NumberInput value={form.hft_max_trades} onChange={set("hft_max_trades")} min={1} />
+                        </Field>
+                        <Field label="Burst Trigger (pts)">
+                          <NumberInput value={form.hft_burst_points} onChange={set("hft_burst_points")} min={1} />
+                        </Field>
+                        <Field label="Basket TP (pts)">
+                          <NumberInput value={form.hft_basket_tp_pts} onChange={set("hft_basket_tp_pts")} min={1} />
+                        </Field>
+                        <Field label="Hard SL (pts)">
+                          <NumberInput value={form.hft_stop_loss_pts} onChange={set("hft_stop_loss_pts")} min={1} />
+                        </Field>
+                        <Field label="Max Spread (pts)">
+                          <NumberInput value={form.hft_max_spread} onChange={set("hft_max_spread")} min={1} />
+                        </Field>
+                        <Field label="Trailing Dist (pts)">
+                          <NumberInput value={form.hft_trailing_dist} onChange={set("hft_trailing_dist")} min={1} />
+                        </Field>
                       </div>
 
                       {/* Break Even */}
-                      <div>
-                        <p className="text-[8px] uppercase tracking-widest text-white/25 font-heading mb-2">Auto Break Even</p>
-                        <div className="space-y-2.5">
-                          <Field label="Enable Break Even">
-                            <Toggle value={form.hft_use_break_even} onChange={set("hft_use_break_even")} />
-                          </Field>
-                          {form.hft_use_break_even && (
-                            <>
-                              <Field label="BE Trigger (pts)">
-                                <NumberInput value={form.hft_be_trigger} onChange={set("hft_be_trigger")} min={1} />
-                              </Field>
-                              <Field label="BE Lock (pts)">
-                                <NumberInput value={form.hft_be_lock} onChange={set("hft_be_lock")} min={0} />
-                              </Field>
-                            </>
-                          )}
-                        </div>
+                      <div className="space-y-2.5">
+                        <Field label="Break Even">
+                          <Toggle value={form.hft_use_break_even} onChange={set("hft_use_break_even")} />
+                        </Field>
+                        {form.hft_use_break_even && (
+                          <>
+                            <Field label="BE Trigger (pts)">
+                              <NumberInput value={form.hft_be_trigger} onChange={set("hft_be_trigger")} min={1} />
+                            </Field>
+                            <Field label="BE Lock (pts)">
+                              <NumberInput value={form.hft_be_lock} onChange={set("hft_be_lock")} min={0} />
+                            </Field>
+                          </>
+                        )}
                       </div>
 
                       {/* Trend filter */}
-                      <div>
-                        <p className="text-[8px] uppercase tracking-widest text-white/25 font-heading mb-2">Trend Filter</p>
-                        <div className="space-y-2.5">
-                          <Field label="EMA Period">
-                            <NumberInput value={form.hft_ma_period} onChange={set("hft_ma_period")} min={5} />
-                          </Field>
-                        </div>
+                      <div className="space-y-2.5">
+                        <Field label="EMA Period">
+                          <NumberInput value={form.hft_ma_period} onChange={set("hft_ma_period")} min={5} />
+                        </Field>
                       </div>
                     </div>
                   </motion.div>
