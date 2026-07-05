@@ -1,0 +1,120 @@
+{
+  "name": "TradingViewSignal",
+  "type": "object",
+  "properties": {
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "strategy": {
+      "type": "string"
+    },
+    "symbol": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "BUY",
+        "SELL",
+        "CLOSE",
+        "TEST"
+      ]
+    },
+    "timeframe": {
+      "type": "string"
+    },
+    "signal_score": {
+      "type": "number"
+    },
+    "accepted": {
+      "type": "boolean",
+      "default": false
+    },
+    "rejection_reason": {
+      "type": "string"
+    },
+    "command_id": {
+      "type": "string"
+    },
+    "mt5_status": {
+      "type": "string",
+      "enum": [
+        "Queued",
+        "Executed",
+        "Failed",
+        "Pending"
+      ]
+    },
+    "ticket": {
+      "type": "string"
+    },
+    "entry_price": {
+      "type": "number"
+    },
+    "stop_loss": {
+      "type": "number"
+    },
+    "take_profit": {
+      "type": "number"
+    },
+    "error_message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "strategy",
+    "symbol",
+    "action"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

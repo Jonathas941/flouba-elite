@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Signal, Radar, Bot, Settings, LineChart, Wallet, Bell, KeyRound, MoreHorizontal } from "lucide-react";
+import { LayoutDashboard, Signal, Radar, Bot, Settings, LineChart, Wallet, Bell, KeyRound, MoreHorizontal, CandlestickChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -8,6 +8,7 @@ const NAV = [
   { to: "/strategy",    label: "Strategy",  icon: LineChart },
   { to: "/ai-signals",  label: "Signals",   icon: Signal },
   { to: "/ai-scanner",  label: "Scanner",   icon: Radar },
+  { to: "/tradingview", label: "TV Signals", icon: CandlestickChart },
   { to: "/statistics",  label: "Stats",     icon: Bot },
   { to: "/account",     label: "Account",   icon: Wallet },
   { to: "/notifications", label: "Alerts",  icon: Bell },
