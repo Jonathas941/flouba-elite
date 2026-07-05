@@ -447,10 +447,10 @@ export default function Strategy() {
       </header>
 
       {/* Tab Switch */}
-      <div className="glass rounded-2xl p-1 flex gap-1">
+      <div className="glass rounded-2xl p-1 flex gap-1 overflow-x-auto no-scrollbar">
         {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor", "gmr", "gdb"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
+            className={`shrink-0 px-3 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all whitespace-nowrap ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
             {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : t === "ofor" ? "Orderflow" : t === "gmr" ? "Gold Range" : "Gold Daily"}
           </button>
         ))}
