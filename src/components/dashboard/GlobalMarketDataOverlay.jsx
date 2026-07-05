@@ -40,24 +40,24 @@ export default function GlobalMarketDataOverlay({ data, status, pairs, onPairCli
 
   const slots = [
     [
-      { label: "XAUUSD", value: data.prices.XAUUSD?.toFixed(2), accent: "text-[#ffce4d]" },
-      { label: "NAS100", value: data.prices.NAS100?.toFixed(0), accent: "text-[#00ff9d]" },
-      { label: "USDJPY", value: data.prices.USDJPY?.toFixed(2), accent: "text-cyan-300" },
+      { label: "XAUUSD", value: data.prices.XAUUSD != null ? data.prices.XAUUSD.toFixed(2) : "—", accent: "text-[#ffce4d]" },
+      { label: "NAS100", value: data.prices.NAS100 != null ? data.prices.NAS100.toFixed(0) : "—", accent: "text-[#00ff9d]" },
+      { label: "USDJPY", value: data.prices.USDJPY != null ? data.prices.USDJPY.toFixed(2) : "—", accent: "text-cyan-300" },
     ],
     [
-      { label: "ATR", value: data.atr?.toFixed(3), accent: "text-white" },
-      { label: "RSI", value: data.rsi?.toFixed(1), accent: data.rsi > 70 ? "text-[#ff4d4d]" : data.rsi < 30 ? "text-[#00ff9d]" : "text-white" },
-      { label: "SPREAD", value: `${data.spread?.toFixed(0)}pt`, accent: "text-white" },
+      { label: "ATR", value: data.atr != null ? data.atr.toFixed(3) : "—", accent: "text-white" },
+      { label: "RSI", value: data.rsi != null ? data.rsi.toFixed(1) : "—", accent: data.rsi > 70 ? "text-[#ff4d4d]" : data.rsi < 30 ? "text-[#00ff9d]" : "text-white" },
+      { label: "SPREAD", value: data.spread != null ? `${data.spread.toFixed(0)}pt` : "—", accent: "text-white" },
     ],
     [
       { label: "EMA", value: data.emaTrend, accent: data.emaTrend === "Bullish" ? "text-[#00ff9d]" : data.emaTrend === "Bearish" ? "text-[#ff4d4d]" : "text-white" },
-      { label: "AI SCORE", value: `${data.aiScore}%`, accent: "text-cyan-300" },
+      { label: "AI SCORE", value: data.aiScore ? `${data.aiScore}%` : "—", accent: "text-cyan-300" },
       { label: "VOLUME", value: data.volume ? data.volume.toLocaleString() : "—", accent: "text-white" },
     ],
     [
-      { label: "EURUSD", value: data.prices.EURUSD?.toFixed(4), accent: "text-cyan-300" },
-      { label: "GBPUSD", value: data.prices.GBPUSD?.toFixed(4), accent: "text-cyan-300" },
-      { label: "CONFIDENCE", value: `${data.confidence}%`, accent: "text-[#ffce4d]" },
+      { label: "EURUSD", value: data.prices.EURUSD != null ? data.prices.EURUSD.toFixed(4) : "—", accent: "text-cyan-300" },
+      { label: "GBPUSD", value: data.prices.GBPUSD != null ? data.prices.GBPUSD.toFixed(4) : "—", accent: "text-cyan-300" },
+      { label: "CONFIDENCE", value: data.confidence ? `${data.confidence}%` : "—", accent: "text-[#ffce4d]" },
     ],
   ];
   const positions = ["top-14 left-3", "top-14 right-3", "bottom-16 left-3", "bottom-16 right-3"];

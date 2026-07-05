@@ -26,16 +26,13 @@ function latLonToVec3(lat, lon, r) {
   );
 }
 
-const DEMO_PRICES = { XAUUSD: 2345.6, EURUSD: 1.0865, GBPUSD: 1.2710, USDJPY: 156.42, NAS100: 18250 };
-
 export default function GlobalMarketGlobe({ connected, navigate }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(false);
   const [focus, setFocus] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
   const [data, setData] = useState({
-    prices: { ...DEMO_PRICES },
-    atr: 1.2, spread: 12, rsi: 54, emaTrend: "Neutral",
+    prices: {}, atr: null, spread: null, rsi: null, emaTrend: "Neutral",
     session: "—", confidence: 0, volume: 0, aiScore: 0, live: false,
   });
 
@@ -235,11 +232,9 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
     };
   }, []);
 
-  // ── Live / demo data feed ──
+  // ── Live market data feed (no demo / no fabricated values) ──
   useEffect(() => {
     let active = true;
-    const demo = { prices: { ...DEMO_PRICES }, atr: 1.2, spread: 12, rsi: 54, emaTrend: "Neutral", session: "DEMO", confidence: 0, volume: 0, aiScore: 0, live: false };
-
     const fetchLive = async () => {
       try {
         const [scanRes, symRes] = await Promise.all([
@@ -260,49 +255,30 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
         const ema50 = ind.ema_50 ?? ind.ema50 ?? null;
         const spread = ind.spread != null ? Number(ind.spread) : null;
         const emaTrend = ema20 && ema50 ? (ema20 > ema50 ? "Bullish" : ema20 < ema50 ? "Bearish" : "Neutral") : "Neutral";
-        const aiScore = Math.min(99, Math.round((ind.adx ? Math.min(100, ind.adx * 2) : 60) + Math.random() * 10));
+        const aiScore = ind.adx ? Math.min(99, Math.round(Math.min(100, ind.adx * 2))) : 0;
+        const hasLive = Object.keys(prices).length > 0;
         setData((d) => ({
-          prices: Object.keys(prices).length ? prices : d.prices,
+          prices: hasLive ? prices : d.prices,
           atr: atr ?? d.atr,
           spread: spread ?? d.spread,
           rsi: rsi ?? d.rsi,
           emaTrend,
-          session: "LIVE",
+          session: hasLive ? "LIVE" : "—",
           confidence: aiScore,
           volume: ind.volume ?? 0,
           aiScore,
-          live: true,
+          live: hasLive,
         }));
-      } catch { /* keep last */ }
+      } catch { /* keep last real values */ }
     };
-
-    const runDemo = () => {
-      demo.prices = {
-        XAUUSD: Math.max(2000, Math.min(2600, demo.prices.XAUUSD + (Math.random() - 0.5) * 4)),
-        EURUSD: Math.max(1.0, Math.min(1.15, demo.prices.EURUSD + (Math.random() - 0.5) * 0.0015)),
-        GBPUSD: Math.max(1.2, Math.min(1.35, demo.prices.GBPUSD + (Math.random() - 0.5) * 0.002)),
-        USDJPY: Math.max(150, Math.min(162, demo.prices.USDJPY + (Math.random() - 0.5) * 0.4)),
-        NAS100: Math.max(17000, Math.min(19500, demo.prices.NAS100 + (Math.random() - 0.5) * 40)),
-      };
-      demo.atr = Math.max(0.5, demo.atr + (Math.random() - 0.5) * 0.05);
-      demo.rsi = Math.max(20, Math.min(80, demo.rsi + (Math.random() - 0.5) * 2));
-      demo.spread = Math.max(5, Math.min(40, demo.spread + Math.round((Math.random() - 0.5) * 4)));
-      if (Math.random() < 0.1) demo.emaTrend = ["Bullish", "Bearish", "Neutral"][Math.floor(Math.random() * 3)];
-      demo.aiScore = Math.max(40, Math.min(95, demo.aiScore + Math.round((Math.random() - 0.5) * 6)));
-      demo.confidence = demo.aiScore;
-      demo.volume = Math.round(800 + Math.random() * 600);
-      if (active) setData({ ...demo });
-    };
-
-    let timer;
-    if (connected) { fetchLive(); timer = setInterval(fetchLive, 5000); }
-    else { runDemo(); timer = setInterval(runDemo, 2600); }
+    fetchLive();
+    const timer = setInterval(fetchLive, 5000);
     return () => { active = false; clearInterval(timer); };
-  }, [connected]);
+  }, []);
 
-  const status = connected
-    ? (data.live ? { label: "LIVE DATA CONNECTED", color: "#00ff9d" } : { label: "MT5 DISCONNECTED", color: "#ff4d4d" })
-    : { label: "DEMO MARKET FEED", color: "#5fe8ff" };
+  const status = data.live
+    ? { label: "LIVE MARKET DATA", color: "#00ff9d" }
+    : { label: "AWAITING LIVE DATA", color: "#5fe8ff" };
 
   return (
     <div
