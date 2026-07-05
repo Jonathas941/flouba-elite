@@ -39,7 +39,7 @@ export default function Layout() {
 
       <nav className="fixed bottom-0 left-0 right-0 w-full z-50">
         <div
-          className="mx-auto max-w-md sm:max-w-2xl lg:max-w-4xl flex items-stretch justify-around sm:justify-center sm:gap-1 lg:gap-3 px-1 sm:px-6 lg:px-8"
+          className="mx-auto max-w-md sm:max-w-2xl lg:max-w-4xl flex items-stretch justify-around sm:justify-center sm:gap-1 lg:gap-3 px-1 sm:px-6 lg:px-8 overflow-x-auto no-scrollbar"
           style={{
             background: "rgba(8,16,32,0.97)",
             backdropFilter: "blur(20px)",
@@ -50,6 +50,7 @@ export default function Layout() {
             boxShadow: "0 -8px 40px rgba(0,229,255,0.08)",
             paddingTop: "10px",
             paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
+            scrollbarWidth: "none",
           }}
         >
           {NAV.map((item) => {
@@ -59,7 +60,7 @@ export default function Layout() {
                 key={item.to}
                 onClick={() => handleTabPress(item.to)}
                 className={cn(
-                  "group flex flex-col items-center justify-center gap-1.5 min-w-0 flex-1 sm:flex-none sm:w-[88px] lg:w-[112px] py-2 sm:py-2.5 px-1.5 rounded-xl transition-all duration-200",
+                  "group flex flex-col items-center justify-center gap-1.5 shrink-0 w-[68px] sm:w-[88px] lg:w-[112px] py-2 sm:py-2.5 px-1.5 rounded-xl transition-all duration-200",
                   active
                     ? "text-cyan-300 bg-cyan-400/10"
                     : "text-white/35 hover:text-white/60 hover:bg-white/[0.03]"
@@ -67,7 +68,7 @@ export default function Layout() {
                 style={active ? { filter: "drop-shadow(0 0 6px rgba(0,229,255,0.45))" } : undefined}
               >
                 <item.icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 shrink-0 transition-transform group-active:scale-90" />
-                <span className={cn("text-[9px] sm:text-xs lg:text-sm uppercase tracking-tight sm:tracking-wider font-heading font-bold leading-none truncate w-full text-center", active && "text-cyan-300")}>
+                <span className={cn("text-[9px] sm:text-xs lg:text-sm uppercase tracking-tight sm:tracking-wider font-heading font-bold leading-none whitespace-nowrap text-center", active && "text-cyan-300")}>
                   {item.label}
                 </span>
               </button>
