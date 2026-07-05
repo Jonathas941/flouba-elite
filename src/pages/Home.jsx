@@ -14,6 +14,7 @@ import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel"
 import BotActionButtons from "@/components/dashboard/BotActionButtons";
 import RobotStartModal from "@/components/RobotStartModal";
 import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
+import EADownloadCard from "@/components/dashboard/EADownloadCard";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 export default function Home() {
@@ -281,6 +282,9 @@ export default function Home() {
 
         {/* 1. Global Market Intelligence — 3D AI globe */}
         <GlobalMarketGlobe connected={connected} navigate={navigate} />
+
+        {/* 1a. EA Download */}
+        <EADownloadCard />
 
         {/* 2. Smart Control Grid */}
         <SmartControlGrid connected={connected} robotStatus={robotStatus} account={account} positions={positions} winRate={winRate} navigate={navigate} />

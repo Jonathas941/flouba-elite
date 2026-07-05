@@ -27,36 +27,44 @@ Deno.serve(async (req) => {
     const provisionSecret = Deno.env.get("PROVISION_SECRET");
     if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
 
-    // Get or provision the user's bridge API key, then exchange for scoped JWT.
-    let apiKey = user.mt5_api_key;
-    if (!apiKey) {
-      const provisionRes = await fetch(`${BASE}/provision/user`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
-      });
-      const provisionJson = await provisionRes.json().catch(() => ({}));
-      if (!provisionJson?.success || !provisionJson?.api_key) {
-        return Response.json({ connected: false, error: "Bridge auth failed" });
+    // Use the stored flouba_token (provisioned on signup) directly as the bridge JWT.
+    let bridgeToken = user.flouba_token;
+    if (!bridgeToken) {
+      let apiKey = user.mt5_api_key;
+      if (!apiKey) {
+        const provisionRes = await fetch(`${BASE}/provision/user`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
+        });
+        const provisionJson = await provisionRes.json().catch(() => ({}));
+        if (!provisionJson?.success || !provisionJson?.api_key) {
+          return Response.json({ connected: false, error: "Bridge auth failed" });
+        }
+        apiKey = provisionJson.api_key;
+        const updateData = { mt5_api_key: apiKey };
+        if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
+        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
+        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
+        await base44.asServiceRole.entities.User.update(user.id, updateData);
+        bridgeToken = provisionJson.user_token || null;
       }
-      apiKey = provisionJson.api_key;
-      const updateData = { mt5_api_key: apiKey };
-      if (provisionJson.slug) updateData.mt5_slug = provisionJson.slug;
-      await base44.asServiceRole.entities.User.update(user.id, updateData);
-    }
-
-    const tokenRes = await fetch(`${BASE}/auth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: apiKey }),
-    });
-    const tokenJson = await tokenRes.json().catch(() => ({}));
-    if (!tokenJson?.token) {
-      return Response.json({ connected: false, error: "Bridge auth failed" });
+      if (!bridgeToken) {
+        const tokenRes = await fetch(`${BASE}/auth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: apiKey }),
+        });
+        const tokenJson = await tokenRes.json().catch(() => ({}));
+        if (!tokenJson?.token) {
+          return Response.json({ connected: false, error: "Bridge auth failed" });
+        }
+        bridgeToken = tokenJson.token;
+      }
     }
 
     const authHeaders = {
-      "Authorization": `Bearer ${tokenJson.token}`,
+      "Authorization": `Bearer ${bridgeToken}`,
       "Content-Type": "application/json",
     };
     if (userSettings?.mt5_account)  authHeaders["X-MT5-Login"] = String(userSettings.mt5_account);

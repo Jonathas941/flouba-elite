@@ -17,6 +17,18 @@
     "mt5_slug": {
       "type": "string",
       "description": "Account identifier/slug returned by the MT5 server during provisioning."
+    },
+    "flouba_token": {
+      "type": "string",
+      "description": "JWT returned by the provision endpoint on signup. Scoped to this user's MT5 account \u2014 sent as Authorization Bearer for all bridge API calls."
+    },
+    "flouba_slug": {
+      "type": "string",
+      "description": "Human-readable account slug from provisioning (e.g. flouballc_4dec27). Used for admin display."
+    },
+    "ea_download_url": {
+      "type": "string",
+      "description": "Download URL for the MT5 Expert Advisor file, shown to the user so they can install it in MetaTrader."
     }
   },
   "required": [

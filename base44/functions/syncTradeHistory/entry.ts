@@ -59,9 +59,11 @@ Deno.serve(async (req) => {
     const allUsers = await base44.asServiceRole.entities.User.list().catch(() => []);
     const userMap = new Map(allUsers.map(u => [u.id, u]));
 
-    // Exchange a user's api_key for a scoped JWT (auto-provisions if no key yet)
+    // Use the stored flouba_token (provisioned on signup) directly; fall back to api_key exchange.
     async function getJwt(userId, email, name) {
-      let apiKey = userMap.get(userId)?.mt5_api_key;
+      const u = userMap.get(userId);
+      if (u?.flouba_token) return u.flouba_token;
+      let apiKey = u?.mt5_api_key;
       if (!apiKey) {
         const provisionRes = await fetch(`${BASE}/provision/user`, {
           method: "POST",
@@ -72,9 +74,12 @@ Deno.serve(async (req) => {
         if (!provisionJson?.success || !provisionJson?.api_key) return null;
         apiKey = provisionJson.api_key;
         const updateData = { mt5_api_key: apiKey };
-        if (provisionJson.slug) updateData.mt5_slug = provisionJson.slug;
+        if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
+        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
+        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
         await base44.asServiceRole.entities.User.update(userId, updateData);
-        userMap.set(userId, { ...userMap.get(userId), mt5_api_key: apiKey });
+        userMap.set(userId, { ...u, ...updateData });
+        if (provisionJson.user_token) return provisionJson.user_token;
       }
       const tokenRes = await fetch(`${BASE}/auth/token`, {
         method: "POST",

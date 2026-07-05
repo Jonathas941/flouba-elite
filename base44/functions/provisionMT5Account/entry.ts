@@ -1,17 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// MT5 server provision endpoint — creates a fresh account + API key for a user
+// MT5 server provision endpoint — creates a fresh account + API key + JWT for a user
 const PROVISION_URL = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api/provision/user";
 
 Deno.serve(async (req) => {
   try {
-    // Read body FIRST — the SDK may consume the body stream during auth
     const bodyText = await req.text().catch(() => "{}");
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
 
-    // Auth: shared cron secret (scheduler) OR admin user (manual) OR platform scheduler
-    // Blocks public callers and regular users — this function uses service-role.
+    // Auth: cron secret (scheduler) OR admin user OR entity-automation context
     const cronSecret = Deno.env.get("CRON_SECRET");
     const secretMatch = cronSecret && (
       req.headers.get("X-Cron-Secret") === cronSecret ||
@@ -37,24 +35,26 @@ Deno.serve(async (req) => {
       return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
     }
 
-    // If a specific user_id is provided, provision just that user.
-    // Otherwise (scheduled poll), find ALL users without an mt5_api_key and provision each.
-    const targetUserId = body.entity_id || body.base44_user_id || body.data?.id;
+    // Resolve target user(s) from: entity-automation payload, manual call, or batch poll
+    const autoUserId = body.event?.entity_id || body.data?.id;
+    const autoEmail = body.data?.email;
+    const autoName = body.data?.full_name || autoEmail;
+    const manualUserId = body.base44_user_id;
+    const manualEmail = body.email;
+    const manualName = body.name || manualEmail;
 
     let usersToProvision = [];
 
-    if (targetUserId) {
-      // Single-user provision (manual admin call or direct trigger)
-      const targetEmail = body.email || body.data?.email;
-      const targetName = body.name || body.data?.full_name || targetEmail;
-      if (!targetEmail) {
-        return Response.json({ error: "Missing email for specified user" }, { status: 400 });
-      }
-      usersToProvision = [{ id: targetUserId, email: targetEmail, full_name: targetName }];
+    if (autoUserId && autoEmail) {
+      // Entity automation: User create event (fires on signup)
+      usersToProvision = [{ id: autoUserId, email: autoEmail, full_name: autoName }];
+    } else if (manualUserId && manualEmail) {
+      // Manual admin call
+      usersToProvision = [{ id: manualUserId, email: manualEmail, full_name: manualName }];
     } else {
-      // Batch poll: find all users missing an mt5_api_key
+      // Batch poll: find all users missing a flouba_token
       const allUsers = await base44.asServiceRole.entities.User.list();
-      usersToProvision = allUsers.filter((u) => !u.mt5_api_key && u.email);
+      usersToProvision = allUsers.filter((u) => !u.flouba_token && u.email);
       if (!usersToProvision.length) {
         return Response.json({ success: true, message: "No unprovisioned users", provisioned: 0 });
       }
@@ -64,52 +64,57 @@ Deno.serve(async (req) => {
 
     for (const user of usersToProvision) {
       try {
-        // Paywall: skip users without an active paid subscription
-        const userSubs = await base44.asServiceRole.entities.Subscription.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
-        const usub = userSubs?.[0];
-        const subActive = usub && usub.status === "Active" && (!usub.expires_date || new Date(usub.expires_date) >= new Date(new Date().toDateString()));
-        if (!subActive) {
-          results.push({ user_id: user.id, email: user.email, success: false, error: "No active subscription — skipped", needs_subscription: true });
+        // Skip if already provisioned (avoid duplicates on automation retries)
+        const existing = await base44.asServiceRole.entities.User.get(user.id).catch(() => null);
+        if (existing?.flouba_token) {
+          results.push({ user_id: user.id, email: user.email, success: true, already_provisioned: true });
           continue;
         }
-    const provisionRes = await fetch(PROVISION_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${provisionSecret}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        base44_user_id: user.id,
-        email: user.email,
-        name: user.full_name || user.email,
-      }),
-    });
 
-    const provisionJson = await provisionRes.json().catch(() => ({}));
+        const provisionRes = await fetch(PROVISION_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${provisionSecret}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            base44_user_id: user.id,
+            email: user.email,
+            name: user.full_name || user.email,
+          }),
+        });
 
-    if (!provisionJson?.success || !provisionJson?.api_key) {
-      results.push({
-        user_id: user.id,
-        email: user.email,
-        success: false,
-        error: provisionJson?.message || provisionJson?.error || `HTTP ${provisionRes.status}`,
-      });
-      continue;
-    }
+        const provisionJson = await provisionRes.json().catch(() => ({}));
 
-    // Write the API key (and slug) back to the User entity
-    const updateData = { mt5_api_key: provisionJson.api_key };
-    if (provisionJson.slug) updateData.mt5_slug = provisionJson.slug;
+        if (!provisionJson?.success) {
+          results.push({
+            user_id: user.id,
+            email: user.email,
+            success: false,
+            error: provisionJson?.message || provisionJson?.error || `HTTP ${provisionRes.status}`,
+          });
+          continue;
+        }
 
-    await base44.asServiceRole.entities.User.update(user.id, updateData);
+        // Save all provisioned fields to the User record
+        const updateData = {};
+        if (provisionJson.api_key) updateData.mt5_api_key = provisionJson.api_key;
+        if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
+        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
+        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
 
-    results.push({
-      user_id: user.id,
-      email: user.email,
-      success: true,
-      slug: provisionJson.slug ?? null,
-      email_sent: provisionJson.email_sent ?? false,
-    });
+        if (Object.keys(updateData).length) {
+          await base44.asServiceRole.entities.User.update(user.id, updateData);
+        }
+
+        results.push({
+          user_id: user.id,
+          email: user.email,
+          success: true,
+          slug: provisionJson.slug ?? null,
+          ea_download_url: provisionJson.ea_download_url ?? null,
+          created: provisionJson.created ?? false,
+        });
       } catch (err) {
         results.push({ user_id: user.id, email: user.email, success: false, error: err.message });
       }
