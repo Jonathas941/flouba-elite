@@ -143,7 +143,20 @@ Deno.serve(async (req) => {
           take_profit: t.tp ?? t.take_profit ?? null,
           opened_at: formatDate(t.openTime ?? t.open_time ?? t.opened_at),
           closed_at: formatDate(t.closeTime ?? t.close_time ?? t.closed_at),
-          close_reason: t.comment || ((t.profit ?? 0) >= 0 ? "Take Profit" : "Stop Loss"),
+          close_reason: (() => {
+            const VALID = ["Take Profit", "Stop Loss", "Daily Target", "Daily Loss Limit", "Panic", "Manual", "Opposite Signal"];
+            const c = (t.comment || "").toString();
+            const cl = c.toLowerCase();
+            if (VALID.includes(t.comment)) return t.comment;
+            if (/sl|stop ?loss/i.test(cl)) return "Stop Loss";
+            if (/tp|take ?profit/i.test(cl)) return "Take Profit";
+            if (/daily|target/i.test(cl)) return "Daily Target";
+            if (/loss ?limit/i.test(cl)) return "Daily Loss Limit";
+            if (/panic/i.test(cl)) return "Panic";
+            if (/manual|close/i.test(cl)) return "Manual";
+            if (/opposite|reverse/i.test(cl)) return "Opposite Signal";
+            return (t.profit ?? 0) >= 0 ? "Take Profit" : "Stop Loss";
+          })(),
           ticket_id: ticket,
         };
         if (useServiceRole) trade.created_by_id = userId;

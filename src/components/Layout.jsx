@@ -1,33 +1,26 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Signal, Radar, Bot, Settings } from "lucide-react";
+import { LayoutDashboard, Signal, Radar, Bot, Settings, LineChart, Wallet, Bell, KeyRound, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/",           label: "Dashboard", icon: LayoutDashboard },
-  { to: "/ai-signals", label: "Signals",   icon: Signal },
-  { to: "/ai-scanner", label: "Scanner",   icon: Radar },
-  { to: "/statistics", label: "Bot",       icon: Bot },
-  { to: "/settings",   label: "Settings",  icon: Settings },
+  { to: "/",            label: "Dashboard", icon: LayoutDashboard },
+  { to: "/strategy",    label: "Strategy",  icon: LineChart },
+  { to: "/ai-signals",  label: "Signals",   icon: Signal },
+  { to: "/ai-scanner",  label: "Scanner",   icon: Radar },
+  { to: "/statistics",  label: "Stats",     icon: Bot },
+  { to: "/account",     label: "Account",   icon: Wallet },
+  { to: "/notifications", label: "Alerts",  icon: Bell },
+  { to: "/connect-mt5", label: "Connect",   icon: KeyRound },
+  { to: "/settings",    label: "More",      icon: MoreHorizontal },
 ];
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  // Track the last-visited path per tab so switching back restores state
-  const tabHistory = useRef({});
 
   const handleTabPress = (to) => {
-    const alreadyActive = location.pathname === to;
-    if (alreadyActive) {
-      // Re-tap: go to root of this tab (same as `to`)
-      navigate(to, { replace: true });
-    } else {
-      // Save current path for the outgoing tab
-      tabHistory.current[location.pathname] = location.pathname;
-      // Navigate to saved sub-path for this tab, or its root
-      navigate(tabHistory.current[to] || to);
-    }
+    navigate(to, { replace: location.pathname === to });
   };
 
   return (

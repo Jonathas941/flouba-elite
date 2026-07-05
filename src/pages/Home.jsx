@@ -175,7 +175,7 @@ export default function Home() {
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
       toast({ title: "Start Failed", description: msg, variant: "destructive", duration: 4000 });
-      setActivePair(form.symbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
+      // Keep status Paused and modal closed so the user can retry — do NOT flip to active.
     }
   };
 

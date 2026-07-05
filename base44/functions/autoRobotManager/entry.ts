@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api";
-const USER_TIMEZONE = "America/Detroit";
 
 // Local session fallback (used when MT5 server /session/status is unavailable)
 function validTz(tz) {
@@ -289,7 +288,12 @@ Deno.serve(async (req) => {
             risk_percentage: (config.risk_percentage ?? 2) * riskMultiplier,
             stop_loss: config.stop_loss ?? 20,
             take_profit: config.take_profit ?? 40,
-            daily_profit_target: config.daily_profit_target ?? 200,
+            daily_profit_target: config.daily_profit_target_mode === "Auto"
+              ? (config.adaptive_effective_target ?? config.daily_profit_target ?? 200)
+              : (config.daily_profit_target_amount ?? config.daily_profit_target ?? 200),
+            daily_profit_target_amount: config.daily_profit_target_amount ?? 200,
+            daily_profit_target_mode: config.daily_profit_target_mode ?? "Fixed",
+            session_cooldown_minutes: config.session_cooldown_minutes ?? 60,
             daily_loss_limit: config.daily_loss_limit ?? 20,
             stop_after_losses: config.stop_after_losses ?? 2,
             lot_multiplier: resolvedLotMultiplier,
@@ -310,11 +314,11 @@ Deno.serve(async (req) => {
           });
           const startJson = await startRes.json().catch(() => ({}));
 
-          if (startJson?.success || startRes.ok) {
+          if (startJson?.success === true) {
             actions.push(`AUTO-START: ${sessionName} session active — robot launched (risk ×${riskMultiplier}, ${symbol}, lot ×${resolvedLotMultiplier})`);
             actions.push(`MULTIPLIER: ${multiplierReason}`);
           } else {
-            actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? "Unknown error"}`);
+            actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? `HTTP ${startRes.status}`}`);
           }
         }
       }
