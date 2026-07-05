@@ -9,9 +9,10 @@ import NqKillZoneLiveCard from "@/components/strategy/NqKillZoneLiveCard";
 import MsBosRetestLiveCard from "@/components/strategy/MsBosRetestLiveCard";
 import OrderflowOpeningRangeLiveCard from "@/components/strategy/OrderflowOpeningRangeLiveCard";
 import GoldMorningRangeLiveCard from "@/components/strategy/GoldMorningRangeLiveCard";
+import GoldDailyBreakoutLiveCard from "@/components/strategy/GoldDailyBreakoutLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
-  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves, BarChart3
+  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves, BarChart3, Box
 } from "lucide-react";
 
 const STRATEGY = [
@@ -248,6 +249,23 @@ const STRATEGY = [
     ],
   },
   {
+    icon: Box,
+    title: "Gold Daily Breakout",
+    tag: "XAUUSD Daily OCO",
+    tagColor: "bg-yellow-500/15 text-yellow-300",
+    summary: "XAUUSD previous-day high/low breakout with OCO pending stops. Buy Stop above the previous closed D1 high, Sell Stop below the previous D1 low. Maximum one trade per day, fixed 1:2 RR, break-even at 1R, trailing only after 1R. No martingale, no grid, no recovery.",
+    details: [
+      "MARKET: XAUUSD (Gold). Levels read from the previous closed D1 candle high/low. All times America/New_York (DST auto-handled).",
+      "ACTIVATION: only when XAUUSD market is open, ATR 14 confirms healthy volatility, previous-day range is within configured min/max, spread below limit, and the current session is London or New York.",
+      "ORDERS: Buy Stop placed at previous-day high + buffer; Sell Stop placed at previous-day low - buffer. OCO — when one triggers, the opposite pending order is cancelled immediately.",
+      "STOP LOSS: beyond the breakout trigger candle (or the breakout level) with a configurable buffer. TAKE PROFIT: fixed at 2R.",
+      "MANAGEMENT: move stop loss to break-even at 1R. Enable trailing stop only after price reaches 1R (trailing distance = ATR multiple).",
+      "CAPS: maximum one trade per day, lot size default 0.01. No martingale, no grid, no recovery, no averaging down.",
+      "CANCEL: unfilled pending orders are cancelled at session end. Never runs simultaneously with another XAUUSD strategy — no other Flouba Elite position may be open on XAUUSD.",
+      "ADAPTIVE: high score only during high-volatility breakout conditions. Never selected in low ATR, high spread, choppy, or flat markets.",
+    ],
+  },
+  {
     icon: ScanLine,
     title: "Hybrid Confluence Mode",
     tag: "Multi-Strategy Merge",
@@ -430,10 +448,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1">
-        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor", "gmr"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor", "gmr", "gdb"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : t === "ofor" ? "Orderflow" : "Gold Range"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : t === "ofor" ? "Orderflow" : t === "gmr" ? "Gold Range" : "Gold Daily"}
           </button>
         ))}
       </div>
@@ -465,6 +483,10 @@ export default function Strategy() {
       ) : tab === "gmr" ? (
         <div className="space-y-4">
           <GoldMorningRangeLiveCard />
+        </div>
+      ) : tab === "gdb" ? (
+        <div className="space-y-4">
+          <GoldDailyBreakoutLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">

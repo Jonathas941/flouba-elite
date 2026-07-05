@@ -6,19 +6,23 @@ const STRATEGY = {
   swing: "Swing Trend Pullback Continuation 2026",
   smc: "Liquidity Sweep Scalping",
   tpr: "EMA Trend Progressive Recovery",
+  gdb: "Gold Daily Breakout",
 };
-const KEYS = ["swing", "smc", "tpr"];
+const KEYS = ["swing", "smc", "tpr", "gdb"];
 const DEFAULT_STRATEGY = STRATEGY.swing;
 
 function keyFor(name) {
   if (name === STRATEGY.smc) return "smc";
   if (name === STRATEGY.tpr) return "tpr";
+  if (name === STRATEGY.gdb) return "gdb";
   return "swing";
 }
 function regimeMatchFor(k, regime) {
   if (k === "swing") return regime === "Trending";
   if (k === "smc") return regime === "Liquidity Sweep";
   if (k === "tpr") return regime === "Trending";
+  // Gold Daily Breakout wants high-volatility breakout (trending) conditions only
+  if (k === "gdb") return regime === "Trending";
   return false;
 }
 const BAR_SECONDS = 15 * 60; // M15 working timeframe
@@ -88,6 +92,14 @@ function detectRegime(ind, quote, cfg) {
 }
 
 function suitability(key, regime) {
+  // Gold Daily Breakout: high score only during high-volatility breakout (trending) conditions.
+  // Never selected in low ATR, high spread, choppy, or flat markets.
+  if (key === "gdb") {
+    if (regime === "Trending") return 90;
+    if (regime === "Liquidity Sweep") return 35;
+    if (regime === "Range") return 15;
+    return 0;
+  }
   if (regime === "Trending") {
     if (key === "swing") return 100;
     if (key === "tpr") return 100;
@@ -173,7 +185,10 @@ function scoreStrategy(key, stats, regime, cfg) {
   const wrScore = hasPerf ? stats.win_rate : 50;
   const ddPct = stats.max_drawdown > 0 && stats.balance > 0 ? (stats.max_drawdown / stats.balance) * 100 : 0;
   const ddScore = hasPerf ? clamp(100 - ddPct * 10, 0, 100) : 50;
-  const maxConsec = key === "swing" ? (cfg.swing_max_consecutive_losses ?? 2) : 2;
+  const maxConsec = key === "swing" ? (cfg.swing_max_consecutive_losses ?? 2)
+    : key === "tpr" ? (cfg.tpr_max_consecutive_losses ?? 2)
+    : key === "gdb" ? (cfg.gdb_max_consecutive_losses ?? 2)
+    : 2;
   const consecScore = clamp(100 - (stats.consecutive_losses / maxConsec) * 100, 0, 100);
   return Math.round(0.4 * suit + 0.2 * pfScore + 0.15 * wrScore + 0.15 * ddScore + 0.1 * consecScore);
 }
@@ -291,7 +306,7 @@ Deno.serve(async (req) => {
       ).catch(() => []);
       const closed = (closedTrades || []).filter((t) => t.closed_at);
 
-      const byStrategy = { swing: [], smc: [], tpr: [] };
+      const byStrategy = { swing: [], smc: [], tpr: [], gdb: [] };
       for (const t of closed) {
         const sName = strategyAtTime(windows, t.closed_at);
         const k = keyFor(sName);
@@ -320,8 +335,14 @@ Deno.serve(async (req) => {
       // ── Per-strategy cooldown ──
       const cooldowns = {};
       for (const k of KEYS) {
-        const maxConsec = k === "swing" ? (cfg.swing_max_consecutive_losses ?? 2) : k === "tpr" ? (cfg.tpr_max_consecutive_losses ?? 2) : 2;
-        const cooldownH = k === "swing" ? (cfg.swing_cooldown_hours ?? 8) : k === "tpr" ? (cfg.tpr_cooldown_hours ?? 8) : 8;
+        const maxConsec = k === "swing" ? (cfg.swing_max_consecutive_losses ?? 2)
+          : k === "tpr" ? (cfg.tpr_max_consecutive_losses ?? 2)
+          : k === "gdb" ? (cfg.gdb_max_consecutive_losses ?? 2)
+          : 2;
+        const cooldownH = k === "swing" ? (cfg.swing_cooldown_hours ?? 8)
+          : k === "tpr" ? (cfg.tpr_cooldown_hours ?? 8)
+          : k === "gdb" ? (cfg.gdb_cooldown_hours ?? 8)
+          : 8;
         const s = stats[k];
         let cu = null;
         if (s.consecutive_losses >= maxConsec && s.last_trade_time) {
@@ -375,15 +396,41 @@ Deno.serve(async (req) => {
       const riskTooHigh = atrVal != null && priceVal != null && (atrVal / priceVal) > 0.003;
       for (const k of KEYS) {
         const regimeMatch = regimeMatchFor(k, regime);
-        const spreadOk = regimeInfo.spread == null || regimeInfo.spread <= (cfg.swing_max_spread_points ?? 30);
-        const sessionOk = regimeInfo.sess.open;
+        const spreadOk = regimeInfo.spread == null || regimeInfo.spread <= (k === "gdb" ? (cfg.gdb_max_spread_points ?? 30) : (cfg.swing_max_spread_points ?? 30));
+        // Gold Daily Breakout only runs in London or New York (not Asian)
+        const gdbSessionOk = k !== "gdb" || /London|NY/.test(regimeInfo.sess.name || "");
+        const sessionOk = regimeInfo.sess.open && gdbSessionOk;
         const cooldownOk = !cooldowns[k] || new Date(cooldowns[k]).getTime() <= Date.now();
         const globalOk = !globalCooldownActive;
         const riskOk = !dailyLossHit && !dailyLossPctHit && !dailyDDHit;
         const targetOk = !dailyTargetReached;
         const scoreOk = scores[k] >= (cfg.adaptive_min_score ?? 70);
-        const ok = regimeMatch && spreadOk && sessionOk && cooldownOk && globalOk && riskOk && targetOk && scoreOk && !riskTooHigh;
+        // Gold Daily Breakout extra gates: healthy ATR, no other XAUUSD position open, prev-day range within bounds
+        let gdbExtraOk = true;
+        if (k === "gdb") {
+          const gAtr = atrVal;
+          const gMinAtr = cfg.gdb_min_atr ?? 0;
+          const atrHealthy = !(cfg.gdb_use_atr_filter !== false) || (gAtr != null && gAtr >= gMinAtr);
+          const noXauOpen = !positions.some((p) => (p.symbol || "").toUpperCase() === "XAUUSD");
+          const pdh = num(ind?.prev_day_high ?? ind?.prevDayHigh ?? ind?.d1_high);
+          const pdl = num(ind?.prev_day_low ?? ind?.prevDayLow ?? ind?.d1_low);
+          let rangeOk = true;
+          if (pdh != null && pdl != null) {
+            const range = pdh - pdl;
+            rangeOk = range >= (cfg.gdb_min_range_points ?? 50) && range <= (cfg.gdb_max_range_points ?? 2000);
+          }
+          gdbExtraOk = atrHealthy && noXauOpen && rangeOk;
+        }
+        const ok = regimeMatch && spreadOk && sessionOk && cooldownOk && globalOk && riskOk && targetOk && scoreOk && !riskTooHigh && gdbExtraOk;
         eligible[k] = ok;
+        // gdb-specific status reasons
+        if (k === "gdb" && !ok) {
+          if (!gdbExtraOk) {
+            if (positions.some((p) => (p.symbol || "").toUpperCase() === "XAUUSD")) stats[k].status_message = "Another XAUUSD position open — Gold Daily Breakout held.";
+            else if (!(cfg.gdb_use_atr_filter !== false) || (atrVal != null && atrVal >= (cfg.gdb_min_atr ?? 0))) stats[k].status_message = isBasic ? "Trade rejected: volatility too low." : "Low ATR — breakout conditions not met.";
+            else stats[k].status_message = "Previous-day range outside configured bounds.";
+          }
+        }
         let reason = isBasic ? "Confirmation candle valid. Entry allowed." : "Strong setup detected.";
         if (dailyTargetReached) reason = isBasic ? "Trade rejected: daily target reached." : "Daily profit target reached. Protecting gains.";
         else if (!sessionOk) reason = isBasic ? "Trade rejected: late session." : "Entry rejected: outside session.";
@@ -393,7 +440,9 @@ Deno.serve(async (req) => {
         else if (!riskOk) reason = "Capital protection mode active.";
         else if (!regimeMatch) reason = isBasic ? "Market structure is unclear. Waiting." : "Market scanning at high frequency.";
         else if (!scoreOk) reason = isBasic ? "Trade rejected: setup quality too low." : "Entry rejected: setup quality too low.";
-        stats[k].status_message = reason;
+        else if (k === "gdb" && !gdbExtraOk) reason = "Gold Daily Breakout conditions not met (ATR / range / open position).";
+        // Preserve gdb-specific message already set above when gdbExtraOk failed
+        if (!(k === "gdb" && !gdbExtraOk && stats[k].status_message)) stats[k].status_message = reason;
         stats[k].enabled = ok;
       }
 
@@ -497,6 +546,22 @@ Deno.serve(async (req) => {
               break_even: cfg.break_even ?? true,
               trailing_stop: cfg.trailing_stop ?? false,
               max_spread_pips: 5,
+              ...(toKey === "gdb" ? {
+                lot_size: cfg.gdb_lot_size ?? 0.01,
+                risk_reward: cfg.gdb_risk_reward ?? 2,
+                sl_buffer_points: cfg.gdb_sl_buffer_points ?? 5,
+                breakout_buffer_points: cfg.gdb_breakout_buffer_points ?? 3,
+                min_range_points: cfg.gdb_min_range_points ?? 50,
+                max_range_points: cfg.gdb_max_range_points ?? 2000,
+                use_break_even: cfg.gdb_use_break_even ?? true,
+                break_even_at_r: cfg.gdb_break_even_at_r ?? 1,
+                use_trailing: cfg.gdb_use_trailing ?? true,
+                trailing_start_r: cfg.gdb_trailing_start_r ?? 1,
+                trailing_atr_mult: cfg.gdb_trailing_atr_mult ?? 1.5,
+                cancel_at_session_end: cfg.gdb_cancel_at_session_end ?? true,
+                strategy_timeframe: "D1",
+                strategy_htf_timeframe: "H1",
+              } : {}),
             };
             await fetch(`${BASE}/robot/start`, { method: "POST", headers: authHeaders, body: JSON.stringify(startPayload) }).catch(() => {});
           } catch {}
@@ -568,7 +633,7 @@ Deno.serve(async (req) => {
         regime,
         active: current,
         switched,
-        scores: { swing: scores.swing, smc: scores.smc, tpr: scores.tpr },
+        scores: { swing: scores.swing, smc: scores.smc, tpr: scores.tpr, gdb: scores.gdb },
         eligible,
         realizedToday: Math.round(realizedToday * 100) / 100,
         dailyTargetReached,

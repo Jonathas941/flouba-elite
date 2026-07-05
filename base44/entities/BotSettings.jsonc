@@ -977,6 +977,112 @@
       "type": "number",
       "default": 8
     },
+    "gdb_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Gold Daily Breakout \u2014 default lot size."
+    },
+    "gdb_max_open_trades": {
+      "type": "number",
+      "default": 1,
+      "description": "Gold Daily Breakout \u2014 max open trades at once (one trade per day)."
+    },
+    "gdb_max_trades_per_day": {
+      "type": "number",
+      "default": 1,
+      "description": "Gold Daily Breakout \u2014 maximum one trade per day."
+    },
+    "gdb_risk_reward": {
+      "type": "number",
+      "default": 2,
+      "description": "Gold Daily Breakout \u2014 fixed risk-to-reward ratio (TP at 2R)."
+    },
+    "gdb_sl_buffer_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Gold Daily Breakout \u2014 extra points beyond the breakout level / trigger candle for stop loss."
+    },
+    "gdb_breakout_buffer_points": {
+      "type": "number",
+      "default": 3,
+      "description": "Gold Daily Breakout \u2014 buffer added above previous-day high (Buy Stop) and below previous-day low (Sell Stop)."
+    },
+    "gdb_min_range_points": {
+      "type": "number",
+      "default": 50,
+      "description": "Gold Daily Breakout \u2014 minimum previous-day range size in points."
+    },
+    "gdb_max_range_points": {
+      "type": "number",
+      "default": 2000,
+      "description": "Gold Daily Breakout \u2014 maximum previous-day range size in points."
+    },
+    "gdb_use_atr_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Daily Breakout \u2014 require ATR 14 to confirm healthy volatility."
+    },
+    "gdb_atr_period": {
+      "type": "number",
+      "default": 14
+    },
+    "gdb_min_atr": {
+      "type": "number",
+      "default": 0,
+      "description": "Gold Daily Breakout \u2014 minimum ATR (volatility floor) to allow the breakout."
+    },
+    "gdb_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Daily Breakout \u2014 move SL to break-even at 1R."
+    },
+    "gdb_break_even_at_r": {
+      "type": "number",
+      "default": 1,
+      "description": "Gold Daily Breakout \u2014 R multiple at which stop loss moves to break-even."
+    },
+    "gdb_use_trailing": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Daily Breakout \u2014 enable trailing stop."
+    },
+    "gdb_trailing_start_r": {
+      "type": "number",
+      "default": 1,
+      "description": "Gold Daily Breakout \u2014 trailing stop activates only after price reaches this R multiple."
+    },
+    "gdb_trailing_atr_mult": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Gold Daily Breakout \u2014 trailing stop distance as a multiple of ATR."
+    },
+    "gdb_cancel_at_session_end": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Daily Breakout \u2014 cancel unfilled pending orders at session end."
+    },
+    "gdb_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
+    "gdb_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "Gold Daily Breakout \u2014 daily loss limit as a percentage of balance."
+    },
+    "gdb_equity_stop_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "Gold Daily Breakout \u2014 equity stop loss as a percentage of balance."
+    },
+    "gdb_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "gdb_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
     "ms_htf_timeframe": {
       "type": "string",
       "enum": [

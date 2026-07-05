@@ -15,6 +15,7 @@ import NqKillZoneSettings from "@/components/robotstart/NqKillZoneSettings";
 import MsBosRetestSettings from "@/components/robotstart/MsBosRetestSettings";
 import OrderflowOpeningRangeSettings from "@/components/robotstart/OrderflowOpeningRangeSettings";
 import GoldMorningRangeSettings from "@/components/robotstart/GoldMorningRangeSettings";
+import GoldDailyBreakoutSettings from "@/components/robotstart/GoldDailyBreakoutSettings";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -32,6 +33,7 @@ const STRATEGIES = [
   "Market Structure BOS Retest Scalper",
   "Orderflow Opening Range Breakout",
   "Gold Morning Range Breakout",
+  "Gold Daily Breakout",
   "Auto (AI Select)",
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
@@ -297,6 +299,29 @@ const DEFAULT = {
   gmr_equity_stop_pct: 3,
   gmr_max_consecutive_losses: 2,
   gmr_cooldown_hours: 8,
+  // Gold Daily Breakout — XAUUSD previous-day high/low breakout, OCO pending stops, max 1 trade/day, fixed 1:2 RR, BE at 1R, trailing after 1R
+  gdb_lot_size: 0.01,
+  gdb_max_open_trades: 1,
+  gdb_max_trades_per_day: 1,
+  gdb_risk_reward: 2,
+  gdb_sl_buffer_points: 5,
+  gdb_breakout_buffer_points: 3,
+  gdb_min_range_points: 50,
+  gdb_max_range_points: 2000,
+  gdb_use_atr_filter: true,
+  gdb_atr_period: 14,
+  gdb_min_atr: 0,
+  gdb_use_break_even: true,
+  gdb_break_even_at_r: 1,
+  gdb_use_trailing: true,
+  gdb_trailing_start_r: 1,
+  gdb_trailing_atr_mult: 1.5,
+  gdb_cancel_at_session_end: true,
+  gdb_max_spread_points: 30,
+  gdb_max_daily_loss_pct: 2,
+  gdb_equity_stop_pct: 3,
+  gdb_max_consecutive_losses: 2,
+  gdb_cooldown_hours: 8,
 };
 
 function Field({ label, children }) {
@@ -584,6 +609,28 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         gmr_equity_stop_pct: s.gmr_equity_stop_pct ?? prev.gmr_equity_stop_pct,
         gmr_max_consecutive_losses: s.gmr_max_consecutive_losses ?? prev.gmr_max_consecutive_losses,
         gmr_cooldown_hours: s.gmr_cooldown_hours ?? prev.gmr_cooldown_hours,
+        gdb_lot_size: s.gdb_lot_size ?? prev.gdb_lot_size,
+        gdb_max_open_trades: s.gdb_max_open_trades ?? prev.gdb_max_open_trades,
+        gdb_max_trades_per_day: s.gdb_max_trades_per_day ?? prev.gdb_max_trades_per_day,
+        gdb_risk_reward: s.gdb_risk_reward ?? prev.gdb_risk_reward,
+        gdb_sl_buffer_points: s.gdb_sl_buffer_points ?? prev.gdb_sl_buffer_points,
+        gdb_breakout_buffer_points: s.gdb_breakout_buffer_points ?? prev.gdb_breakout_buffer_points,
+        gdb_min_range_points: s.gdb_min_range_points ?? prev.gdb_min_range_points,
+        gdb_max_range_points: s.gdb_max_range_points ?? prev.gdb_max_range_points,
+        gdb_use_atr_filter: s.gdb_use_atr_filter ?? prev.gdb_use_atr_filter,
+        gdb_atr_period: s.gdb_atr_period ?? prev.gdb_atr_period,
+        gdb_min_atr: s.gdb_min_atr ?? prev.gdb_min_atr,
+        gdb_use_break_even: s.gdb_use_break_even ?? prev.gdb_use_break_even,
+        gdb_break_even_at_r: s.gdb_break_even_at_r ?? prev.gdb_break_even_at_r,
+        gdb_use_trailing: s.gdb_use_trailing ?? prev.gdb_use_trailing,
+        gdb_trailing_start_r: s.gdb_trailing_start_r ?? prev.gdb_trailing_start_r,
+        gdb_trailing_atr_mult: s.gdb_trailing_atr_mult ?? prev.gdb_trailing_atr_mult,
+        gdb_cancel_at_session_end: s.gdb_cancel_at_session_end ?? prev.gdb_cancel_at_session_end,
+        gdb_max_spread_points: s.gdb_max_spread_points ?? prev.gdb_max_spread_points,
+        gdb_max_daily_loss_pct: s.gdb_max_daily_loss_pct ?? prev.gdb_max_daily_loss_pct,
+        gdb_equity_stop_pct: s.gdb_equity_stop_pct ?? prev.gdb_equity_stop_pct,
+        gdb_max_consecutive_losses: s.gdb_max_consecutive_losses ?? prev.gdb_max_consecutive_losses,
+        gdb_cooldown_hours: s.gdb_cooldown_hours ?? prev.gdb_cooldown_hours,
       }));
     }).catch(() => {});
   }, [open]);
@@ -615,6 +662,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const isMsBos = form.strategy === "Market Structure BOS Retest Scalper";
   const isOfOr = form.strategy === "Orderflow Opening Range Breakout";
   const isGmr = form.strategy === "Gold Morning Range Breakout";
+  const isGdb = form.strategy === "Gold Daily Breakout";
 
   const handleStart = async () => {
     setLoading(true);
@@ -846,6 +894,28 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         gmr_equity_stop_pct: form.gmr_equity_stop_pct,
         gmr_max_consecutive_losses: form.gmr_max_consecutive_losses,
         gmr_cooldown_hours: form.gmr_cooldown_hours,
+        gdb_lot_size: form.gdb_lot_size,
+        gdb_max_open_trades: form.gdb_max_open_trades,
+        gdb_max_trades_per_day: form.gdb_max_trades_per_day,
+        gdb_risk_reward: form.gdb_risk_reward,
+        gdb_sl_buffer_points: form.gdb_sl_buffer_points,
+        gdb_breakout_buffer_points: form.gdb_breakout_buffer_points,
+        gdb_min_range_points: form.gdb_min_range_points,
+        gdb_max_range_points: form.gdb_max_range_points,
+        gdb_use_atr_filter: form.gdb_use_atr_filter,
+        gdb_atr_period: form.gdb_atr_period,
+        gdb_min_atr: form.gdb_min_atr,
+        gdb_use_break_even: form.gdb_use_break_even,
+        gdb_break_even_at_r: form.gdb_break_even_at_r,
+        gdb_use_trailing: form.gdb_use_trailing,
+        gdb_trailing_start_r: form.gdb_trailing_start_r,
+        gdb_trailing_atr_mult: form.gdb_trailing_atr_mult,
+        gdb_cancel_at_session_end: form.gdb_cancel_at_session_end,
+        gdb_max_spread_points: form.gdb_max_spread_points,
+        gdb_max_daily_loss_pct: form.gdb_max_daily_loss_pct,
+        gdb_equity_stop_pct: form.gdb_equity_stop_pct,
+        gdb_max_consecutive_losses: form.gdb_max_consecutive_losses,
+        gdb_cooldown_hours: form.gdb_cooldown_hours,
       };
       if (records?.length) {
         await base44.entities.BotSettings.update(records[0].id, patch);
@@ -1133,6 +1203,15 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <GoldMorningRangeSettings
                 visible={isGmr}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                Toggle={Toggle}
+              />
+
+              <GoldDailyBreakoutSettings
+                visible={isGdb}
                 form={form}
                 set={set}
                 Field={Field}

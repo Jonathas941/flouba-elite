@@ -21,6 +21,7 @@ export const STRATEGY_TIMEFRAMES = {
   "Market Structure BOS Retest Scalper":      { main: "M5",  htf: "H1",  note: "Entry BOS on M5, structure on H1." },
   "Orderflow Opening Range Breakout":        { main: "M5",  htf: "M15", note: "Range + breakout + entry on M5, optional trend M15." },
   "Gold Morning Range Breakout":             { main: "M5",  htf: "M15", note: "Morning range + breakout + entry on M5, optional trend M15." },
+  "Gold Daily Breakout":                      { main: "D1",  htf: "H1",  note: "Levels from closed D1 candle; breakout trigger intraday, volatility confirmed on H1." },
   "Auto (AI Select)":                         { main: "M15", htf: "H1",  note: "Adaptive — timeframes follow the AI-selected strategy." },
 };
 
