@@ -22,13 +22,13 @@ export const STRATEGY_TIMEFRAMES = {
   "Orderflow Opening Range Breakout":        { main: "M5",  htf: "M15", note: "Range + breakout + entry on M5, optional trend M15." },
   "Gold Morning Range Breakout":             { main: "M5",  htf: "M15", note: "Morning range + breakout + entry on M5, optional trend M15." },
   "Gold Daily Breakout":                      { main: "D1",  htf: "H1",  note: "Levels from closed D1 candle; breakout trigger intraday, volatility confirmed on H1." },
-  "Auto (AI Select)":                         { main: "M15", htf: "H1",  note: "Adaptive — timeframes follow the AI-selected strategy." },
+  "Auto (AI Select)":                         { main: "M5",  htf: "M15", note: "Adaptive — timeframes follow the AI-selected strategy. Robot default timeframe is M5." },
 };
 
 const TF_MINUTES = { M1: 1, M5: 5, M15: 15, M30: 30, H1: 60, H4: 240, D1: 1440 };
 
 export function getStrategyTimeframes(name) {
-  return STRATEGY_TIMEFRAMES[name] || { main: "M15", htf: "H1" };
+  return STRATEGY_TIMEFRAMES[name] || { main: "M5", htf: "M15" };
 }
 
 /**
