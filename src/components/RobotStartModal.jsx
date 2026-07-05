@@ -16,6 +16,7 @@ import MsBosRetestSettings from "@/components/robotstart/MsBosRetestSettings";
 import OrderflowOpeningRangeSettings from "@/components/robotstart/OrderflowOpeningRangeSettings";
 import GoldMorningRangeSettings from "@/components/robotstart/GoldMorningRangeSettings";
 import GoldDailyBreakoutSettings from "@/components/robotstart/GoldDailyBreakoutSettings";
+import CollapsibleSection from "@/components/robotstart/CollapsibleSection";
 
 const STRATEGIES = [
   "Momentum Scalping",
@@ -376,9 +377,7 @@ function Toggle({ value, onChange }) {
   );
 }
 
-function SectionLabel({ children }) {
-  return <p className="text-[9px] uppercase tracking-[0.25em] text-white/25 font-heading mb-3 mt-1">{children}</p>;
-}
+
 
 export default function RobotStartModal({ open, onClose, onStart }) {
   const [form, setForm] = useState({ ...DEFAULT });
@@ -963,9 +962,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
             <div className="px-5 py-4 space-y-4">
 
-              {/* Pair & Strategy */}
-              <div>
-                <SectionLabel>Pair &amp; Strategy</SectionLabel>
+              <CollapsibleSection title="Pair & Strategy" defaultOpen={true}>
                 <div className="space-y-2.5">
                   <Field label="Symbol">
                     <SelectInput value={form.symbol} onChange={set("symbol")} options={PAIRS} />
@@ -977,11 +974,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     <SelectInput value={form.trading_mode} onChange={setTradingMode} options={MODES} />
                   </Field>
                 </div>
-              </div>
+              </CollapsibleSection>
 
-              {/* Lot & Risk */}
-              <div>
-                <SectionLabel>Lot &amp; Risk</SectionLabel>
+              <CollapsibleSection title="Lot & Risk" defaultOpen={true}>
                 <div className="space-y-2.5">
                   <Field label="Lot Size">
                     <NumberInput value={form.lot_size} onChange={set("lot_size")} min={0.01} step={0.01} />
@@ -1007,11 +1002,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                       : "Multiplier activates when equity reaches this ratio × balance."}
                   </p>
                 </div>
-              </div>
+              </CollapsibleSection>
 
-              {/* SL / TP */}
-              <div>
-                <SectionLabel>Stop Loss &amp; Take Profit (pips)</SectionLabel>
+              <CollapsibleSection title="Stop Loss & Take Profit" defaultOpen={false}>
                 <div className="space-y-2.5">
                   <Field label="Dynamic SL (ATR-based)">
                     <Toggle value={form.dynamic_stop_loss} onChange={set("dynamic_stop_loss")} />
@@ -1034,11 +1027,9 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     {dynamicSlPoints ? `SL ≈ ${dynamicSlPoints} pips (live ATR).` : "Fetching live ATR…"}
                   </p>
                 )}
-              </div>
+              </CollapsibleSection>
 
-              {/* Daily Limits */}
-              <div>
-                <SectionLabel>Daily Limits</SectionLabel>
+              <CollapsibleSection title="Daily Limits" defaultOpen={false}>
                 <div className="space-y-2.5">
                   <Field label="Stop After Losses">
                     <NumberInput value={form.stop_after_losses} onChange={set("stop_after_losses")} min={1} />
@@ -1066,7 +1057,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     <NumberInput value={form.daily_loss_limit} onChange={set("daily_loss_limit")} min={0} />
                   </Field>
                 </div>
-              </div>
+              </CollapsibleSection>
 
               {/* Equity Guard — hard-stop protection, always visible */}
               <div className="rounded-2xl border border-red-500/25 bg-red-500/5 px-4 py-4 space-y-2.5">
@@ -1087,14 +1078,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 <p className="text-[9px] text-white/25 leading-relaxed">Closes all trades if equity drops below this %.</p>
               </div>
 
-              <TrendFilterSettings
-                form={form}
-                set={set}
-                Field={Field}
-                NumberInput={NumberInput}
-                SelectInput={SelectInput}
-                Toggle={Toggle}
-              />
+              <CollapsibleSection title="Trend Filter" defaultOpen={false} accent="blue">
+                <TrendFilterSettings
+                  form={form}
+                  set={set}
+                  Field={Field}
+                  NumberInput={NumberInput}
+                  SelectInput={SelectInput}
+                  Toggle={Toggle}
+                />
+              </CollapsibleSection>
 
               {/* Grid Trading Settings — only shown when that strategy is selected */}
               <AnimatePresence>
@@ -1277,14 +1270,18 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 )}
               </AnimatePresence>
 
-              <AutoScheduleSettings
-                form={form}
-                set={set}
-                Field={Field}
-                Toggle={Toggle}
-              />
+              <CollapsibleSection title="Auto Schedule" defaultOpen={false} accent="purple">
+                <AutoScheduleSettings
+                  form={form}
+                  set={set}
+                  Field={Field}
+                  Toggle={Toggle}
+                />
+              </CollapsibleSection>
 
-              <RiskDisclaimer />
+              <CollapsibleSection title="Risk Disclaimer" defaultOpen={false}>
+                <RiskDisclaimer />
+              </CollapsibleSection>
 
               {error && (
                 <div className="px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/10">
