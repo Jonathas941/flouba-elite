@@ -71,6 +71,7 @@ const DEFAULT = {
   // Daily Profit Target — toggleable, amount ($) or % of balance
   daily_profit_target_enabled: true,
   daily_profit_target_amount: 200,
+  daily_profit_target_mode: "Fixed",
   session_cooldown_minutes: 60,
   daily_profit_target_percent: 0,
   stop_trading_at_daily_target: true,
@@ -407,6 +408,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         daily_loss_limit: s.daily_loss_limit ?? prev.daily_loss_limit,
         daily_profit_target_enabled: s.daily_profit_target_enabled ?? prev.daily_profit_target_enabled,
         daily_profit_target_amount: s.daily_profit_target_amount ?? prev.daily_profit_target_amount,
+        daily_profit_target_mode: s.daily_profit_target_mode ?? prev.daily_profit_target_mode,
         session_cooldown_minutes: s.session_cooldown_minutes ?? prev.session_cooldown_minutes,
         daily_profit_target_percent: s.daily_profit_target_percent ?? prev.daily_profit_target_percent,
         stop_trading_at_daily_target: s.stop_trading_at_daily_target ?? prev.stop_trading_at_daily_target,
@@ -693,6 +695,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         daily_loss_limit: form.daily_loss_limit,
         daily_profit_target_enabled: form.daily_profit_target_enabled,
         daily_profit_target_amount: form.daily_profit_target_amount,
+        daily_profit_target_mode: form.daily_profit_target_mode,
         session_cooldown_minutes: form.session_cooldown_minutes,
         daily_profit_target_percent: form.daily_profit_target_percent,
         stop_trading_at_daily_target: form.stop_trading_at_daily_target,
@@ -1042,17 +1045,30 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   </Field>
                   {form.daily_profit_target_enabled && (
                     <>
-                      <Field label="Target Amount ($)">
-                        <NumberInput value={form.daily_profit_target_amount} onChange={set("daily_profit_target_amount")} min={0} step={10} />
+                      <Field label="Target Mode">
+                        <SelectInput value={form.daily_profit_target_mode} onChange={set("daily_profit_target_mode")} options={["Fixed", "Auto"]} />
                       </Field>
-                      <Field label="Target % (Balance)">
-                        <NumberInput value={form.daily_profit_target_percent} onChange={set("daily_profit_target_percent")} min={0} max={100} step={0.5} />
-                      </Field>
+                      {form.daily_profit_target_mode === "Fixed" ? (
+                        <>
+                          <Field label="Target Amount ($)">
+                            <NumberInput value={form.daily_profit_target_amount} onChange={set("daily_profit_target_amount")} min={0} step={10} />
+                          </Field>
+                          <Field label="Target % (Balance)">
+                            <NumberInput value={form.daily_profit_target_percent} onChange={set("daily_profit_target_percent")} min={0} max={100} step={0.5} />
+                          </Field>
+                        </>
+                      ) : (
+                        <p className="text-[9px] text-white/25 leading-relaxed">
+                          Bot sets the target from market conditions (regime + volatility + balance).
+                        </p>
+                      )}
                       <Field label="Stop at Target">
                         <Toggle value={form.stop_trading_at_daily_target} onChange={set("stop_trading_at_daily_target")} />
                       </Field>
                       <p className="text-[9px] text-white/25 leading-relaxed">
-                        Pauses at {form.daily_profit_target_percent > 0 ? `${form.daily_profit_target_percent}%` : `$${form.daily_profit_target_amount}`} session profit.
+                        {form.daily_profit_target_mode === "Auto"
+                          ? "Pauses at the auto-computed session profit."
+                          : `Pauses at ${form.daily_profit_target_percent > 0 ? `${form.daily_profit_target_percent}%` : `$${form.daily_profit_target_amount}`} session profit.`}
                       </p>
                       <Field label="Cooldown (min)">
                         <NumberInput value={form.session_cooldown_minutes} onChange={set("session_cooldown_minutes")} min={0} step={5} />

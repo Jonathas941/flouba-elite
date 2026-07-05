@@ -367,8 +367,24 @@ Deno.serve(async (req) => {
       // Target measured from a session baseline (realized P&L at last cooldown reset).
       // After hit, trading pauses for session_cooldown_minutes, then baseline advances
       // so a fresh target can be pursued in the next session.
-      const targetAmount = cfg.daily_profit_target_amount ?? 200;
-      const targetPct = cfg.daily_profit_target_percent ?? 0;
+      // Effective session target — Auto mode derives it from regime + volatility + balance.
+      const targetAmount = cfg.daily_profit_target_mode === "Auto"
+        ? (() => {
+            const aVal = num(ind?.atr_14 ?? ind?.atr14);
+            const pVal = quote?.bid;
+            const volRatio = (aVal != null && pVal != null && pVal > 0) ? aVal / pVal : 0;
+            let pct = 0.01;
+            if (regime === "Trending") pct = 0.015;
+            else if (regime === "Liquidity Sweep") pct = 0.01;
+            else if (regime === "Range") pct = 0.005;
+            else pct = 0.005;
+            if (volRatio > 0.0015) pct *= 1.3;
+            else if (volRatio < 0.0006) pct *= 0.7;
+            pct = Math.min(pct, 0.03);
+            return Math.max(20, Math.round((balance || 0) * pct * 100) / 100);
+          })()
+        : (cfg.daily_profit_target_amount ?? 200);
+      const targetPct = cfg.daily_profit_target_mode === "Auto" ? 0 : (cfg.daily_profit_target_percent ?? 0);
       const cooldownMin = cfg.session_cooldown_minutes ?? 60;
       let baseline = cfg.adaptive_session_baseline ?? 0;
       let prevReachedAt = cfg.adaptive_daily_target_reached_at || null;
@@ -645,6 +661,7 @@ Deno.serve(async (req) => {
         adaptive_daily_target_reached: dailyTargetReached,
         adaptive_daily_target_reached_at: dailyTargetReachedAt,
         adaptive_session_baseline: baseline,
+        adaptive_effective_target: targetAmount,
       }).catch(() => {});
 
       results.push({

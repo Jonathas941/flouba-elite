@@ -72,7 +72,9 @@ function mentalityGuard({ dailyPnL, balance, consecLosses, sessionInfo, cfg }) {
 
   // 2. Session profit target with cooldown — block while cooling down, then resume next session
   if (cfg.daily_profit_target_enabled !== false && cfg.stop_trading_at_daily_target !== false) {
-    const amt = cfg.daily_profit_target_amount ?? cfg.daily_profit_target ?? 200;
+    const amt = cfg.daily_profit_target_mode === "Auto"
+      ? (cfg.adaptive_effective_target ?? Math.max(20, (balance || 0) * 0.01))
+      : (cfg.daily_profit_target_amount ?? cfg.daily_profit_target ?? 200);
     const pct = cfg.daily_profit_target_percent ?? 0;
     const baseline = cfg.adaptive_session_baseline ?? 0;
     const cooldownMin = cfg.session_cooldown_minutes ?? 60;

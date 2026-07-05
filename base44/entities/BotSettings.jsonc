@@ -1330,9 +1330,23 @@
       "default": 0,
       "description": "Realized P&L baseline for the current session target. Target = realized - baseline; advances after cooldown."
     },
+    "adaptive_effective_target": {
+      "type": "number",
+      "default": 0,
+      "description": "Internal: last computed effective session target (used when daily_profit_target_mode is Auto)."
+    },
     "daily_profit_target_enabled": {
       "type": "boolean",
       "default": true
+    },
+    "daily_profit_target_mode": {
+      "type": "string",
+      "enum": [
+        "Fixed",
+        "Auto"
+      ],
+      "default": "Fixed",
+      "description": "Fixed = use daily_profit_target_amount; Auto = bot dynamically sets the session target from market conditions (regime, volatility, balance)."
     },
     "daily_profit_target_amount": {
       "type": "number",
