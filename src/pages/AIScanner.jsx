@@ -6,6 +6,7 @@ import {
   BarChart3, AlertTriangle, Activity, Layers, Filter, Gauge, Brain,
 } from "lucide-react";
 import LiveScannerEngine from "@/components/scanner/LiveScannerEngine";
+import ScanAllStrategies from "@/components/scanner/ScanAllStrategies";
 import AIDashboard from "@/components/analysis/AIDashboard";
 import SessionNewsFilter from "@/components/analysis/SessionNewsFilter";
 import DrawdownProtection from "@/components/analysis/DrawdownProtection";
@@ -78,7 +79,8 @@ export default function AIScanner() {
       </div>
 
       {/* LiveScannerEngine always runs in background when on scanner/dashboard tabs */}
-      <div className={tab === "scanner" ? "px-4 pb-6" : "hidden"}>
+      <div className={tab === "scanner" ? "px-4 pb-6 space-y-4" : "hidden"}>
+        <ScanAllStrategies />
         <LiveScannerEngine onScanUpdate={handleScanUpdate} />
       </div>
 
