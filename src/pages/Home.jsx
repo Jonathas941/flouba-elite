@@ -53,16 +53,13 @@ export default function Home() {
         mt5Api.positions(),
         mt5Api.robotStatus(),
       ]);
-      const hasCreds = settingsRef.current?.mt5_account;
       if (acctRes?.ok && acctRes.data?.account) {
         const a = acctRes.data.account;
-        setConnected(a.connected === true);
+        setConnected(a.balance != null);
         setAccount(a);
-        if (!a.connected && hasCreds) mt5Api.connect().catch(() => {});
       } else {
         setConnected(false);
         setAccount(null);
-        if (hasCreds) mt5Api.connect().catch(() => {});
       }
       if (posRes?.ok && posRes.data?.positions) {
         setPositions(posRes.data.positions);

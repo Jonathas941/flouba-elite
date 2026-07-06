@@ -105,7 +105,7 @@ export default function ConnectMT5() {
         // Reflect the live bridge state so the page doesn't always show "Not Connected".
         const res = await mt5Api.account();
         const acct = res?.data?.account;
-        if (res?.ok && acct?.connected === true) {
+        if (res?.ok && acct?.balance != null) {
           setStatus("success");
           if (list[0] && list[0].connection_status !== "Connected") {
             await base44.entities.BotSettings.update(list[0].id, { connection_status: "Connected" }).catch(() => {});
@@ -163,20 +163,18 @@ export default function ConnectMT5() {
     try {
       // Save credentials first so the bridge can authenticate to the user's MT5 account
       await saveToDb("Connecting");
-      // Explicitly tell the bridge to log in to the MT5 terminal with these credentials
-      await mt5Api.connect().catch(() => {});
-      // Retry loop — the bridge/EA may need several seconds to establish the MT5
-      // connection after receiving credentials. Try up to 6 times with 5s delays (30s total).
+      // The EA connects to MT5 automatically when running. Poll the account endpoint
+      // to confirm live MT5 data is flowing (balance/equity present).
+      // Try up to 6 times with 5s delays (30s total).
       let connected = false;
       let res = null;
       let acct = null;
       for (let attempt = 0; attempt < 6; attempt++) {
         res = await mt5Api.account();
         acct = res?.data?.account;
-        connected = res?.ok && acct?.connected === true;
+        connected = res?.ok && acct?.balance != null;
         if (connected) break;
-        // Re-send connect on each retry in case the first one was lost
-        if (attempt < 5) { mt5Api.connect().catch(() => {}); await new Promise((r) => setTimeout(r, 5000)); }
+        if (attempt < 5) { await new Promise((r) => setTimeout(r, 5000)); }
       }
       if (connected) {
         setStatus("success");
