@@ -13,9 +13,14 @@ export default function Account() {
 
   useEffect(() => {
     (async () => {
-      setMe(await base44.auth.me());
-      const subs = await base44.entities.Subscription.list();
-      setSub(subs[0] || null);
+      try {
+        const user = await base44.auth.me();
+        setMe(user);
+        const subs = await base44.entities.Subscription.list('-created_date', 1);
+        setSub(subs[0] || null);
+      } catch {
+        setMe(null);
+      }
     })();
   }, []);
 
