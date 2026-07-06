@@ -1,11 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
-import { useToast } from "@/components/ui/use-toast";
-import { mt5Api } from "@/lib/mt5Api";
-import { logNotification } from "@/lib/notifications";
-import { Zap, TrendingUp, TrendingDown, Clock, Target, Loader2, CheckCircle2, Send } from "lucide-react";
+import { Zap, TrendingUp, TrendingDown, Clock, Target } from "lucide-react";
 
 const SIGNALS = [
   { pair: "XAUUSD", direction: "Buy",  confidence: 87, pattern: "Bullish Engulfing",   entry: 3365.20, sl: 3355.00, tp: 3390.00, risk: "1.5R", time: "09:14", status: "Active" },
@@ -16,70 +12,12 @@ const SIGNALS = [
 ];
 
 export default function AISignals() {
-  const { toast } = useToast();
-  const navigate = useNavigate();
   const [filter, setFilter] = useState("All");
-  const [refreshing, setRefreshing] = useState(false);
-  const [pullY, setPullY] = useState(0);
-  const touchStartY = useRef(0);
   const FILTERS = ["All", "Active", "Pending", "Expired"];
   const filtered = filter === "All" ? SIGNALS : SIGNALS.filter((s) => s.status === filter);
 
-  const [connected, setConnected] = useState(false);
-  const [lotSize, setLotSize] = useState(0.01);
-  const [placing, setPlacing] = useState(null);
-  const [placed, setPlaced] = useState(new Set());
-
-  useEffect(() => {
-    mt5Api.account().then((res) => {
-      setConnected(res?.ok && res?.data?.account?.connected === true);
-    }).catch(() => setConnected(false));
-  }, []);
-
-  const placeTrade = useCallback(async (signal, index) => {
-    if (!connected) { navigate("/connect-mt5"); return; }
-    setPlacing(index);
-    try {
-      const isBuy = signal.direction === "Buy";
-      const res = isBuy
-        ? await mt5Api.buy(signal.pair, lotSize, signal.sl, signal.tp)
-        : await mt5Api.sell(signal.pair, lotSize, signal.sl, signal.tp);
-      if (res?.ok && res?.data?.success !== false) {
-        setPlaced((prev) => new Set(prev).add(index));
-        toast({ title: "Trade Placed", description: `${signal.direction} ${signal.pair} · ${lotSize} lot | SL ${signal.sl} · TP ${signal.tp}`, duration: 4000 });
-        logNotification({ type: "trade", title: "AI Signal Trade Placed", message: `${signal.direction} ${signal.pair} — Lot ${lotSize}, SL ${signal.sl}, TP ${signal.tp} (${signal.pattern})`, category: "success", meta: { pair: signal.pair, direction: signal.direction, lot: lotSize, sl: signal.sl, tp: signal.tp } });
-      } else {
-        toast({ title: "Order Failed", description: res?.error || res?.data?.message || res?.data?.detail || "MT5 rejected the order.", variant: "destructive", duration: 4000 });
-      }
-    } catch {
-      toast({ title: "Order Failed", description: "Could not reach MT5 bridge.", variant: "destructive", duration: 3000 });
-    }
-    setPlacing(null);
-  }, [connected, lotSize, navigate, toast]);
-
-  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
-  const handleTouchMove = (e) => {
-    const dy = e.touches[0].clientY - touchStartY.current;
-    if (dy > 0 && window.scrollY === 0) setPullY(Math.min(dy * 0.4, 60));
-  };
-  const handleTouchEnd = async () => {
-    if (pullY > 45) {
-      setRefreshing(true);
-      await new Promise((r) => setTimeout(r, 800));
-      setRefreshing(false);
-    }
-    setPullY(0);
-  };
-
   return (
-    <div className="px-4 pt-8 space-y-4"
-      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      {/* Pull to refresh indicator */}
-      {pullY > 0 && (
-        <div className="flex justify-center" style={{ marginTop: pullY - 20, opacity: pullY / 60 }}>
-          <div className={`w-6 h-6 border-2 border-red-500/40 border-t-red-500 rounded-full ${refreshing ? "animate-spin" : ""}`} />
-        </div>
-      )}
+    <div className="px-4 pt-8 space-y-4">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-black text-white neon-text flex items-center gap-2">
@@ -97,26 +35,6 @@ export default function AISignals() {
             {f}
           </button>
         ))}
-      </div>
-
-      {/* Lot size selector + MT5 connection status */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-heading tracking-widest text-white/50">LOT</span>
-          <div className="flex gap-1.5">
-            {[0.01, 0.02, 0.05, 0.1].map((l) => (
-              <button key={l} onClick={() => setLotSize(l)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-heading font-bold transition-all ${lotSize === l ? "bg-[#00FF41] text-[#050505]" : "glass text-white/60"}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-heading tracking-widest ${connected ? "text-[#00FF41]" : "text-[#FF3131]"}`}
-          style={{ background: connected ? "rgba(0,255,65,0.08)" : "rgba(255,49,49,0.08)", border: `1px solid ${connected ? "rgba(0,255,65,0.3)" : "rgba(255,49,49,0.3)"}` }}>
-          <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[#00FF41]" : "bg-[#FF3131]"}`} />
-          {connected ? "MT5 LIVE" : "OFFLINE"}
-        </div>
       </div>
 
       <div className="space-y-3">
@@ -159,20 +77,6 @@ export default function AISignals() {
                     </div>
                   </div>
                 </div>
-                {s.status !== "Expired" && (
-                  <button
-                    onClick={() => placeTrade(s, i)}
-                    disabled={placing === i || placed.has(i)}
-                    className="w-full mt-3 h-10 rounded-xl font-heading font-bold tracking-widest text-[10px] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                    style={placed.has(i)
-                      ? { background: "rgba(0,255,65,0.12)", border: "1px solid rgba(0,255,65,0.4)", color: "#00FF41" }
-                      : { background: "linear-gradient(90deg, #00FF41, #00CC33)", color: "#050505", boxShadow: "0 0 16px rgba(0,255,65,0.35)" }}
-                  >
-                    {placing === i ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> SENDING ORDER…</>
-                      : placed.has(i) ? <><CheckCircle2 className="w-3.5 h-3.5" /> TRADE PLACED</>
-                      : <><Send className="w-3.5 h-3.5" /> PLACE {s.direction.toUpperCase()} · {lotSize} LOT</>}
-                  </button>
-                )}
               </GlassCard>
             </motion.div>
           );

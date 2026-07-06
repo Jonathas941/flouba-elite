@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/toast";
 
 export function Toaster() {
-  const { toasts, dismiss } = useToast();
+  const { toasts } = useToast();
 
   return (
     <ToastProvider>
@@ -23,11 +23,11 @@ export function Toaster() {
               )}
             </div>
             {action}
-            <ToastClose onClick={(e) => { e.stopPropagation(); dismiss(id); }} />
+            <ToastClose />
           </Toast>
         );
       })}
       <ToastViewport />
     </ToastProvider>
   );
-}
+} 
