@@ -26,7 +26,7 @@ export const MENTALITIES = ["Basic", "Premium"];
 export const MODE_PRESETS = {
   Conservative: { max_concurrent_trades: 1, lot_size: 0.01 },
   Balanced:     { max_concurrent_trades: 2, lot_size: 0.02 },
-  Aggressive:   { max_concurrent_trades: 5, lot_size: 0.05 },
+  Aggressive:   { max_concurrent_trades: 5, lot_size: 0.05, risk_percentage: 5, stop_after_losses: 5, daily_loss_limit: 100 },
 };
 
 export const DEFAULT = {
