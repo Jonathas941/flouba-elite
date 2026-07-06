@@ -14,7 +14,6 @@ import CooldownBanner from "@/components/dashboard/CooldownBanner";
 import BotActionButtons from "@/components/dashboard/BotActionButtons";
 import RobotStartModal from "@/components/RobotStartModal";
 import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
-import EADownloadCard from "@/components/dashboard/EADownloadCard";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 export default function Home() {
@@ -280,9 +279,6 @@ export default function Home() {
 
         {/* Cooldown countdown — shown when bot paused after hitting session target */}
         <CooldownBanner settings={botSettings} />
-
-        {/* 1a. EA Download */}
-        <EADownloadCard />
 
         {/* 2. Smart Control Grid */}
         <SmartControlGrid connected={connected} robotStatus={robotStatus} account={account} positions={positions} winRate={winRate} navigate={navigate} />
