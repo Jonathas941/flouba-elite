@@ -20,6 +20,11 @@ const STRATS = [
   { key: "smc", label: "SMC Liquidity Sweep", accent: "#00CC33", name: "Liquidity Sweep Scalping" },
   { key: "tpr", label: "EMA Trend Recovery", accent: "#ff8c42", name: "EMA Trend Progressive Recovery" },
   { key: "gdb", label: "Gold Daily Breakout", accent: "#ffa500", name: "Gold Daily Breakout" },
+  { key: "hybrid", label: "Hybrid Confluence", accent: "#00e5ff", name: "Hybrid Confluence Mode" },
+  { key: "nqkz", label: "NQ Kill Zone Breakout", accent: "#6366f1", name: "NQ London Kill Zone Breakout" },
+  { key: "msbos", label: "BOS Retest Scalper", accent: "#a78bfa", name: "Market Structure BOS Retest Scalper" },
+  { key: "ofor", label: "Orderflow ORB", accent: "#e879f9", name: "Orderflow Opening Range Breakout" },
+  { key: "gmr", label: "Gold Morning Range", accent: "#fbbf24", name: "Gold Morning Range Breakout" },
 ];
 
 function fmtET(d) {
@@ -41,7 +46,7 @@ function countdown(iso) {
 export default function AdaptiveStrategyPanel({ connected }) {
   const { toast } = useToast();
   const [settings, setSettings] = useState(null);
-  const [metrics, setMetrics] = useState({ swing: null, smc: null, tpr: null, gdb: null });
+  const [metrics, setMetrics] = useState({ swing: null, smc: null, tpr: null, gdb: null, hybrid: null, nqkz: null, msbos: null, ofor: null, gmr: null });
   const [lastSwitch, setLastSwitch] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
   const [showSwitchLog, setShowSwitchLog] = useState(false);
@@ -55,7 +60,7 @@ export default function AdaptiveStrategyPanel({ connected }) {
         base44.entities.StrategySwitchLog.list("-created_date", 1).catch(() => []),
       ]);
       setSettings(stg?.[0] || null);
-      const map = { swing: null, smc: null, tpr: null, gdb: null };
+      const map = { swing: null, smc: null, tpr: null, gdb: null, hybrid: null, nqkz: null, msbos: null, ofor: null, gmr: null };
       for (const m of mtr || []) {
         if (map[m.strategy_key] !== undefined) map[m.strategy_key] = m;
       }
@@ -190,6 +195,12 @@ export default function AdaptiveStrategyPanel({ connected }) {
           <CooldownChip label="Swing Cooldown" until={metrics.swing?.cooldown_until} />
           <CooldownChip label="SMC Cooldown" until={metrics.smc?.cooldown_until} />
           <CooldownChip label="TPR Cooldown" until={metrics.tpr?.cooldown_until} />
+          <CooldownChip label="GDB Cooldown" until={metrics.gdb?.cooldown_until} />
+          <CooldownChip label="Hybrid Cooldown" until={metrics.hybrid?.cooldown_until} />
+          <CooldownChip label="NQ KillZone Cooldown" until={metrics.nqkz?.cooldown_until} />
+          <CooldownChip label="BOS Retest Cooldown" until={metrics.msbos?.cooldown_until} />
+          <CooldownChip label="Orderflow Cooldown" until={metrics.ofor?.cooldown_until} />
+          <CooldownChip label="Gold Range Cooldown" until={metrics.gmr?.cooldown_until} />
           <CooldownChip label="Global Cooldown" until={s.adaptive_global_cooldown_until} wide />
         </div>
 

@@ -8,9 +8,14 @@
         "swing",
         "smc",
         "tpr",
-        "gdb"
+        "gdb",
+        "hybrid",
+        "nqkz",
+        "msbos",
+        "ofor",
+        "gmr"
       ],
-      "description": "swing = Swing Trend Pullback Continuation 2026; smc = SMC Liquidity Sweep; tpr = EMA Trend Progressive Recovery; gdb = Gold Daily Breakout."
+      "description": "swing = Swing Trend Pullback Continuation 2026; smc = SMC Liquidity Sweep; tpr = EMA Trend Progressive Recovery; gdb = Gold Daily Breakout; hybrid = Hybrid Confluence Mode; nqkz = NQ London Kill Zone Breakout; msbos = Market Structure BOS Retest Scalper; ofor = Orderflow Opening Range Breakout; gmr = Gold Morning Range Breakout."
     },
     "strategy_name": {
       "type": "string"

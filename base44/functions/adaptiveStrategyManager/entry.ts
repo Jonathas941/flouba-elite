@@ -7,22 +7,39 @@ const STRATEGY = {
   smc: "Liquidity Sweep Scalping",
   tpr: "EMA Trend Progressive Recovery",
   gdb: "Gold Daily Breakout",
+  hybrid: "Hybrid Confluence Mode",
+  nqkz: "NQ London Kill Zone Breakout",
+  msbos: "Market Structure BOS Retest Scalper",
+  ofor: "Orderflow Opening Range Breakout",
+  gmr: "Gold Morning Range Breakout",
 };
-const KEYS = ["swing", "smc", "tpr", "gdb"];
+const KEYS = ["swing", "smc", "tpr", "gdb", "hybrid", "nqkz", "msbos", "ofor", "gmr"];
 const DEFAULT_STRATEGY = STRATEGY.swing;
 
+// msbos fields use "ms_" prefix in BotSettings; all others use "<key>_"
+function cfgPrefix(k) { return k === "msbos" ? "ms" : k; }
+function cfgField(k, cfg, field, fallback) {
+  const v = cfg[`${cfgPrefix(k)}_${field}`];
+  return v != null ? v : fallback;
+}
+
 function keyFor(name) {
-  if (name === STRATEGY.smc) return "smc";
-  if (name === STRATEGY.tpr) return "tpr";
-  if (name === STRATEGY.gdb) return "gdb";
+  for (const k of KEYS) if (name === STRATEGY[k]) return k;
   return "swing";
 }
 function regimeMatchFor(k, regime) {
   if (k === "swing") return regime === "Trending";
   if (k === "smc") return regime === "Liquidity Sweep";
   if (k === "tpr") return regime === "Trending";
-  // Gold Daily Breakout wants high-volatility breakout (trending) conditions only
   if (k === "gdb") return regime === "Trending";
+  // Hybrid Confluence merges EMA trend + SMC sweep — thrives in Trending, solid after sweeps
+  if (k === "hybrid") return regime === "Trending" || regime === "Liquidity Sweep";
+  // Breakout strategies need momentum
+  if (k === "nqkz") return regime === "Trending";
+  if (k === "ofor") return regime === "Trending";
+  if (k === "gmr") return regime === "Trending";
+  // BOS Retest works in trends and after liquidity sweeps (BOS = continuation / reversal confirm)
+  if (k === "msbos") return regime === "Trending" || regime === "Liquidity Sweep";
   return false;
 }
 const BAR_SECONDS = 15 * 60; // M15 working timeframe
@@ -62,6 +79,15 @@ function sessionOpen(d) {
   return { open: false, name: "Closed", reason: "Outside enabled session" };
 }
 
+// Entry-window check for time-restricted breakout strategies (ET).
+function timeWindowOk(k) {
+  if (k !== "nqkz" && k !== "ofor" && k !== "gmr") return true;
+  const { minutes } = nyParts(new Date());
+  const start = k === "ofor" ? 10 * 60 : 9 * 60 + 30;
+  const end = 11 * 60;
+  return minutes >= start && minutes <= end;
+}
+
 // ── Market regime detection ──────────────────────────────────────────────
 function detectRegime(ind, quote, cfg) {
   const spread = quote?.spread != null ? Number(quote.spread) : null;
@@ -92,12 +118,40 @@ function detectRegime(ind, quote, cfg) {
 }
 
 function suitability(key, regime) {
-  // Gold Daily Breakout: high score only during high-volatility breakout (trending) conditions.
-  // Never selected in low ATR, high spread, choppy, or flat markets.
   if (key === "gdb") {
     if (regime === "Trending") return 90;
     if (regime === "Liquidity Sweep") return 35;
     if (regime === "Range") return 15;
+    return 0;
+  }
+  if (key === "hybrid") {
+    if (regime === "Trending") return 85;
+    if (regime === "Liquidity Sweep") return 75;
+    if (regime === "Range") return 10;
+    return 0;
+  }
+  if (key === "nqkz") {
+    if (regime === "Trending") return 80;
+    if (regime === "Liquidity Sweep") return 30;
+    if (regime === "Range") return 20;
+    return 0;
+  }
+  if (key === "msbos") {
+    if (regime === "Trending") return 85;
+    if (regime === "Liquidity Sweep") return 80;
+    if (regime === "Range") return 15;
+    return 0;
+  }
+  if (key === "ofor") {
+    if (regime === "Trending") return 80;
+    if (regime === "Liquidity Sweep") return 30;
+    if (regime === "Range") return 20;
+    return 0;
+  }
+  if (key === "gmr") {
+    if (regime === "Trending") return 80;
+    if (regime === "Liquidity Sweep") return 35;
+    if (regime === "Range") return 20;
     return 0;
   }
   if (regime === "Trending") {
@@ -185,10 +239,7 @@ function scoreStrategy(key, stats, regime, cfg) {
   const wrScore = hasPerf ? stats.win_rate : 50;
   const ddPct = stats.max_drawdown > 0 && stats.balance > 0 ? (stats.max_drawdown / stats.balance) * 100 : 0;
   const ddScore = hasPerf ? clamp(100 - ddPct * 10, 0, 100) : 50;
-  const maxConsec = key === "swing" ? (cfg.swing_max_consecutive_losses ?? 2)
-    : key === "tpr" ? (cfg.tpr_max_consecutive_losses ?? 2)
-    : key === "gdb" ? (cfg.gdb_max_consecutive_losses ?? 2)
-    : 2;
+  const maxConsec = cfgField(key, cfg, "max_consecutive_losses", 2);
   const consecScore = clamp(100 - (stats.consecutive_losses / maxConsec) * 100, 0, 100);
   return Math.round(0.4 * suit + 0.2 * pfScore + 0.15 * wrScore + 0.15 * ddScore + 0.1 * consecScore);
 }
@@ -199,6 +250,93 @@ function buildHeaders(token, config) {
   if (config.mt5_password) h["X-MT5-Password"] = config.mt5_password;
   if (config.mt5_server) h["X-MT5-Server"] = config.mt5_server;
   return h;
+}
+
+function strategySymbol(k, cfg) {
+  if (k === "nqkz" || k === "ofor") return "NAS100";
+  if (k === "gmr" || k === "gdb") return "XAUUSD";
+  return cfg.active_pair || "XAUUSD";
+}
+
+// Strategy-specific params injected into the robot/start payload on adaptive switch.
+function strategyStartParams(k, cfg) {
+  if (k === "gdb") return {
+    lot_size: cfg.gdb_lot_size ?? 0.01,
+    risk_reward: cfg.gdb_risk_reward ?? 2,
+    sl_buffer_points: cfg.gdb_sl_buffer_points ?? 5,
+    breakout_buffer_points: cfg.gdb_breakout_buffer_points ?? 3,
+    min_range_points: cfg.gdb_min_range_points ?? 50,
+    max_range_points: cfg.gdb_max_range_points ?? 2000,
+    use_break_even: cfg.gdb_use_break_even ?? true,
+    break_even_at_r: cfg.gdb_break_even_at_r ?? 1,
+    use_trailing: cfg.gdb_use_trailing ?? true,
+    trailing_start_r: cfg.gdb_trailing_start_r ?? 1,
+    trailing_atr_mult: cfg.gdb_trailing_atr_mult ?? 1.5,
+    cancel_at_session_end: cfg.gdb_cancel_at_session_end ?? true,
+    strategy_timeframe: "D1",
+    strategy_htf_timeframe: "H1",
+  };
+  if (k === "hybrid") return {
+    lot_size: cfg.hybrid_lot_size ?? 0.01,
+    strategy_timeframe: cfg.hybrid_timeframe ?? "M15",
+    strategy_entry_timeframe: "M5",
+    strategy_htf_timeframe: "H1",
+    min_rr: cfg.hybrid_min_rr ?? 2,
+    use_break_even: cfg.hybrid_use_break_even ?? true,
+    partial_close_50: cfg.hybrid_partial_close_50 ?? true,
+    min_score: cfg.hybrid_min_score ?? 80,
+  };
+  if (k === "nqkz") return {
+    lot_size: cfg.nqkz_lot_size ?? 0.01,
+    risk_reward: cfg.nqkz_risk_reward ?? 2,
+    sl_buffer_points: cfg.nqkz_sl_buffer_points ?? 5,
+    breakout_buffer_points: cfg.nqkz_breakout_buffer_points ?? 2,
+    min_body_points: cfg.nqkz_min_body_points ?? 5,
+    max_wick_body_ratio: cfg.nqkz_max_wick_body_ratio ?? 0.6,
+    min_range_points: cfg.nqkz_min_range_points ?? 20,
+    max_range_points: cfg.nqkz_max_range_points ?? 400,
+    use_break_even: cfg.nqkz_use_break_even ?? true,
+    strategy_timeframe: "M5",
+  };
+  if (k === "msbos") return {
+    lot_size: cfg.ms_lot_size ?? 0.01,
+    risk_reward: cfg.ms_risk_reward ?? 2,
+    sl_buffer_points: cfg.ms_sl_buffer_points ?? 5,
+    retest_buffer_points: cfg.ms_retest_buffer_points ?? 10,
+    use_break_even: cfg.ms_use_break_even ?? true,
+    strategy_timeframe: cfg.ms_entry_timeframe ?? "M5",
+    strategy_htf_timeframe: cfg.ms_htf_timeframe ?? "H1",
+    strategy_confirm_timeframe: cfg.ms_confirm_timeframe ?? "M15",
+  };
+  if (k === "ofor") return {
+    lot_size: cfg.ofor_lot_size ?? 0.01,
+    risk_reward: cfg.ofor_risk_reward ?? 2,
+    sl_buffer_points: cfg.ofor_sl_buffer_points ?? 5,
+    breakout_buffer_points: cfg.ofor_breakout_buffer_points ?? 2,
+    min_body_points: cfg.ofor_min_body_points ?? 5,
+    max_wick_body_ratio: cfg.ofor_max_wick_body_ratio ?? 0.6,
+    min_range_points: cfg.ofor_min_range_points ?? 20,
+    max_range_points: cfg.ofor_max_range_points ?? 400,
+    require_retest: cfg.ofor_require_retest ?? true,
+    retest_buffer_points: cfg.ofor_retest_buffer_points ?? 10,
+    use_break_even: cfg.ofor_use_break_even ?? true,
+    strategy_timeframe: "M5",
+    strategy_htf_timeframe: "M15",
+  };
+  if (k === "gmr") return {
+    lot_size: cfg.gmr_lot_size ?? 0.01,
+    risk_reward: cfg.gmr_risk_reward ?? 2,
+    sl_buffer_points: cfg.gmr_sl_buffer_points ?? 5,
+    min_body_points: cfg.gmr_min_body_points ?? 5,
+    min_range_points: cfg.gmr_min_range_points ?? 20,
+    max_range_points: cfg.gmr_max_range_points ?? 400,
+    require_retest: cfg.gmr_require_retest ?? true,
+    retest_buffer_points: cfg.gmr_retest_buffer_points ?? 10,
+    use_break_even: cfg.gmr_use_break_even ?? true,
+    strategy_timeframe: "M5",
+    strategy_htf_timeframe: "M15",
+  };
+  return {};
 }
 
 Deno.serve(async (req) => {
@@ -311,7 +449,8 @@ Deno.serve(async (req) => {
       ).catch(() => []);
       const closed = (closedTrades || []).filter((t) => t.closed_at);
 
-      const byStrategy = { swing: [], smc: [], tpr: [], gdb: [] };
+      const byStrategy = {};
+      for (const k of KEYS) byStrategy[k] = [];
       for (const t of closed) {
         const sName = strategyAtTime(windows, t.closed_at);
         const k = keyFor(sName);
@@ -340,14 +479,8 @@ Deno.serve(async (req) => {
       // ── Per-strategy cooldown ──
       const cooldowns = {};
       for (const k of KEYS) {
-        const maxConsec = k === "swing" ? (cfg.swing_max_consecutive_losses ?? 2)
-          : k === "tpr" ? (cfg.tpr_max_consecutive_losses ?? 2)
-          : k === "gdb" ? (cfg.gdb_max_consecutive_losses ?? 2)
-          : 2;
-        const cooldownH = k === "swing" ? (cfg.swing_cooldown_hours ?? 8)
-          : k === "tpr" ? (cfg.tpr_cooldown_hours ?? 8)
-          : k === "gdb" ? (cfg.gdb_cooldown_hours ?? 8)
-          : 8;
+        const maxConsec = cfgField(k, cfg, "max_consecutive_losses", 2);
+        const cooldownH = cfgField(k, cfg, "cooldown_hours", 8);
         const s = stats[k];
         let cu = null;
         if (s.consecutive_losses >= maxConsec && s.last_trade_time) {
@@ -436,10 +569,11 @@ Deno.serve(async (req) => {
       const riskTooHigh = atrVal != null && priceVal != null && (atrVal / priceVal) > 0.005;
       for (const k of KEYS) {
         const regimeMatch = regimeMatchFor(k, regime);
-        const spreadOk = regimeInfo.spread == null || regimeInfo.spread <= (k === "gdb" ? (cfg.gdb_max_spread_points ?? 30) : (cfg.swing_max_spread_points ?? 30));
+        const spreadOk = regimeInfo.spread == null || regimeInfo.spread <= cfgField(k, cfg, "max_spread_points", 30);
         // Gold Daily Breakout only runs in London or New York (not Asian)
         const gdbSessionOk = k !== "gdb" || /London|NY/.test(regimeInfo.sess.name || "");
-        const sessionOk = regimeInfo.sess.open && gdbSessionOk;
+        const twOk = timeWindowOk(k);
+        const sessionOk = regimeInfo.sess.open && gdbSessionOk && twOk;
         const cooldownOk = !cooldowns[k] || new Date(cooldowns[k]).getTime() <= Date.now();
         const globalOk = !globalCooldownActive;
         const riskOk = !dailyLossHit && !dailyLossPctHit && !dailyDDHit;
@@ -568,7 +702,7 @@ Deno.serve(async (req) => {
             await fetch(`${BASE}/robot/stop`, { method: "POST", headers: authHeaders, body: "{}" }).catch(() => {});
             const startPayload = {
               strategy: newActive,
-              symbol: cfg.active_pair || "XAUUSD",
+              symbol: strategySymbol(toKey, cfg),
               trading_mode: cfg.trading_mode || "Balanced",
               lot_size: cfg.lot_size ?? 0.01,
               max_concurrent_trades: cfg.max_concurrent_trades ?? 2,
@@ -593,22 +727,7 @@ Deno.serve(async (req) => {
               break_even: cfg.break_even ?? true,
               trailing_stop: cfg.trailing_stop ?? false,
               max_spread_pips: 5,
-              ...(toKey === "gdb" ? {
-                lot_size: cfg.gdb_lot_size ?? 0.01,
-                risk_reward: cfg.gdb_risk_reward ?? 2,
-                sl_buffer_points: cfg.gdb_sl_buffer_points ?? 5,
-                breakout_buffer_points: cfg.gdb_breakout_buffer_points ?? 3,
-                min_range_points: cfg.gdb_min_range_points ?? 50,
-                max_range_points: cfg.gdb_max_range_points ?? 2000,
-                use_break_even: cfg.gdb_use_break_even ?? true,
-                break_even_at_r: cfg.gdb_break_even_at_r ?? 1,
-                use_trailing: cfg.gdb_use_trailing ?? true,
-                trailing_start_r: cfg.gdb_trailing_start_r ?? 1,
-                trailing_atr_mult: cfg.gdb_trailing_atr_mult ?? 1.5,
-                cancel_at_session_end: cfg.gdb_cancel_at_session_end ?? true,
-                strategy_timeframe: "D1",
-                strategy_htf_timeframe: "H1",
-              } : {}),
+              ...strategyStartParams(toKey, cfg),
             };
             await fetch(`${BASE}/robot/start`, { method: "POST", headers: authHeaders, body: JSON.stringify(startPayload) }).catch(() => {});
           } catch {}
@@ -682,7 +801,7 @@ Deno.serve(async (req) => {
         regime,
         active: current,
         switched,
-        scores: { swing: scores.swing, smc: scores.smc, tpr: scores.tpr, gdb: scores.gdb },
+        scores: Object.fromEntries(KEYS.map((k) => [k, scores[k]])),
         eligible,
         realizedToday: Math.round(realizedToday * 100) / 100,
         dailyTargetReached,
