@@ -105,7 +105,7 @@ export default function ConnectMT5() {
         // Reflect the live bridge state so the page doesn't always show "Not Connected".
         const res = await mt5Api.account();
         const acct = res?.data?.account;
-        if (res?.ok && res?.data?.success === true && acct?.connected === true) {
+        if (res?.ok && acct?.connected === true) {
           setStatus("success");
           if (list[0] && list[0].connection_status !== "Connected") {
             await base44.entities.BotSettings.update(list[0].id, { connection_status: "Connected" }).catch(() => {});
@@ -163,12 +163,18 @@ export default function ConnectMT5() {
     try {
       // Save credentials first so the bridge can authenticate to the user's MT5 account
       await saveToDb("Connecting");
-      // Verify the bridge can reach the user's MT5 account
-      // Must check account.connected === true — the account object is always
-      // present (even on a failed login), so checking it alone falsely reports success.
-      const res = await mt5Api.account();
-      const acct = res?.data?.account;
-      const connected = res?.ok && res?.data?.success === true && acct?.connected === true;
+      // Retry loop — the bridge/EA may need a few seconds to establish the MT5
+      // connection after receiving credentials. Try up to 4 times with 3s delays.
+      let connected = false;
+      let res = null;
+      let acct = null;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        res = await mt5Api.account();
+        acct = res?.data?.account;
+        connected = res?.ok && acct?.connected === true;
+        if (connected) break;
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 3000));
+      }
       if (connected) {
         setStatus("success");
         await saveToDb("Connected");
@@ -180,11 +186,12 @@ export default function ConnectMT5() {
       } else {
         setStatus("error");
         let msg;
-        if (acct && acct.connected === false) {
-          // Bridge authenticated, but the MT5 terminal login itself failed.
-          msg = "MT5 login failed. Double-check your account number, password, and server name — and make sure the Flouba Elite EA is installed and logged in on your MetaTrader 5 terminal.";
+        const st = await mt5Api.status().catch(() => null);
+        const eaConnected = st?.data?.bridge?.connected === true;
+        if (!eaConnected) {
+          msg = "The Flouba Elite EA is not connected to the bridge. Make sure the EA is installed and running on your MetaTrader 5 terminal, then try again.";
         } else {
-          msg = res?.error || res?.data?.message || res?.data?.detail || "Connection failed. Check your credentials.";
+          msg = "MT5 login failed. Double-check your account number, password, and server name.";
         }
         await saveToDb("Disconnected");
         setErrorMsg(msg);

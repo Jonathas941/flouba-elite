@@ -68,15 +68,21 @@ export default function Home() {
       // Retry once after 4s before showing the "not connected" state permanently.
       if (initialLoadRef.current && !acctRes?.data?.account?.connected && hasCreds) {
         initialLoadRef.current = false;
-        setTimeout(async () => {
+        let retryCount = 0;
+        const retryConnect = async () => {
+          if (retryCount >= 3) return;
+          retryCount++;
           const retry = await mt5Api.account().catch(() => null);
           if (retry?.ok && retry.data?.account?.connected === true) {
             setConnected(true);
             setAccount(retry.data.account);
             const retryPos = await mt5Api.positions().catch(() => null);
             if (retryPos?.ok && retryPos.data?.positions) setPositions(retryPos.data.positions);
+          } else if (retryCount < 3) {
+            setTimeout(retryConnect, 3000);
           }
-        }, 4000);
+        };
+        setTimeout(retryConnect, 3000);
       } else if (initialLoadRef.current) {
         initialLoadRef.current = false;
       }
