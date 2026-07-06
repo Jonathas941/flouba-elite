@@ -269,6 +269,34 @@ Deno.serve(async (req) => {
       if (robotRunning && mentality.block) {
         await fetch(`${BASE}/robot/stop`, { method: "POST", headers: authHeaders, body: "{}" }).catch(() => {});
         actions.push(`MENTALITY STOP: ${mentality.status} (P&L: $${dailyPnL.toFixed(2)})`);
+
+        // Push notification when daily profit target is reached (not cooldown / loss limit)
+        const statusLower = mentality.status.toLowerCase();
+        if (statusLower.includes("target reached") && !statusLower.includes("cooling")) {
+          const recentNotifs = await base44.asServiceRole.entities.Notification.filter({
+            created_by_id: config.created_by_id,
+            type: "bot_action",
+          }, "-created_date", 5).catch(() => []);
+          const thirtyMinAgo = Date.now() - 30 * 60 * 1000;
+          const alreadyNotified = recentNotifs.some(n =>
+            n.title === "Daily Profit Target Reached" &&
+            new Date(n.created_date) > thirtyMinAgo
+          );
+          if (!alreadyNotified) {
+            const targetAmt = config.daily_profit_target_mode === "Auto"
+              ? (config.adaptive_effective_target ?? config.daily_profit_target ?? 200)
+              : (config.daily_profit_target_amount ?? config.daily_profit_target ?? 200);
+            await base44.asServiceRole.entities.Notification.create({
+              type: "bot_action",
+              title: "Daily Profit Target Reached",
+              message: `Session target of $${targetAmt} achieved. Robot paused to protect gains. P&L: $${dailyPnL.toFixed(2)}`,
+              category: "success",
+              read: false,
+              meta: { daily_pnl: dailyPnL, target_amount: targetAmt, action: "profit_target_reached" },
+              created_by_id: config.created_by_id,
+            });
+          }
+        }
       }
 
       // === AUTO-START: launch only when mentality allows and a session is active ===

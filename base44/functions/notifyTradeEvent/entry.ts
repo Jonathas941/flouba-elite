@@ -41,10 +41,21 @@ Deno.serve(async (req) => {
     const profit = data.profit != null ? Number(data.profit) : null;
     const reason = data.close_reason || "";
 
-    const title = eventType === "opened" ? "Position Opened" : "Position Closed";
+    // Detect scalping trades by strategy/pattern tag
+    const patternLower = data.pattern ? String(data.pattern).toLowerCase() : "";
+    const isScalp = eventType === "opened" && (
+      patternLower.includes("scalp") || patternLower.includes("hft") || patternLower.includes("hedge")
+    );
+
+    let title = eventType === "opened" ? "Position Opened" : "Position Closed";
     let message;
     if (eventType === "opened") {
-      message = `${dir} ${pair} • ${lot} lot${data.entry_price != null ? ` @ ${data.entry_price}` : ""}`;
+      if (isScalp) {
+        title = "Scalping Trade Executed";
+        message = `${dir} ${pair} • ${lot} lot${data.entry_price != null ? ` @ ${data.entry_price}` : ""}${data.pattern ? ` • ${data.pattern}` : ""}`;
+      } else {
+        message = `${dir} ${pair} • ${lot} lot${data.entry_price != null ? ` @ ${data.entry_price}` : ""}`;
+      }
     } else {
       const profitTxt = profit != null
         ? (profit >= 0 ? `+$${profit.toFixed(2)}` : `-$${Math.abs(profit).toFixed(2)}`)
@@ -52,12 +63,12 @@ Deno.serve(async (req) => {
       message = `${dir} ${pair} • ${lot} lot${profitTxt ? ` • ${profitTxt}` : ""}${reason ? ` (${reason})` : ""}`;
     }
 
-    const category = eventType === "opened"
-      ? "info"
-      : (profit != null && profit < 0 ? "warning" : "success");
+    const category = isScalp
+      ? "success"
+      : (eventType === "opened" ? "info" : (profit != null && profit < 0 ? "warning" : "success"));
 
     await base44.asServiceRole.entities.Notification.create({
-      type: "trade",
+      type: isScalp ? "bot_action" : "trade",
       title,
       message,
       category,
@@ -71,6 +82,7 @@ Deno.serve(async (req) => {
         status: data.status,
         close_reason: reason,
         event_type: eventType,
+        is_scalp: isScalp,
       },
       created_by_id: ownerId,
     });
