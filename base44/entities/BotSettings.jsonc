@@ -1267,7 +1267,8 @@
     },
     "adaptive_enabled": {
       "type": "boolean",
-      "default": false
+      "default": true,
+      "description": "Adaptive AI Strategy Engine \u2014 when enabled, the bot continuously scores all 9 core strategies against live market data and auto-activates the best-fit strategy per market regime."
     },
     "adaptive_min_score": {
       "type": "number",
