@@ -70,11 +70,11 @@ export default function SmartControlGrid({ connected, robotStatus, account, posi
 }
 
 const TONE = {
-  cyan: { glow: "rgba(255,56,56,0.5)", color: "#ff3838" },
+  cyan: { glow: "rgba(95,232,255,0.5)", color: "#5fe8ff" },
   gold: { glow: "rgba(255,140,66,0.5)", color: "#ff8c42" },
   green: { glow: "rgba(0,255,157,0.5)", color: "#00ff9d" },
   red: { glow: "rgba(255,77,77,0.5)", color: "#ff4d4d" },
-  muted: { glow: "rgba(160,90,90,0.3)", color: "#a06060" },
+  muted: { glow: "rgba(120,140,160,0.3)", color: "#7a8da0" },
 };
 
 function Card({ icon: Icon, title, desc, value, sub, tone = "cyan", ring, onClick, index }) {

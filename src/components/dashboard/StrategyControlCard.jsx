@@ -35,7 +35,7 @@ export default function StrategyControlCard() {
 
       <div className="flex flex-wrap gap-1.5 mt-3">
         {STRATEGY_TAGS.map((t) => (
-          <span key={t} className="px-2 py-1 rounded-full text-[9px] font-heading tracking-wider bg-red-500/8 text-red-300/80 border border-red-500/25">
+          <span key={t} className="px-2 py-1 rounded-full text-[9px] font-heading tracking-wider bg-cyan-500/8 text-cyan-300/80 border border-cyan-500/25">
             {t}
           </span>
         ))}
@@ -44,7 +44,7 @@ export default function StrategyControlCard() {
       <button
         onClick={() => navigate("/strategy")}
         className="w-full mt-3 h-11 rounded-xl flex items-center justify-center gap-1.5 font-heading font-bold tracking-widest text-[11px] active:scale-[0.98] transition-transform"
-        style={{ background: "linear-gradient(90deg, rgba(255,56,56,0.18), rgba(200,24,24,0.12))", border: "1px solid rgba(255,56,56,0.45)", color: "#ff3838", boxShadow: "0 0 14px rgba(255,56,56,0.25)" }}
+        style={{ background: "linear-gradient(90deg, rgba(95,232,255,0.18), rgba(59,158,255,0.12))", border: "1px solid rgba(95,232,255,0.45)", color: "#5fe8ff", boxShadow: "0 0 14px rgba(95,232,255,0.25)" }}
       >
         MANAGE STRATEGIES
         <ChevronRight className="w-3.5 h-3.5" />
@@ -61,8 +61,8 @@ function MiniSpark() {
   return (
     <div className="shrink-0">
       <svg width={w} height={h} className="overflow-visible">
-        <polyline points={d} fill="none" stroke="#ff3838" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ filter: "drop-shadow(0 0 4px rgba(255,56,56,0.7))" }} />
+        <polyline points={d} fill="none" stroke="#5fe8ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ filter: "drop-shadow(0 0 4px rgba(95,232,255,0.7))" }} />
       </svg>
     </div>
   );

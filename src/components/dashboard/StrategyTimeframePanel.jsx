@@ -15,7 +15,7 @@ function Chip({ label, value, tone = "neutral" }) {
   const tones = {
     neutral: "text-white/70 bg-white/5 border-white/10",
     up: "text-[#00ff9d] bg-[#00ff9d]/10 border-[#00ff9d]/25",
-    cool: "text-red-400 bg-red-500/10 border-red-500/25",
+    cool: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25",
     warn: "text-orange-400 bg-orange-500/10 border-orange-500/25",
   };
   return (
@@ -69,8 +69,8 @@ export default function StrategyTimeframePanel() {
       <GlassCard className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center">
-              <Layers className="w-4 h-4 text-red-400" />
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 flex items-center justify-center">
+              <Layers className="w-4 h-4 text-cyan-400" />
             </div>
             <div>
               <h3 className="font-heading text-[13px] font-black text-white tracking-wide leading-tight">Strategy Timeframe Engine</h3>
@@ -94,10 +94,10 @@ export default function StrategyTimeframePanel() {
 
         <div className="flex items-center justify-between py-1.5 border-t border-white/5">
           <div className="flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-red-400" />
+            <Clock className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-[11px] text-white/55">Last completed signal candle</span>
           </div>
-          <span className="text-[11px] font-heading font-bold text-red-400">{fmtTime(lastClose)}</span>
+          <span className="text-[11px] font-heading font-bold text-cyan-400">{fmtTime(lastClose)}</span>
         </div>
         <div className="flex items-center justify-between py-1.5 border-t border-white/5">
           <div className="flex items-center gap-2">
@@ -110,8 +110,8 @@ export default function StrategyTimeframePanel() {
         </div>
 
         {tf.note && (
-          <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(255,56,56,0.05)", border: "1px solid rgba(255,56,56,0.15)" }}>
-            <Activity className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(95,232,255,0.05)", border: "1px solid rgba(95,232,255,0.15)" }}>
+            <Activity className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
             <p className="text-[10px] text-white/65 leading-relaxed">{tf.note}</p>
           </div>
         )}

@@ -34,13 +34,13 @@ export default function Layout() {
         <div
           className="mx-auto max-w-md sm:max-w-2xl lg:max-w-4xl flex items-stretch justify-around sm:justify-center sm:gap-1 lg:gap-3 px-1 sm:px-6 lg:px-8 overflow-x-auto no-scrollbar"
           style={{
-            background: "rgba(6,0,0,0.97)",
+            background: "rgba(8,16,32,0.97)",
             backdropFilter: "blur(20px)",
-            borderTop: "1px solid rgba(255,56,56,0.18)",
-            borderLeft: "1px solid rgba(255,56,56,0.10)",
-            borderRight: "1px solid rgba(255,56,56,0.10)",
+            borderTop: "1px solid rgba(95,232,255,0.18)",
+            borderLeft: "1px solid rgba(95,232,255,0.10)",
+            borderRight: "1px solid rgba(95,232,255,0.10)",
             borderRadius: "20px 20px 0 0",
-            boxShadow: "0 -8px 40px rgba(255,56,56,0.08)",
+            boxShadow: "0 -8px 40px rgba(95,232,255,0.08)",
             paddingTop: "10px",
             paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
             scrollbarWidth: "none",
@@ -55,13 +55,13 @@ export default function Layout() {
                 className={cn(
                   "group flex flex-col items-center justify-center gap-1.5 shrink-0 w-[68px] sm:w-[88px] lg:w-[112px] py-2 sm:py-2.5 px-1.5 rounded-xl transition-all duration-200",
                   active
-                    ? "text-red-400 bg-red-400/10"
+                    ? "text-cyan-400 bg-cyan-400/10"
                     : "text-white/35 hover:text-white/60 hover:bg-white/[0.03]"
                 )}
-                style={active ? { filter: "drop-shadow(0 0 6px rgba(255,56,56,0.45))" } : undefined}
+                style={active ? { filter: "drop-shadow(0 0 6px rgba(95,232,255,0.45))" } : undefined}
               >
                 <item.icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 shrink-0 transition-transform group-active:scale-90" />
-                <span className={cn("text-[9px] sm:text-xs lg:text-sm uppercase tracking-tight sm:tracking-wider font-heading font-bold leading-none whitespace-nowrap text-center", active && "text-red-400")}>
+                <span className={cn("text-[9px] sm:text-xs lg:text-sm uppercase tracking-tight sm:tracking-wider font-heading font-bold leading-none whitespace-nowrap text-center", active && "text-cyan-400")}>
                   {item.label}
                 </span>
               </button>

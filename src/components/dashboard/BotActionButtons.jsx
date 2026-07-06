@@ -26,10 +26,10 @@ export default function BotActionButtons({ connected, active, onPause, onStopAll
           disabled={!connected || !active || busy}
           className="h-14 rounded-2xl flex items-center justify-center gap-2 font-heading font-bold tracking-widest text-[11px] disabled:opacity-35 transition-all"
           style={{
-            background: "rgba(255,56,56,0.06)",
-            border: "1.5px solid rgba(255,56,56,0.5)",
-            color: "#ff3838",
-            boxShadow: "0 0 16px rgba(255,56,56,0.18)",
+            background: "rgba(95,232,255,0.06)",
+            border: "1.5px solid rgba(95,232,255,0.5)",
+            color: "#5fe8ff",
+            boxShadow: "0 0 16px rgba(95,232,255,0.18)",
           }}
         >
           <Pause className="w-4 h-4 fill-current" />
