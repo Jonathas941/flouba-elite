@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
 
     const ROUTES = {
       status:         ["GET",  "/status"],
+      connect:        ["POST", "/connect"],
       account:        ["GET",  "/account"],
       positions:      ["GET",  "/positions"],
       robot_status:   ["GET",  "/robot/status"],

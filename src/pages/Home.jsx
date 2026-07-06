@@ -38,7 +38,6 @@ export default function Home() {
   const wsRef = useRef(null);
   const pollRef = useRef(null);
   const touchStartY = useRef(0);
-  const initialLoadRef = useRef(true);
   const [pullY, setPullY] = useState(0);
 
   const load = useCallback(async () => {
@@ -58,33 +57,16 @@ export default function Home() {
         const a = acctRes.data.account;
         setConnected(a.connected === true);
         setAccount(a);
+        // If the bridge reports disconnected but we have saved credentials,
+        // send an explicit connect to re-establish the MT5 terminal session.
+        // This handles idle timeouts and EA reconnects without user action.
+        if (!a.connected && hasCreds) {
+          mt5Api.connect().catch(() => {});
+        }
       } else {
         setConnected(false);
         setAccount(null);
-      }
-
-      // Auto-reconnect: if disconnected on first load but credentials are saved,
-      // the MT5 terminal may need a few seconds to log back in after being idle.
-      // Retry once after 4s before showing the "not connected" state permanently.
-      if (initialLoadRef.current && !acctRes?.data?.account?.connected && hasCreds) {
-        initialLoadRef.current = false;
-        let retryCount = 0;
-        const retryConnect = async () => {
-          if (retryCount >= 3) return;
-          retryCount++;
-          const retry = await mt5Api.account().catch(() => null);
-          if (retry?.ok && retry.data?.account?.connected === true) {
-            setConnected(true);
-            setAccount(retry.data.account);
-            const retryPos = await mt5Api.positions().catch(() => null);
-            if (retryPos?.ok && retryPos.data?.positions) setPositions(retryPos.data.positions);
-          } else if (retryCount < 3) {
-            setTimeout(retryConnect, 3000);
-          }
-        };
-        setTimeout(retryConnect, 3000);
-      } else if (initialLoadRef.current) {
-        initialLoadRef.current = false;
+        if (hasCreds) mt5Api.connect().catch(() => {});
       }
 
       if (posRes?.ok && posRes.data?.positions) {
@@ -114,45 +96,19 @@ export default function Home() {
     }
   }, []);
 
-  // WebSocket real-time + 15s polling fallback (preserved)
+  // Reliable polling — 8s interval with auto-reconnect via connect().
+  // The previous WebSocket was unauthenticated and received generic "disconnected"
+  // broadcasts from the bridge, which overrode the correct per-user polling data.
   useEffect(() => {
     load();
-    const WS_URL = "wss://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/ws";
-    let ws = null, wsAlive = false, reconnectTimer = null, backoff = 1000, mounted = true;
-
-    const startPoll = () => { clearInterval(pollRef.current); pollRef.current = setInterval(load, 15000); };
-    const stopPoll = () => clearInterval(pollRef.current);
-
-    const connectWs = () => {
-      if (!mounted) return;
-      try {
-        ws = new WebSocket(WS_URL);
-        ws.onopen = () => { wsAlive = true; backoff = 1000; stopPoll(); };
-        ws.onmessage = (evt) => {
-          try {
-            const msg = JSON.parse(evt.data);
-            if (msg.account) { setConnected(msg.account.connected === true); setAccount(msg.account); }
-            if (msg.positions) { setPositions(msg.positions); if (msg.positions.length > 0) setActivePair(msg.positions[0].symbol || "XAUUSD"); }
-          } catch {}
-        };
-        ws.onerror = () => { wsAlive = false; };
-        ws.onclose = () => {
-          wsAlive = false;
-          if (!mounted) return;
-          startPoll();
-          reconnectTimer = setTimeout(() => { backoff = Math.min(backoff * 1.5, 15000); connectWs(); }, backoff);
-        };
-      } catch { wsAlive = false; startPoll(); }
-    };
-    connectWs();
-    const wsTimeout = setTimeout(() => { if (!wsAlive) startPoll(); }, 3000);
+    pollRef.current = setInterval(load, 8000);
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && (!ws || ws.readyState > 1)) { clearTimeout(reconnectTimer); backoff = 1000; connectWs(); }
+      if (document.visibilityState === "visible") load();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      mounted = false; clearTimeout(wsTimeout); clearTimeout(reconnectTimer); clearInterval(pollRef.current);
-      document.removeEventListener("visibilitychange", onVisibility); ws?.close();
+      clearInterval(pollRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [load]);
 

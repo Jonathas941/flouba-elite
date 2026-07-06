@@ -163,17 +163,20 @@ export default function ConnectMT5() {
     try {
       // Save credentials first so the bridge can authenticate to the user's MT5 account
       await saveToDb("Connecting");
-      // Retry loop — the bridge/EA may need a few seconds to establish the MT5
-      // connection after receiving credentials. Try up to 4 times with 3s delays.
+      // Explicitly tell the bridge to log in to the MT5 terminal with these credentials
+      await mt5Api.connect().catch(() => {});
+      // Retry loop — the bridge/EA may need several seconds to establish the MT5
+      // connection after receiving credentials. Try up to 6 times with 5s delays (30s total).
       let connected = false;
       let res = null;
       let acct = null;
-      for (let attempt = 0; attempt < 4; attempt++) {
+      for (let attempt = 0; attempt < 6; attempt++) {
         res = await mt5Api.account();
         acct = res?.data?.account;
         connected = res?.ok && acct?.connected === true;
         if (connected) break;
-        if (attempt < 3) await new Promise((r) => setTimeout(r, 3000));
+        // Re-send connect on each retry in case the first one was lost
+        if (attempt < 5) { mt5Api.connect().catch(() => {}); await new Promise((r) => setTimeout(r, 5000)); }
       }
       if (connected) {
         setStatus("success");

@@ -10,6 +10,9 @@ async function call(action, params = {}) {
 }
 
 export const mt5Api = {
+  /** Explicitly initiate MT5 terminal login with stored credentials */
+  connect: () => call("connect"),
+
   /** Live account info: balance, equity, margin, etc. */
   account: () => call("account"),
 
