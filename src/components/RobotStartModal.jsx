@@ -39,6 +39,7 @@ const STRATEGIES = [
 ];
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
 const MODES = ["Conservative", "Balanced", "Aggressive"];
+const MENTALITIES = ["Basic", "Premium"];
 
 // Aggressive = more concurrent trades + bigger lots. Conservative = fewer trades + smaller lots.
 const MODE_PRESETS = {
@@ -51,6 +52,7 @@ const DEFAULT = {
   symbol: "XAUUSD",
   strategy: "Auto (AI Select)",
   trading_mode: "Balanced",
+  bot_mentality: "Premium",
   // Lot & Risk
   lot_size: 0.03,
   max_concurrent_trades: 2,
@@ -398,6 +400,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         ...prev,
         symbol: s.active_pair ?? prev.symbol,
         trading_mode: s.trading_mode ?? prev.trading_mode,
+        bot_mentality: s.bot_mentality ?? prev.bot_mentality,
         lot_size: s.lot_size ?? prev.lot_size,
         max_concurrent_trades: s.max_concurrent_trades ?? prev.max_concurrent_trades,
         risk_percentage: s.risk_percentage ?? prev.risk_percentage,
@@ -684,6 +687,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
       const patch = {
         active_pair: finalForm.symbol,
         trading_mode: finalForm.trading_mode,
+        bot_mentality: finalForm.bot_mentality,
         lot_size: finalForm.lot_size,
         max_concurrent_trades: finalForm.max_concurrent_trades,
         risk_percentage: finalForm.risk_percentage,
@@ -979,6 +983,14 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   <Field label="Trading Mode">
                     <SelectInput value={form.trading_mode} onChange={setTradingMode} options={MODES} />
                   </Field>
+                  <Field label="Bot Mentality">
+                    <SelectInput value={form.bot_mentality} onChange={set("bot_mentality")} options={MENTALITIES} />
+                  </Field>
+                  <p className="text-[9px] text-white/25 leading-relaxed">
+                    {form.bot_mentality === "Basic"
+                      ? "Basic: patient, selective, defensive. Capital protection first."
+                      : "Premium: aggressive execution with controlled risk."}
+                  </p>
                 </div>
               </CollapsibleSection>
 

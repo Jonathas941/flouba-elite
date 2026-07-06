@@ -230,7 +230,9 @@ Deno.serve(async (req) => {
     const userMap = new Map(allUsers.map((u) => [u.id, u]));
 
     async function getJwt(userId, email, name) {
-      let apiKey = userMap.get(userId)?.mt5_api_key;
+      const u = userMap.get(userId);
+      if (u?.flouba_token) return u.flouba_token;
+      let apiKey = u?.mt5_api_key;
       if (!apiKey) {
         const provisionRes = await fetch(`${BASE}/provision/user`, {
           method: "POST",
@@ -241,9 +243,12 @@ Deno.serve(async (req) => {
         if (!provisionJson?.success || !provisionJson?.api_key) return null;
         apiKey = provisionJson.api_key;
         const updateData = { mt5_api_key: apiKey };
-        if (provisionJson.slug) updateData.mt5_slug = provisionJson.slug;
+        if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
+        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
+        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
         await base44.asServiceRole.entities.User.update(userId, updateData);
-        userMap.set(userId, { ...userMap.get(userId), mt5_api_key: apiKey });
+        userMap.set(userId, { ...u, ...updateData });
+        if (provisionJson.user_token) return provisionJson.user_token;
       }
       const tokenRes = await fetch(`${BASE}/auth/token`, {
         method: "POST",
@@ -570,11 +575,18 @@ Deno.serve(async (req) => {
               risk_percentage: cfg.risk_percentage ?? 1,
               stop_loss: cfg.stop_loss ?? 20,
               take_profit: cfg.take_profit ?? 40,
-              daily_profit_target: cfg.daily_profit_target ?? 200,
-              daily_loss_limit: cfg.daily_loss_limit ?? 20,
+              daily_profit_target: cfg.daily_profit_target_mode === "Auto"
+                ? (cfg.adaptive_effective_target ?? cfg.daily_profit_target ?? 200)
+                : (cfg.daily_profit_target_amount ?? cfg.daily_profit_target ?? 200),
+              daily_profit_target_amount: cfg.daily_profit_target_amount ?? 200,
+              daily_profit_target_mode: cfg.daily_profit_target_mode ?? "Fixed",
+              session_cooldown_minutes: cfg.session_cooldown_minutes ?? 60,
+              daily_profit_target_enabled: cfg.daily_profit_target_enabled ?? true,
+              stop_trading_at_daily_target: cfg.stop_trading_at_daily_target ?? true,
+              daily_loss_limit: cfg.daily_loss_limit ?? 50,
               stop_after_losses: cfg.stop_after_losses ?? 2,
               equity_guard_enabled: cfg.equity_guard_enabled ?? true,
-              equity_guard_min_equity_pct: cfg.equity_guard_min_equity_pct ?? 75,
+              equity_guard_min_equity_pct: cfg.equity_guard_min_equity_pct ?? 50,
               trend_filter_enabled: cfg.trend_filter_enabled ?? true,
               trend_filter_timeframe: cfg.trend_filter_timeframe ?? "M15",
               trend_filter_ema_period: cfg.trend_filter_ema_period ?? 200,
