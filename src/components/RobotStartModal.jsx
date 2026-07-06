@@ -141,7 +141,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
             className="w-full max-w-md rounded-t-3xl overflow-hidden"
-            style={{ background: "#0a1020", border: "1px solid rgba(95,232,255,0.12)", borderBottom: "none", maxHeight: "90vh", overflowY: "auto" }}
+            style={{ background: "#050505", border: "1px solid rgba(0,255,65,0.12)", borderBottom: "none", maxHeight: "90vh", overflowY: "auto" }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">

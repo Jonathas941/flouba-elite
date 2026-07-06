@@ -1,36 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 215 60% 8%;
-    --foreground: 200 50% 95%;
-    --card: 215 55% 11%;
-    --card-foreground: 200 50% 95%;
-    --popover: 215 60% 7%;
-    --popover-foreground: 200 50% 95%;
-    --primary: 190 100% 60%;
-    --primary-foreground: 215 60% 8%;
-    --secondary: 215 40% 14%;
-    --secondary-foreground: 200 50% 95%;
-    --muted: 215 35% 16%;
-    --muted-foreground: 200 30% 62%;
-    --accent: 210 80% 50%;
+    --background: 0 0% 3%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 120 100% 50%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 0 100% 48%;
     --accent-foreground: 0 0% 98%;
-    --success: 150 85% 48%;
-    --success-foreground: 215 60% 8%;
-    --destructive: 0 90% 50%;
+    --success: 120 100% 50%;
+    --success-foreground: 0 0% 4%;
+    --destructive: 0 100% 48%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 40% 20%;
-    --input: 215 40% 14%;
-    --ring: 190 100% 60%;
-    --radius: 1.25rem;
+    --border: 0 0% 15%;
+    --input: 0 0% 8%;
+    --ring: 120 100% 50%;
+    --radius: 1rem;
     --font-heading: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
-    --font-body: 'Rajdhani', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Share Tech Mono', ui-monospace, monospace;
     --font-display: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --font-mono: 'Share Tech Mono', ui-monospace, monospace;
   }
 }
 
@@ -41,10 +41,10 @@
   body {
     @apply bg-background text-foreground font-body;
     background:
-      radial-gradient(circle at 12% 0%, rgba(95,232,255,0.14), transparent 42%),
-      radial-gradient(circle at 88% 8%, rgba(59,158,255,0.10), transparent 40%),
-      radial-gradient(circle at 50% 100%, rgba(0,100,200,0.16), transparent 55%),
-      hsl(215 60% 8%);
+      radial-gradient(circle at 12% 0%, rgba(0,255,65,0.10), transparent 42%),
+      radial-gradient(circle at 88% 8%, rgba(255,49,49,0.06), transparent 40%),
+      radial-gradient(circle at 50% 100%, rgba(0,200,50,0.08), transparent 55%),
+      #050505;
     background-attachment: fixed;
   }
   h1, h2, h3, .font-heading { font-family: var(--font-heading); letter-spacing: 0.02em; }
@@ -52,34 +52,37 @@
 
 @layer utilities {
   .glass {
-    background: linear-gradient(150deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012));
+    background: linear-gradient(150deg, rgba(255,255,255,0.04), rgba(255,255,255,0.008));
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(95,232,255,0.18);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 34px rgba(0,0,0,0.60);
+    border: 1px solid rgba(0,255,65,0.15);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 34px rgba(0,0,0,0.70);
   }
-  .neon-cyan {
-    box-shadow: 0 0 14px rgba(95,232,255,0.6), 0 0 34px rgba(95,232,255,0.3);
-  }
-  .neon-gold {
-    box-shadow: 0 0 12px rgba(255,204,68,0.55), 0 0 28px rgba(255,204,66,0.25);
+  .neon-green {
+    box-shadow: 0 0 14px rgba(0,255,65,0.6), 0 0 34px rgba(0,255,65,0.3);
   }
   .neon-red {
-    box-shadow: 0 0 12px rgba(255,77,77,0.65), 0 0 30px rgba(255,77,77,0.30);
+    box-shadow: 0 0 12px rgba(255,49,49,0.65), 0 0 30px rgba(255,49,49,0.30);
   }
-  .neon-text-cyan {
-    text-shadow: 0 0 10px rgba(95,232,255,0.7), 0 0 22px rgba(95,232,255,0.35);
+  .neon-gold {
+    box-shadow: 0 0 12px rgba(255,204,66,0.55), 0 0 28px rgba(255,204,66,0.25);
+  }
+  .neon-text-green {
+    text-shadow: 0 0 10px rgba(0,255,65,0.7), 0 0 22px rgba(0,255,65,0.35);
+  }
+  .neon-text-red {
+    text-shadow: 0 0 10px rgba(255,49,49,0.7), 0 0 20px rgba(255,49,49,0.35);
   }
   .neon-text-gold {
     text-shadow: 0 0 10px rgba(255,204,66,0.6), 0 0 20px rgba(255,204,66,0.3);
   }
   .grid-lines {
-    background-image: linear-gradient(rgba(95,232,255,0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(95,232,255,0.06) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(0,255,65,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.05) 1px, transparent 1px);
     background-size: 30px 30px;
   }
   .shimmer {
-    background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(95,232,255,0.10) 37%, rgba(255,255,255,0.02) 63%);
+    background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(0,255,65,0.10) 37%, rgba(255,255,255,0.02) 63%);
     background-size: 400% 100%;
     animation: shimmer 1.6s ease infinite;
   }
@@ -91,7 +94,7 @@
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: rgba(95,232,255,0.4); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,65,0.4); border-radius: 10px; }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

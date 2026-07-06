@@ -18,7 +18,7 @@ export function NumberInput({ value, onChange, min, step = 1 }) {
       min={min ?? 0}
       step={step}
       onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-      className="w-24 text-right px-2 py-1.5 rounded-lg font-heading font-bold text-xs text-white bg-white/5 border border-white/10 focus:border-cyan-500/40 focus:outline-none"
+      className="w-24 text-right px-2 py-1.5 rounded-lg font-heading font-bold text-xs text-white bg-white/5 border border-white/10 focus:border-[#00FF41]/40 focus:outline-none"
     />
   );
 }
@@ -28,7 +28,7 @@ export function SelectInput({ value, onChange, options }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="px-2 py-1.5 rounded-lg font-heading font-bold text-xs text-white bg-white/5 border border-white/10 focus:border-cyan-500/40 focus:outline-none appearance-none text-right"
+      className="px-2 py-1.5 rounded-lg font-heading font-bold text-xs text-white bg-white/5 border border-white/10 focus:border-[#00FF41]/40 focus:outline-none appearance-none text-right"
       style={{ background: "rgba(255,255,255,0.06)", minWidth: 96 }}
     >
       {options.map((o) => <option key={o} value={o} style={{ background: "#111" }}>{o}</option>)}
@@ -41,7 +41,7 @@ export function Toggle({ value, onChange }) {
     <button
       type="button"
       onClick={() => onChange(!value)}
-      className={`w-11 h-6 rounded-full flex items-center transition-colors shrink-0 ${value ? "bg-cyan-500" : "bg-white/10"}`}
+      className={`w-11 h-6 rounded-full flex items-center transition-colors shrink-0 ${value ? "bg-[#00FF41]" : "bg-white/10"}`}
     >
       <motion.div
         layout

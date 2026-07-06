@@ -226,8 +226,8 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" style={{ boxShadow: "0 0 18px rgba(95,232,255,0.4)" }} />
-          <p className="font-heading text-[10px] tracking-[0.3em] text-cyan-400/70">FLOUBA ELITE</p>
+          <div className="w-10 h-10 border-2 border-[#00FF41]/30 border-t-[#00FF41] rounded-full animate-spin" style={{ boxShadow: "0 0 18px rgba(0,255,65,0.4)" }} />
+          <p className="font-heading text-[10px] tracking-[0.3em] text-[#00FF41]/70">FLOUBA ELITE</p>
         </div>
       </div>
     );
@@ -242,7 +242,7 @@ export default function Home() {
     >
       {pullY > 0 && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50" style={{ opacity: pullY / 60 }}>
-          <div className={`w-6 h-6 border-2 border-cyan-400/40 border-t-cyan-400 rounded-full ${refreshing ? "animate-spin" : ""}`} />
+          <div className={`w-6 h-6 border-2 border-[#00FF41]/40 border-t-[#00FF41] rounded-full ${refreshing ? "animate-spin" : ""}`} />
         </div>
       )}
 
@@ -251,31 +251,31 @@ export default function Home() {
       <div className="flex-1 px-4 sm:px-6 lg:px-8 pt-4 pb-8 space-y-4 max-w-md sm:max-w-2xl lg:max-w-4xl mx-auto w-full">
         {/* Live data banner / quick controls */}
         <div className="flex items-center justify-between">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-heading font-bold uppercase tracking-widest ${connected ? "text-[#00ff9d]" : "text-[#ff6b6b]"}`}
-            style={{ background: connected ? "rgba(0,255,157,0.08)" : "rgba(255,77,77,0.08)", border: `1px solid ${connected ? "rgba(0,255,157,0.35)" : "rgba(255,77,77,0.35)"}` }}>
-            <motion.span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[#00ff9d]" : "bg-[#ff6b6b]"}`}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-heading font-bold uppercase tracking-widest ${connected ? "text-[#00FF41]" : "text-[#FF3131]"}`}
+            style={{ background: connected ? "rgba(0,255,65,0.08)" : "rgba(255,49,49,0.08)", border: `1px solid ${connected ? "rgba(0,255,65,0.35)" : "rgba(255,49,49,0.35)"}` }}>
+            <motion.span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[#00FF41]" : "bg-[#FF3131]"}`}
               animate={connected ? { scale: [1, 1.6, 1], opacity: [1, 0.4, 1] } : {}} transition={{ duration: 1.5, repeat: Infinity }} />
             {connected ? "MT5 LIVE" : "NOT CONNECTED"}
           </div>
           <div className="flex items-center gap-2">
             {connected && (
-              <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-cyan-400/80 px-2.5 py-1.5 rounded-lg glass">CONNECTED</button>
+              <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-[#00FF41]/80 px-2.5 py-1.5 rounded-lg glass">CONNECTED</button>
             )}
             <button onClick={loadAll} className="w-8 h-8 rounded-full glass flex items-center justify-center">
-              <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+              <RefreshCw className="w-3.5 h-3.5 text-[#00FF41]" />
             </button>
           </div>
         </div>
 
         {!connected && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="glass rounded-2xl p-4 flex items-center gap-3" style={{ border: "1px solid rgba(255,77,77,0.25)" }}>
-            <WifiOff className="w-5 h-5 text-[#ff6b6b] shrink-0" />
+            className="glass rounded-2xl p-4 flex items-center gap-3" style={{ border: "1px solid rgba(255,49,49,0.25)" }}>
+            <WifiOff className="w-5 h-5 text-[#FF3131] shrink-0" />
             <div className="flex-1">
               <p className="text-[11px] font-heading tracking-wider text-white/80">No live data connected</p>
               <p className="text-[10px] text-white/45">Connect MT5 to view live chart, signals & bot status.</p>
             </div>
-            <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-cyan-400 px-3 py-2 rounded-lg" style={{ background: "rgba(95,232,255,0.1)", border: "1px solid rgba(95,232,255,0.4)" }}>CONNECT</button>
+            <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-[#00FF41] px-3 py-2 rounded-lg" style={{ background: "rgba(0,255,65,0.1)", border: "1px solid rgba(0,255,65,0.4)" }}>CONNECT</button>
           </motion.div>
         )}
 
@@ -310,7 +310,7 @@ export default function Home() {
             ].map((m) => (
               <div key={m.l} className="glass rounded-xl py-2.5 px-2.5">
                 <p className="text-[8px] uppercase tracking-widest text-white/35">{m.l}</p>
-                <p className={`font-heading font-bold text-[12px] mt-0.5 ${m.pnl ? (m.v.startsWith("+") ? "text-[#00ff9d]" : "text-[#ff4d4d]") : "text-white"}`}>{m.v}</p>
+                <p className={`font-heading font-bold text-[12px] mt-0.5 ${m.pnl ? (m.v.startsWith("+") ? "text-[#00FF41]" : "text-[#FF3131]") : "text-white"}`}>{m.v}</p>
               </div>
             ))}
           </div>
@@ -320,16 +320,16 @@ export default function Home() {
         <div className="space-y-2.5">
           {!connected ? (
             <button onClick={() => navigate("/connect-mt5")}
-              className="w-full rounded-2xl font-heading font-black tracking-widest text-[12px] text-[#081020] active:scale-[0.98] transition-transform py-3.5"
-              style={{ background: "linear-gradient(90deg, #5fe8ff, #3b9eff)", boxShadow: "0 0 22px rgba(95,232,255,0.45)" }}>
+              className="w-full rounded-2xl font-heading font-black tracking-widest text-[12px] text-[#050505] active:scale-[0.98] transition-transform py-3.5"
+              style={{ background: "linear-gradient(90deg, #00FF41, #00CC33)", boxShadow: "0 0 22px rgba(0,255,65,0.45)" }}>
               CONNECT MT5 ACCOUNT
             </button>
           ) : (
             <button onClick={handleStart} disabled={active}
               className="w-full rounded-2xl font-heading font-black tracking-widest text-[12px] active:scale-[0.98] transition-transform py-3.5 disabled:opacity-50"
               style={active
-                ? { background: "rgba(0,255,157,0.08)", border: "1px solid rgba(0,255,157,0.35)", color: "#00ff9d" }
-                : { background: "linear-gradient(90deg, #5fe8ff, #3b9eff)", color: "#081020", boxShadow: "0 0 22px rgba(95,232,255,0.45)" }}>
+                ? { background: "rgba(0,255,65,0.08)", border: "1px solid rgba(0,255,65,0.35)", color: "#00FF41" }
+                : { background: "linear-gradient(90deg, #00FF41, #00CC33)", color: "#050505", boxShadow: "0 0 22px rgba(0,255,65,0.45)" }}>
               {active ? "ROBOT ACTIVE" : "START ROBOT"}
             </button>
           )}
@@ -347,7 +347,7 @@ export default function Home() {
 
           {connected && (
             <button onClick={handleDisconnect}
-              className="w-full h-11 rounded-2xl font-heading text-[10px] tracking-widest text-white/40 hover:text-[#ff6b6b] transition-colors py-2"
+              className="w-full h-11 rounded-2xl font-heading text-[10px] tracking-widest text-white/40 hover:text-[#FF3131] transition-colors py-2"
               style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
               DISCONNECT MT5
             </button>
@@ -369,11 +369,11 @@ export default function Home() {
                 return (
                   <div key={i} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-heading font-bold ${dir === "Buy" ? "text-[#00ff9d] bg-[#00ff9d]/10" : "text-[#ff4d4d] bg-[#ff4d4d]/10"}`}>{dir.toUpperCase()}</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-heading font-bold ${dir === "Buy" ? "text-[#00FF41] bg-[#00FF41]/10" : "text-[#FF3131] bg-[#FF3131]/10"}`}>{dir.toUpperCase()}</span>
                       <span className="font-heading text-[11px] text-white tracking-wide">{sym}</span>
                       <span className="text-[10px] text-white/40">{p.volume ?? p.lot ?? "--"}</span>
                     </div>
-                    <span className={`font-heading font-bold text-[11px] ${profit >= 0 ? "text-[#00ff9d]" : "text-[#ff4d4d]"}`}>
+                    <span className={`font-heading font-bold text-[11px] ${profit >= 0 ? "text-[#00FF41]" : "text-[#FF3131]"}`}>
                       {profit >= 0 ? "+" : ""}{profit.toFixed(2)}
                     </span>
                   </div>

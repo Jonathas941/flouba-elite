@@ -26,10 +26,10 @@ export default function BotActionButtons({ connected, active, onPause, onStopAll
           disabled={!connected || !active || busy}
           className="h-14 rounded-2xl flex items-center justify-center gap-2 font-heading font-bold tracking-widest text-[11px] disabled:opacity-35 transition-all"
           style={{
-            background: "rgba(95,232,255,0.06)",
-            border: "1.5px solid rgba(95,232,255,0.5)",
-            color: "#5fe8ff",
-            boxShadow: "0 0 16px rgba(95,232,255,0.18)",
+            background: "rgba(0,255,65,0.06)",
+            border: "1.5px solid rgba(0,255,65,0.5)",
+            color: "#00FF41",
+            boxShadow: "0 0 16px rgba(0,255,65,0.18)",
           }}
         >
           <Pause className="w-4 h-4 fill-current" />
@@ -42,10 +42,10 @@ export default function BotActionButtons({ connected, active, onPause, onStopAll
           disabled={!connected || busy}
           className="h-14 rounded-2xl flex items-center justify-center gap-2 font-heading font-bold tracking-widest text-[11px] disabled:opacity-35 transition-all"
           style={{
-            background: "rgba(255,77,77,0.05)",
-            border: "1.5px solid rgba(255,77,77,0.5)",
-            color: "#ff6b6b",
-            boxShadow: "0 0 16px rgba(255,77,77,0.18)",
+            background: "rgba(255,49,49,0.05)",
+            border: "1.5px solid rgba(255,49,49,0.5)",
+            color: "#FF3131",
+            boxShadow: "0 0 16px rgba(255,49,49,0.18)",
           }}
         >
           <OctagonX className="w-4 h-4" />
@@ -67,8 +67,8 @@ export default function BotActionButtons({ connected, active, onPause, onStopAll
               className="glass rounded-3xl p-6 w-full max-w-sm text-center"
             >
               <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-3"
-                style={{ background: "rgba(255,77,77,0.12)", border: "1px solid rgba(255,77,77,0.4)" }}>
-                <ShieldAlert className="w-7 h-7 text-[#ff6b6b]" />
+                style={{ background: "rgba(255,49,49,0.12)", border: "1px solid rgba(255,49,49,0.4)" }}>
+                <ShieldAlert className="w-7 h-7 text-[#FF3131]" />
               </div>
               <h3 className="font-heading font-black text-white text-lg tracking-wider">STOP ALL?</h3>
               <p className="text-[12px] text-white/55 mt-1.5 leading-relaxed">
@@ -80,7 +80,7 @@ export default function BotActionButtons({ connected, active, onPause, onStopAll
                   Cancel
                 </Button>
                 <Button onClick={handleStopAll} disabled={busy}
-                  className="flex-1 h-11 rounded-xl border border-red-500/50 bg-red-500/15 hover:bg-red-500/25 text-[#ff6b6b] font-heading tracking-widest text-[11px]">
+                  className="flex-1 h-11 rounded-xl border border-red-500/50 bg-red-500/15 hover:bg-red-500/25 text-[#FF3131] font-heading tracking-widest text-[11px]">
                   {busy ? "STOPPING…" : "CONFIRM STOP"}
                 </Button>
               </div>

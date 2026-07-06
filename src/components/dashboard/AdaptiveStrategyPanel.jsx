@@ -16,8 +16,8 @@ const REGIME_TONE = {
 };
 
 const STRATS = [
-  { key: "swing", label: "Swing Trend Pullback", accent: "#5fe8ff", name: "Swing Trend Pullback Continuation 2026" },
-  { key: "smc", label: "SMC Liquidity Sweep", accent: "#3b9eff", name: "Liquidity Sweep Scalping" },
+  { key: "swing", label: "Swing Trend Pullback", accent: "#00FF41", name: "Swing Trend Pullback Continuation 2026" },
+  { key: "smc", label: "SMC Liquidity Sweep", accent: "#00CC33", name: "Liquidity Sweep Scalping" },
   { key: "tpr", label: "EMA Trend Recovery", accent: "#ff8c42", name: "EMA Trend Progressive Recovery" },
   { key: "gdb", label: "Gold Daily Breakout", accent: "#ffa500", name: "Gold Daily Breakout" },
 ];
@@ -119,8 +119,8 @@ export default function AdaptiveStrategyPanel({ connected }) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/5">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(95,232,255,0.12)", border: "1px solid rgba(95,232,255,0.3)" }}>
-              <Layers className="w-5 h-5 text-cyan-400" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,255,65,0.12)", border: "1px solid rgba(0,255,65,0.3)" }}>
+              <Layers className="w-5 h-5 text-[#00FF41]" />
             </div>
             <div>
               <h3 className="font-heading text-sm font-black text-white tracking-wide leading-tight">ADAPTIVE STRATEGY MANAGER</h3>
@@ -135,9 +135,9 @@ export default function AdaptiveStrategyPanel({ connected }) {
 
         {/* Live reason banner */}
         <div className="mx-4 mt-3 rounded-xl px-3 py-2.5 flex items-start gap-2"
-          style={{ background: targetReached ? "rgba(255,140,66,0.08)" : "rgba(95,232,255,0.07)",
-                   border: `1px solid ${targetReached ? "rgba(255,140,66,0.25)" : "rgba(95,232,255,0.25)"}` }}>
-          {targetReached ? <Target className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" /> : <Activity className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />}
+          style={{ background: targetReached ? "rgba(255,140,66,0.08)" : "rgba(0,255,65,0.07)",
+                   border: `1px solid ${targetReached ? "rgba(255,140,66,0.25)" : "rgba(0,255,65,0.25)"}` }}>
+          {targetReached ? <Target className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" /> : <Activity className="w-4 h-4 text-[#00FF41] mt-0.5 shrink-0" />}
           <p className="text-[11px] font-heading tracking-wide text-white/85 leading-snug">{reason}</p>
         </div>
 
@@ -176,7 +176,7 @@ export default function AdaptiveStrategyPanel({ connected }) {
               </p>
             </div>
             <div className="mt-2 h-2 rounded-full bg-white/8 overflow-hidden">
-              <motion.div className="h-full rounded-full" style={{ background: targetReached ? "#ff8c42" : "linear-gradient(90deg,#5fe8ff,#3b9eff)" }}
+              <motion.div className="h-full rounded-full" style={{ background: targetReached ? "#ff8c42" : "linear-gradient(90deg,#00FF41,#00CC33)" }}
                 animate={{ width: `${targetPctVal}%` }} transition={{ duration: 0.5 }} />
             </div>
             {targetReached && (
@@ -233,8 +233,8 @@ export default function AdaptiveStrategyPanel({ connected }) {
         {/* Run now */}
         <div className="px-4 pt-1 pb-4">
           <button onClick={runNow} disabled={saving}
-            className="w-full h-10 rounded-xl font-heading font-bold tracking-widest text-[10px] text-cyan-400 active:scale-[0.98] transition-transform"
-            style={{ background: "rgba(95,232,255,0.08)", border: "1px solid rgba(95,232,255,0.35)" }}>
+            className="w-full h-10 rounded-xl font-heading font-bold tracking-widest text-[10px] text-[#00FF41] active:scale-[0.98] transition-transform"
+            style={{ background: "rgba(0,255,65,0.08)", border: "1px solid rgba(0,255,65,0.35)" }}>
             <span className="flex items-center justify-center gap-2"><Zap className="w-3.5 h-3.5" /> EVALUATE NOW</span>
           </button>
         </div>
@@ -291,7 +291,7 @@ function ToggleRow({ label, value, onChange, saving }) {
     <div className="flex items-center justify-between">
       <span className="text-[11px] text-white/70 font-heading tracking-wide">{label}</span>
       <button onClick={() => onChange(!value)} disabled={saving}
-        className={`w-10 rounded-full flex items-center transition-colors relative ${value ? "bg-cyan-500" : "bg-white/10"}`}
+        className={`w-10 rounded-full flex items-center transition-colors relative ${value ? "bg-[#00FF41]" : "bg-white/10"}`}
         style={{ height: 22 }}>
         <div className={`w-4 h-4 rounded-full bg-white shadow transition-all ${value ? "ml-5" : "ml-0.5"}`} />
       </button>
@@ -305,7 +305,7 @@ function NumRow({ label, value, onChange, saving }) {
       <span className="text-[11px] text-white/70 font-heading tracking-wide shrink-0">{label}</span>
       <input type="number" value={value} disabled={saving}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-24 h-8 px-2 glass rounded-lg text-[11px] text-white text-right focus:outline-none focus:ring-1 focus:ring-cyan-500/40 bg-transparent" />
+        className="w-24 h-8 px-2 glass rounded-lg text-[11px] text-white text-right focus:outline-none focus:ring-1 focus:ring-[#00FF41]/40 bg-transparent" />
     </div>
   );
 }
