@@ -50,7 +50,7 @@ export default function SessionNewsFilter({ onFilterChange }) {
   // Persist session preference to BotSettings
   useEffect(() => {
     (async () => {
-      const list = await base44.entities.BotSettings.list();
+      const list = await base44.entities.BotSettings.list('-created_date', 1).catch(() => []);
       if (list[0]) {
         const s = list[0];
         setSettingsId(s.id);
