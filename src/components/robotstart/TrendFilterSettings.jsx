@@ -1,6 +1,6 @@
 import React from "react";
 
-const HTF_OPTIONS = ["M15", "H1"];
+const HTF_OPTIONS = ["M5", "M15", "H1"];
 
 export default function TrendFilterSettings({ form, set, Field, NumberInput, SelectInput, Toggle }) {
   return (

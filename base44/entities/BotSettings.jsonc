@@ -140,7 +140,7 @@
     "trend_filter_timeframe": {
       "type": "string",
       "enum": [
-        "M15",
+        "M5", "M15",
         "H1"
       ],
       "default": "M15"
