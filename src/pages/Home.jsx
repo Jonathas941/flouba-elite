@@ -7,6 +7,10 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import RobotStartModal from "@/components/RobotStartModal";
+import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
+import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
+import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
+import CooldownBanner from "@/components/dashboard/CooldownBanner";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
@@ -34,6 +38,7 @@ export default function Home() {
   const [activePair, setActivePair] = useState("XAUUSD");
   const [showStartModal, setShowStartModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [botSettings, setBotSettings] = useState(null);
 
   const pollRef = useRef(null);
   const slowPollRef = useRef(null);
@@ -81,8 +86,13 @@ export default function Home() {
         base44.entities.BotSettings.list('-created_date', 1).catch(() => []),
       ]);
       base44.entities.Notification.filter({ read: false }).then((u) => setUnreadCount(u?.length || 0)).catch(() => {});
-      if (settingsRes?.length > 0) settingsRef.current = settingsRes[0];
-      else settingsRef.current = null;
+      if (settingsRes?.length > 0) {
+        settingsRef.current = settingsRes[0];
+        setBotSettings(settingsRes[0]);
+      } else {
+        settingsRef.current = null;
+        setBotSettings(null);
+      }
     } catch {}
   }, []);
 
@@ -365,6 +375,18 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Cooldown countdown */}
+        <CooldownBanner settings={botSettings} />
+
+        {/* Strategy Control */}
+        <StrategyControlCard />
+
+        {/* Strategy Timeframe Engine */}
+        <StrategyTimeframePanel />
+
+        {/* Adaptive Strategy Manager */}
+        <AdaptiveStrategyPanel connected={connected} />
       </div>
 
       <RobotStartModal open={showStartModal} onClose={() => setShowStartModal(false)} onStart={handleLaunchRobot} />
