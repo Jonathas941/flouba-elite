@@ -1,0 +1,71 @@
+{
+  "name": "SerialKey",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "The unique serial key code (e.g. FE-XXXX-XXXX-XXXX)."
+    },
+    "plan": {
+      "type": "string",
+      "enum": [
+        "Starter",
+        "Pro",
+        "Elite"
+      ],
+      "default": "Starter"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Available",
+        "Used",
+        "Expired",
+        "Revoked"
+      ],
+      "default": "Available"
+    },
+    "duration_days": {
+      "type": "number",
+      "default": 30,
+      "description": "Subscription duration in days granted when this key is redeemed."
+    },
+    "redeemed_by_id": {
+      "type": "string",
+      "description": "User id of the client who redeemed this key."
+    },
+    "redeemed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional admin note, e.g. the client email the key was issued for."
+    }
+  },
+  "required": [
+    "code"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

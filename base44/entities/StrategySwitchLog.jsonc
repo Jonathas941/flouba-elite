@@ -1,0 +1,83 @@
+{
+  "name": "StrategySwitchLog",
+  "type": "object",
+  "properties": {
+    "from_strategy": {
+      "type": "string"
+    },
+    "to_strategy": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why the switch happened (regime + score context)."
+    },
+    "from_score": {
+      "type": "number"
+    },
+    "to_score": {
+      "type": "number"
+    },
+    "regime": {
+      "type": "string"
+    },
+    "confirmed_bars": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "from_strategy",
+    "to_strategy",
+    "reason"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

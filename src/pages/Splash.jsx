@@ -25,7 +25,7 @@ export default function Splash() {
         initial={{ width: 0 }}
         animate={{ width: 160 }}
         transition={{ delay: 0.8, duration: 1.4 }}
-        className="h-0.5 bg-red-500 neon-red mt-10 rounded-full"
+        className="h-0.5 bg-[#00FF41] neon-green mt-10 rounded-full"
       />
       <motion.p
         initial={{ opacity: 0 }}

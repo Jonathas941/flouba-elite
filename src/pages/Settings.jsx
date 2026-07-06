@@ -1,18 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
+import GlassCard from "@/components/GlassCard";
+import { ToggleRow, SegmentRow } from "@/components/settings/SettingRow";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { motion } from "framer-motion";
-import { Save, SlidersHorizontal, Shield, Clock, Target, Layers } from "lucide-react";
-import {
-  ToggleRow,
-  SegmentRow,
-  PairRow,
-  NumberRow,
-  SectionLabel,
-  SettingsCard,
-} from "@/components/settings/SettingRow";
-
-const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30"];
+import { Save } from "lucide-react";
+import MobileHeader from "@/components/MobileHeader";
 
 export default function Settings() {
   const [s, setS] = useState(null);
@@ -32,108 +27,95 @@ export default function Settings() {
     toast({ title: "Settings saved", description: "Your bot configuration has been updated." });
   };
 
-  if (!s)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-8 h-8 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-      </div>
-    );
+  if (!s) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" /></div>;
+
+  const num = (key, label) => (
+    <div>
+      <Label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</Label>
+      <Input
+        type="number"
+        value={s[key] ?? ""}
+        onChange={(e) => set(key, parseFloat(e.target.value) || 0)}
+        className="bg-white/5 border-red-500/20 rounded-xl h-11 mt-1"
+      />
+    </div>
+  );
 
   return (
-    <div className="bg-black min-h-screen px-4 pt-8 pb-10 space-y-5 max-w-md mx-auto">
+    <div className="space-y-4 pb-4">
+      <MobileHeader title="Bot Settings" subtitle="Tune your robot's behavior and risk." />
+      <div className="px-4 sm:px-6 lg:px-8 space-y-4">
 
-      {/* Header */}
-      <header>
-        <h1
-          className="font-heading font-black text-white"
-          style={{ fontSize: 28, letterSpacing: "0.06em", textShadow: "0 0 24px rgba(220,0,0,0.6)" }}
-        >
-          BOT SETTINGS
-        </h1>
-        <p className="text-sm text-white/40 mt-1">Tune your robot's behavior and risk.</p>
-      </header>
+        {/* Trading Mode */}
+        <GlassCard>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Trading Mode</p>
+          <SegmentRow
+            label="Mode"
+            options={["Conservative", "Balanced", "Aggressive"]}
+            value={s.trading_mode || "Balanced"}
+            onChange={(v) => set("trading_mode", v)}
+          />
+          <div className="mt-3 p-3 rounded-xl bg-white/3 border border-white/5">
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              <span className="text-white font-bold">Conservative</span>: Signal ≥ 85 pts &nbsp;·&nbsp;
+              <span className="text-white font-bold">Balanced</span>: Signal ≥ 70 pts &nbsp;·&nbsp;
+              <span className="text-white font-bold">Aggressive</span>: Signal ≥ 60 pts
+            </p>
+          </div>
+        </GlassCard>
 
-      {/* TRADING MODE */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-red-500" />
-          <SectionLabel>Trading Mode</SectionLabel>
-        </div>
-        <SettingsCard>
-          <SegmentRow label="Strategy Mode" desc="Aggressive takes more trades at higher risk" options={["Conservative", "Normal", "Aggressive"]} value={s.trading_mode} onChange={(v) => set("trading_mode", v)} />
+        {/* Signal Score Breakdown */}
+        <GlassCard>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Signal Score Weights</p>
+          <div className="space-y-2">
+            {[
+              { label: "EMA Trend Confirmation", points: 30, color: "bg-green-500" },
+              { label: "RSI Confirmation",        points: 25, color: "bg-blue-500" },
+              { label: "ATR Volatility",          points: 20, color: "bg-amber-500" },
+              { label: "Market Direction",        points: 25, color: "bg-red-500" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground flex-1">{item.label}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.points}%` }} />
+                  </div>
+                  <span className="text-xs font-bold text-white w-8 text-right">{item.points}pt</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+
+        {/* Lot Size Mode */}
+        <GlassCard>
           <SegmentRow label="Lot Size Mode" options={["Fixed", "Auto Risk"]} value={s.lot_size_mode} onChange={(v) => set("lot_size_mode", v)} />
-        </SettingsCard>
-      </section>
+        </GlassCard>
 
-      {/* ACTIVE PAIR */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <Target className="w-3.5 h-3.5 text-red-500" />
-          <SectionLabel>Active Pair</SectionLabel>
-        </div>
-        <SettingsCard>
-          <PairRow label="Instrument" options={PAIRS} value={s.active_pair} onChange={(v) => set("active_pair", v)} />
-        </SettingsCard>
-      </section>
+        {/* Risk Controls */}
+        <GlassCard className="grid grid-cols-2 gap-3">
+          {num("lot_size", "Lot Size")}
+          {num("risk_percentage", "Risk %")}
+          {num("stop_loss", "Stop Loss (pts)")}
+          {num("take_profit", "Take Profit (pts)")}
+          {num("stop_after_losses", "Stop After N Losses")}
+          {num("daily_profit_target", "Profit Target $")}
+          {num("daily_loss_limit", "Loss Limit $")}
+        </GlassCard>
 
-      {/* RISK MANAGEMENT */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <Shield className="w-3.5 h-3.5 text-red-500" />
-          <SectionLabel>Risk Management</SectionLabel>
-        </div>
-        <SettingsCard>
-          <NumberRow label="Risk per Trade" suffix="%" value={s.risk_percentage} onChange={(v) => set("risk_percentage", v)} />
-          <NumberRow label="Max Daily Trades" value={s.max_daily_trades} onChange={(v) => set("max_daily_trades", v)} />
-          <NumberRow label="Daily Profit Target" suffix="$" value={s.daily_profit_target} onChange={(v) => set("daily_profit_target", v)} />
-          <NumberRow label="Daily Loss Limit" suffix="$" value={s.daily_loss_limit} onChange={(v) => set("daily_loss_limit", v)} />
-          <NumberRow label="Risk : Reward" suffix="R" value={s.risk_reward_ratio} onChange={(v) => set("risk_reward_ratio", v)} />
-        </SettingsCard>
-      </section>
-
-      {/* TRADE MANAGEMENT */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <Layers className="w-3.5 h-3.5 text-red-500" />
-          <SectionLabel>Trade Management</SectionLabel>
-        </div>
-        <SettingsCard>
+        {/* Risk Management Toggles */}
+        <GlassCard>
           <ToggleRow label="Break Even" desc="Move SL to entry once in profit" checked={s.break_even} onChange={(v) => set("break_even", v)} />
           <ToggleRow label="Trailing Stop" desc="Lock profits as price moves" checked={s.trailing_stop} onChange={(v) => set("trailing_stop", v)} />
-          <ToggleRow label="Partial Close" desc="Close 50% at first target" checked={s.partial_close} onChange={(v) => set("partial_close", v)} />
           <ToggleRow label="News Filter" desc="Pause around high-impact news" checked={s.news_filter} onChange={(v) => set("news_filter", v)} />
-          <NumberRow label="Max Spread" suffix="pips" value={s.max_spread} onChange={(v) => set("max_spread", v)} />
-          <NumberRow label="Slippage" suffix="pips" value={s.slippage} onChange={(v) => set("slippage", v)} />
-          <NumberRow label="Max Positions" value={s.max_positions} onChange={(v) => set("max_positions", v)} />
-          <NumberRow label="Max Hold Time" suffix="hrs" value={s.max_hold_hours} onChange={(v) => set("max_hold_hours", v)} />
-        </SettingsCard>
-      </section>
-
-      {/* SESSIONS */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="w-3.5 h-3.5 text-red-500" />
-          <SectionLabel>Trading Sessions</SectionLabel>
-        </div>
-        <SettingsCard>
-          <ToggleRow label="Asian Session" checked={s.asian_session} onChange={(v) => set("asian_session", v)} />
           <ToggleRow label="London Session" checked={s.london_session} onChange={(v) => set("london_session", v)} />
           <ToggleRow label="New York Session" checked={s.new_york_session} onChange={(v) => set("new_york_session", v)} />
-        </SettingsCard>
-      </section>
+        </GlassCard>
 
-      {/* SAVE */}
-      <motion.button
-        onClick={save}
-        whileTap={{ scale: 0.97 }}
-        className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-heading font-black tracking-[0.2em] text-sm text-white transition-all"
-        style={{
-          background: "rgba(239,68,68,0.95)",
-          boxShadow: "0 0 22px rgba(239,68,68,0.45)",
-        }}
-      >
-        <Save className="w-4 h-4" /> SAVE SETTINGS
-      </motion.button>
+        <Button onClick={save} className="w-full h-12 py-3 rounded-2xl bg-red-600 hover:bg-red-500 neon-red font-heading tracking-widest mb-24">
+          <Save className="w-4 h-4 mr-2" /> SAVE SETTINGS
+        </Button>
+      </div>
     </div>
   );
 }
