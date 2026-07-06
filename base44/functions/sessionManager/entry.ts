@@ -22,12 +22,13 @@ function parseHM(hm) {
 
 // === Config from env vars ===
 const TIMEZONE = validTz(Deno.env.get("TIMEZONE") || "America/New_York");
-const ASIAN_ENABLED = Deno.env.get("ASIAN_SESSION_ENABLED") !== "false";
-const ASIAN_START = validTime(Deno.env.get("ASIAN_SESSION_START"), "19:15");
-const ASIAN_END = validTime(Deno.env.get("ASIAN_SESSION_END"), "03:45");
-const NY_ENABLED = Deno.env.get("NY_SESSION_ENABLED") !== "false";
-const NY_START = validTime(Deno.env.get("NY_SESSION_START"), "08:00");
-const NY_END = validTime(Deno.env.get("NY_SESSION_END"), "12:00");
+// 24/7 trading: sessions cover all market hours (weekdays only, excluding rollover)
+const ASIAN_ENABLED = true;
+const ASIAN_START = "00:00";
+const ASIAN_END = "23:59";
+const NY_ENABLED = true;
+const NY_START = "00:00";
+const NY_END = "23:59";
 
 const ASIAN_START_MIN = parseHM(ASIAN_START);
 const ASIAN_END_MIN = parseHM(ASIAN_END);
