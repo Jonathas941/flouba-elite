@@ -341,7 +341,7 @@
     },
     "swing_max_daily_loss_pct": {
       "type": "number",
-      "default": 2
+      "default": 40
     },
     "swing_max_daily_drawdown_pct": {
       "type": "number",
@@ -451,7 +451,7 @@
     },
     "tpr_daily_loss_limit_pct": {
       "type": "number",
-      "default": 2,
+      "default": 40,
       "description": "EMA Trend Progressive Recovery \u2014 daily loss limit as a percentage of balance."
     },
     "tpr_max_trades_per_day": {
@@ -617,7 +617,7 @@
     },
     "hybrid_max_daily_loss_pct": {
       "type": "number",
-      "default": 2,
+      "default": 40,
       "description": "Hybrid Confluence Mode \u2014 daily loss limit as a percentage of balance."
     },
     "hybrid_equity_stop_pct": {
@@ -738,7 +738,7 @@
     },
     "nqkz_max_daily_loss_pct": {
       "type": "number",
-      "default": 2
+      "default": 40
     },
     "nqkz_equity_stop_pct": {
       "type": "number",
@@ -851,7 +851,7 @@
     },
     "ofor_max_daily_loss_pct": {
       "type": "number",
-      "default": 2,
+      "default": 40,
       "description": "Orderflow Opening Range Breakout \u2014 daily loss limit as a percentage of balance."
     },
     "ofor_equity_stop_pct": {
@@ -961,7 +961,7 @@
     },
     "gmr_max_daily_loss_pct": {
       "type": "number",
-      "default": 2,
+      "default": 40,
       "description": "Gold Morning Range Breakout \u2014 daily loss limit as a percentage of balance."
     },
     "gmr_equity_stop_pct": {
@@ -1067,7 +1067,7 @@
     },
     "gdb_max_daily_loss_pct": {
       "type": "number",
-      "default": 2,
+      "default": 40,
       "description": "Gold Daily Breakout \u2014 daily loss limit as a percentage of balance."
     },
     "gdb_equity_stop_pct": {
@@ -1168,7 +1168,7 @@
     },
     "ms_max_daily_loss_pct": {
       "type": "number",
-      "default": 2,
+      "default": 40,
       "description": "Market Structure BOS Retest Scalper \u2014 daily loss limit as a percentage of balance."
     },
     "ms_max_daily_drawdown_pct": {

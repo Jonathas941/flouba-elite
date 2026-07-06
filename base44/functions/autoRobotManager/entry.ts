@@ -64,8 +64,8 @@ function consecutiveLossesCount(closedTrades) {
 function mentalityGuard({ dailyPnL, balance, consecLosses, sessionInfo, cfg }) {
   const isBasic = (cfg.bot_mentality || "Premium") === "Basic";
   // 1. Capital protection — daily loss limit / drawdown (always on)
-  const lossLimit = cfg.daily_loss_limit ?? 20;
-  const maxDailyLossPct = cfg.swing_max_daily_loss_pct ?? 2;
+  const maxDailyLossPct = cfg.swing_max_daily_loss_pct ?? 40;
+  const lossLimit = balance > 0 ? (maxDailyLossPct / 100) * balance : (cfg.daily_loss_limit ?? 20);
   if (dailyPnL <= -lossLimit || (balance > 0 && dailyPnL <= -(maxDailyLossPct / 100) * balance))
     return { allow: false, status: "Capital protection mode active.", block: true };
 
@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
             daily_profit_target_amount: config.daily_profit_target_amount ?? 200,
             daily_profit_target_mode: config.daily_profit_target_mode ?? "Fixed",
             session_cooldown_minutes: config.session_cooldown_minutes ?? 60,
-            daily_loss_limit: config.daily_loss_limit ?? 20,
+            daily_loss_limit: balance > 0 ? ((config.swing_max_daily_loss_pct ?? 40) / 100) * balance : (config.daily_loss_limit ?? 20),
             stop_after_losses: config.stop_after_losses ?? 2,
             lot_multiplier: resolvedLotMultiplier,
             equity_guard_enabled: config.equity_guard_enabled ?? true,

@@ -494,8 +494,8 @@ Deno.serve(async (req) => {
       const realizedToday = closed
         .filter((t) => nyDateKey(t.closed_at) === todayKey)
         .reduce((sum, t) => sum + (t.profit ?? 0), 0);
-      const dailyLossLimit = cfg.daily_loss_limit ?? 50;
-      const maxDailyLossPct = cfg.swing_max_daily_loss_pct ?? 2;
+      const maxDailyLossPct = cfg.swing_max_daily_loss_pct ?? 40;
+      const dailyLossLimit = balance > 0 ? (maxDailyLossPct / 100) * balance : (cfg.daily_loss_limit ?? 50);
       const maxDailyDDPct = cfg.swing_max_daily_drawdown_pct ?? 3;
       const dailyLossHit = realizedToday <= -dailyLossLimit;
       const dailyLossPctHit = balance > 0 && realizedToday <= -(maxDailyLossPct / 100) * balance;
