@@ -36,6 +36,7 @@ export default function Home() {
   const wsRef = useRef(null);
   const pollRef = useRef(null);
   const touchStartY = useRef(0);
+  const initialLoadRef = useRef(true);
   const [pullY, setPullY] = useState(0);
 
   const load = useCallback(async () => {
@@ -50,6 +51,7 @@ export default function Home() {
       // Unread notification count for the bell badge (failures ignored)
       base44.entities.Notification.filter({ read: false }).then((u) => setUnreadCount(u?.length || 0)).catch(() => {});
 
+      const hasCreds = settingsRes?.[0]?.mt5_account;
       if (acctRes?.ok && acctRes.data?.account) {
         const a = acctRes.data.account;
         setConnected(a.connected === true);
@@ -57,6 +59,24 @@ export default function Home() {
       } else {
         setConnected(false);
         setAccount(null);
+      }
+
+      // Auto-reconnect: if disconnected on first load but credentials are saved,
+      // the MT5 terminal may need a few seconds to log back in after being idle.
+      // Retry once after 4s before showing the "not connected" state permanently.
+      if (initialLoadRef.current && !acctRes?.data?.account?.connected && hasCreds) {
+        initialLoadRef.current = false;
+        setTimeout(async () => {
+          const retry = await mt5Api.account().catch(() => null);
+          if (retry?.ok && retry.data?.account?.connected === true) {
+            setConnected(true);
+            setAccount(retry.data.account);
+            const retryPos = await mt5Api.positions().catch(() => null);
+            if (retryPos?.ok && retryPos.data?.positions) setPositions(retryPos.data.positions);
+          }
+        }, 4000);
+      } else if (initialLoadRef.current) {
+        initialLoadRef.current = false;
       }
 
       if (posRes?.ok && posRes.data?.positions) {
