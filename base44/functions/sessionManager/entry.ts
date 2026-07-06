@@ -46,7 +46,7 @@ const NY_MAX_POSITIONS = 3;
 const NY_MIN_QUALITY = 60;
 
 const ASIAN_PAIRS = ["USDJPY", "EURJPY", "AUDJPY", "AUDUSD", "NZDUSD"];
-const NY_PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"];
+const NY_PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
 const MAX_SPREAD_PIPS = 5;
 
 function fmtWindow(start, end) {
@@ -75,8 +75,9 @@ function getETTime() {
 
 // === Local session computation (fallback when server endpoint unavailable) ===
 function getActiveSession(et) {
-  if (ASIAN_ENABLED && (et.mins >= ASIAN_START_MIN || et.mins < ASIAN_END_MIN)) return "asian";
+  // NY checked first — full pair list (XAUUSD, EURUSD, GBPUSD, USDJPY) + full risk multiplier
   if (NY_ENABLED && et.mins >= NY_START_MIN && et.mins < NY_END_MIN) return "ny";
+  if (ASIAN_ENABLED && (et.mins >= ASIAN_START_MIN || et.mins < ASIAN_END_MIN)) return "asian";
   return null;
 }
 
