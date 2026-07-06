@@ -30,6 +30,7 @@ function timeAgo(iso) {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const s = Math.floor(diff / 1000);
+  if (s < 0) return "just now";
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;
@@ -76,7 +77,6 @@ export default function Notifications() {
     try {
       await base44.entities.Notification.deleteMany({});
       setItems([]);
-      await logNotification({ type: "system", title: "History Cleared", message: "All notifications were removed.", category: "info" });
       load();
       toast({ title: "Notifications cleared", duration: 1500 });
     } catch {
