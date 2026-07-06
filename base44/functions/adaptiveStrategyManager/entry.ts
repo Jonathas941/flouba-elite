@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
       const isAuth = await base44.auth.isAuthenticated().catch(() => false);
       if (!isAuth) return Response.json({ error: "Unauthorized — authentication required" }, { status: 403 });
       const user = await base44.auth.me().catch(() => null);
-      if (user && user.role !== "admin") return Response.json({ error: "Admin access required" }, { status: 403 });
+      if (!user || user.role !== "admin") return Response.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const provisionSecret = Deno.env.get("PROVISION_SECRET");

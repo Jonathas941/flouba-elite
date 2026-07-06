@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
         if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
         if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
         if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
-        await base44.asServiceRole.entities.User.update(user.id, updateData);
+        await base44.auth.updateMe(updateData);
         bridgeToken = provisionJson.user_token || null;
       }
       if (!bridgeToken) {
