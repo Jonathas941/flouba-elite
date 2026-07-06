@@ -11,6 +11,7 @@ import GlobalMarketGlobe from "@/components/dashboard/GlobalMarketGlobe";
 import SmartControlGrid from "@/components/dashboard/SmartControlGrid";
 import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
+import CooldownBanner from "@/components/dashboard/CooldownBanner";
 import BotActionButtons from "@/components/dashboard/BotActionButtons";
 import RobotStartModal from "@/components/RobotStartModal";
 import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
@@ -32,6 +33,7 @@ export default function Home() {
   const [showStartModal, setShowStartModal] = useState(false);
   const [autoStartEnabled, setAutoStartEnabled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [botSettings, setBotSettings] = useState(null);
 
   const wsRef = useRef(null);
   const pollRef = useRef(null);
@@ -87,8 +89,11 @@ export default function Home() {
       }
 
       if (settingsRes?.length > 0) {
+        setBotSettings(settingsRes[0]);
         setAutoStartEnabled(settingsRes[0].auto_start_enabled ?? false);
         if (settingsRes[0].win_rate != null && settingsRes[0].win_rate > 0) setWinRate(settingsRes[0].win_rate);
+      } else {
+        setBotSettings(null);
       }
 
       if (robotRes?.ok && robotRes.data?.robot) {
@@ -299,6 +304,9 @@ export default function Home() {
             <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-cyan-300 px-3 py-2 rounded-lg" style={{ background: "rgba(0,229,255,0.1)", border: "1px solid rgba(0,229,255,0.4)" }}>CONNECT</button>
           </motion.div>
         )}
+
+        {/* Cooldown countdown — shown when bot paused after hitting session target */}
+        <CooldownBanner settings={botSettings} />
 
         {/* 1. Global Market Intelligence — 3D AI globe */}
         <GlobalMarketGlobe connected={connected} navigate={navigate} />
