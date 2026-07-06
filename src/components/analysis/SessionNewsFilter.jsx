@@ -34,6 +34,7 @@ export default function SessionNewsFilter({ onFilterChange }) {
   const [newsFilter, setNewsFilter] = useState(true);
   const [currentSession, setCurrentSession] = useState(getCurrentSession());
   const [newsEvent, setNewsEvent] = useState(null);
+  const [settingsId, setSettingsId] = useState(null);
 
   // Update session every minute
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function SessionNewsFilter({ onFilterChange }) {
       const list = await base44.entities.BotSettings.list();
       if (list[0]) {
         const s = list[0];
+        setSettingsId(s.id);
         setSelectedSession(
           s.london_session && s.new_york_session ? "London+NY"
           : s.london_session ? "London"
@@ -74,9 +76,8 @@ export default function SessionNewsFilter({ onFilterChange }) {
 
   const saveSession = async (val) => {
     setSelectedSession(val);
-    const list = await base44.entities.BotSettings.list();
-    if (list[0]) {
-      await base44.entities.BotSettings.update(list[0].id, {
+    if (settingsId) {
+      await base44.entities.BotSettings.update(settingsId, {
         london_session: val === "London" || val === "London+NY" || val === "All Sessions",
         new_york_session: val === "New York" || val === "London+NY" || val === "All Sessions",
         news_filter: newsFilter,
@@ -87,8 +88,7 @@ export default function SessionNewsFilter({ onFilterChange }) {
   const toggleNews = async () => {
     const next = !newsFilter;
     setNewsFilter(next);
-    const list = await base44.entities.BotSettings.list();
-    if (list[0]) await base44.entities.BotSettings.update(list[0].id, { news_filter: next });
+    if (settingsId) await base44.entities.BotSettings.update(settingsId, { news_filter: next });
   };
 
   return (
