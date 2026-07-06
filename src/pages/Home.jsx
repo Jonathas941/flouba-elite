@@ -7,7 +7,6 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import FloubaHeader from "@/components/dashboard/FloubaHeader";
-import GlobalMarketGlobe from "@/components/dashboard/GlobalMarketGlobe";
 import SmartControlGrid from "@/components/dashboard/SmartControlGrid";
 import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
@@ -281,9 +280,6 @@ export default function Home() {
 
         {/* Cooldown countdown — shown when bot paused after hitting session target */}
         <CooldownBanner settings={botSettings} />
-
-        {/* 1. Global Market Intelligence — 3D AI globe */}
-        <GlobalMarketGlobe connected={connected} navigate={navigate} />
 
         {/* 1a. EA Download */}
         <EADownloadCard />
