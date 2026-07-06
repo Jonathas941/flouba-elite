@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // MT5 server provision endpoint — creates a fresh account + API key + JWT for a user
-const PROVISION_URL = "https://elite-server.replit.app/api/provision/user";
+const PROVISION_URL = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api/provision/user";
 
 Deno.serve(async (req) => {
   try {
