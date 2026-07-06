@@ -19,6 +19,7 @@ const STRATS = [
   { key: "swing", label: "Swing Trend Pullback", accent: "#5fe8ff", name: "Swing Trend Pullback Continuation 2026" },
   { key: "smc", label: "SMC Liquidity Sweep", accent: "#b388ff", name: "Liquidity Sweep Scalping" },
   { key: "tpr", label: "EMA Trend Recovery", accent: "#ffce4d", name: "EMA Trend Progressive Recovery" },
+  { key: "gdb", label: "Gold Daily Breakout", accent: "#ffb347", name: "Gold Daily Breakout" },
 ];
 
 function fmtET(d) {
@@ -40,7 +41,7 @@ function countdown(iso) {
 export default function AdaptiveStrategyPanel({ connected }) {
   const { toast } = useToast();
   const [settings, setSettings] = useState(null);
-  const [metrics, setMetrics] = useState({ swing: null, smc: null, tpr: null });
+  const [metrics, setMetrics] = useState({ swing: null, smc: null, tpr: null, gdb: null });
   const [lastSwitch, setLastSwitch] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
   const [showSwitchLog, setShowSwitchLog] = useState(false);
@@ -54,7 +55,7 @@ export default function AdaptiveStrategyPanel({ connected }) {
         base44.entities.StrategySwitchLog.list("-created_date", 1).catch(() => []),
       ]);
       setSettings(stg?.[0] || null);
-      const map = { swing: null, smc: null, tpr: null };
+      const map = { swing: null, smc: null, tpr: null, gdb: null };
       for (const m of mtr || []) {
         if (map[m.strategy_key] !== undefined) map[m.strategy_key] = m;
       }

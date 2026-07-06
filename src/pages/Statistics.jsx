@@ -59,9 +59,6 @@ export default function Statistics() {
   const drawdownAlertedRef = useRef(false);
 
   const load = useCallback(async () => {
-    // Sync closed trades from MT5 → Trade entity so history & stats persist
-    await base44.functions.invoke("syncTradeHistory", {}).catch(() => {});
-
     // Load account + live positions from real MT5 API
     const [acctRes, posRes, settingsList] = await Promise.all([
       mt5Api.account().catch(() => null),
@@ -148,45 +145,9 @@ export default function Statistics() {
     }
   }, [stats, settings]);
 
-  // Auto-manage: Break Even + Trailing Stop + Auto Close
-  useEffect(() => {
-    if (!settings || settings.connection_status !== "Connected") return;
-    const openTrades = trades.filter((t) => t.status === "Open");
-    openTrades.forEach(async (trade) => {
-      const profit = trade.profit ?? 0;
-      const pips = trade.entry_price && trade.current_price
-        ? Math.abs(trade.current_price - trade.entry_price) * (trade.pair?.includes("JPY") ? 100 : 10000)
-        : 0;
-
-      // Break Even
-      if (settings.break_even && !trade.break_even_activated && pips >= (settings.stop_loss ?? 50)) {
-        await base44.entities.Trade.update(trade.id, {
-          stop_loss: trade.entry_price,
-          break_even_activated: true,
-        });
-        toast({ title: "Break Even Activated", description: `${trade.pair} SL moved to entry` });
-      }
-
-      // Auto Close: TP / SL / Daily Target / Daily Loss
-      const shouldClose =
-        (settings.daily_profit_target && stats.today_profit >= settings.daily_profit_target) ||
-        (settings.daily_loss_limit && Math.abs(stats.today_loss) >= settings.daily_loss_limit);
-
-      if (shouldClose) {
-        const reason = stats.today_profit >= (settings.daily_profit_target ?? Infinity)
-          ? "Daily Target"
-          : "Daily Loss Limit";
-        await base44.entities.Trade.update(trade.id, {
-          status: "Closed",
-          closed_at: new Date().toISOString(),
-          close_reason: reason,
-        });
-        toast({ title: `${reason} Reached`, description: `${trade.pair} closed automatically` });
-        await base44.entities.BotSettings.update(settings.id, { robot_status: "Paused" });
-        setSettings((p) => ({ ...p, robot_status: "Paused" }));
-      }
-    });
-  }, [trades, settings]);
+  // Note: Break Even, Trailing Stop, TP/SL, and daily target/loss auto-close are all
+  // handled by the robot backend (autoRobotManager + MT5 terminal). The frontend no
+  // longer modifies Trade records locally — it only reads and displays live state.
 
   const handlePanic = async () => {
     try {

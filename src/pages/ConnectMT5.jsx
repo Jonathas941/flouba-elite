@@ -87,7 +87,6 @@ export default function ConnectMT5() {
   const [password, setPassword]               = useState("");
   const [server, setServer]                   = useState("");
   const [showPass, setShowPass]               = useState(false);
-  const [saveCredentials, setSaveCredentials] = useState(true);
   const [status, setStatus]                   = useState("idle");
   const [errorMsg, setErrorMsg]               = useState("");
   const [settingsId, setSettingsId]           = useState(null);
@@ -288,16 +287,7 @@ export default function ConnectMT5() {
               )}
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-white/5">
-              <div>
-                <p className="text-xs text-white font-semibold">Save Credentials</p>
-                <p className="text-[10px] text-muted-foreground">Stored encrypted — never displayed</p>
-              </div>
-              <button type="button" onClick={() => setSaveCredentials(!saveCredentials)}
-                className={`w-11 h-6 rounded-full transition-colors relative ${saveCredentials ? "bg-red-600" : "bg-white/10"}`}>
-                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${saveCredentials ? "left-[22px]" : "left-0.5"}`} />
-              </button>
-            </div>
+
           </GlassCard>
         </motion.div>
 
