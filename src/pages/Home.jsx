@@ -164,7 +164,13 @@ export default function Home() {
       strategy_confirm_timeframe: tf.confirm || null,
       strategy_entry_timeframe: tf.entry || null,
     };
-    const res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
+    let res;
+    try {
+      res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
+    } catch (err) {
+      toast({ title: "Start Failed", description: err?.message || "Bridge unreachable. Try again.", variant: "destructive", duration: 4000 });
+      return;
+    }
     if (res?.ok && res?.data?.success === true) {
       setActivePair(form.symbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
       toast({ title: "Robot Started", description: `${strategy} active on ${form.symbol}`, duration: 3000 });
