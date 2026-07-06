@@ -433,7 +433,7 @@ Deno.serve(async (req) => {
       const pend = { strategy: cfg.adaptive_pending_strategy, since: cfg.adaptive_pending_since, bars: cfg.adaptive_pending_bars || 0 };
       const atrVal = num(ind?.atr_14 ?? ind?.atr14);
       const priceVal = quote?.bid;
-      const riskTooHigh = atrVal != null && priceVal != null && (atrVal / priceVal) > 0.003;
+      const riskTooHigh = atrVal != null && priceVal != null && (atrVal / priceVal) > 0.005;
       for (const k of KEYS) {
         const regimeMatch = regimeMatchFor(k, regime);
         const spreadOk = regimeInfo.spread == null || regimeInfo.spread <= (k === "gdb" ? (cfg.gdb_max_spread_points ?? 30) : (cfg.swing_max_spread_points ?? 30));
@@ -444,7 +444,7 @@ Deno.serve(async (req) => {
         const globalOk = !globalCooldownActive;
         const riskOk = !dailyLossHit && !dailyLossPctHit && !dailyDDHit;
         const targetOk = !dailyTargetReached;
-        const scoreOk = scores[k] >= (cfg.adaptive_min_score ?? 70);
+        const scoreOk = scores[k] >= (cfg.adaptive_min_score ?? 55);
         // Gold Daily Breakout extra gates: healthy ATR, no other XAUUSD position open, prev-day range within bounds
         let gdbExtraOk = true;
         if (k === "gdb") {
@@ -493,8 +493,8 @@ Deno.serve(async (req) => {
       let reason = "";
       let newActive = current;
       let switched = false;
-      const threshold = cfg.adaptive_switch_threshold ?? 15;
-      const barsConfirm = cfg.adaptive_bars_confirm ?? 3;
+      const threshold = cfg.adaptive_switch_threshold ?? 8;
+      const barsConfirm = cfg.adaptive_bars_confirm ?? 1;
 
       // Best eligible rival (highest score among eligible, excluding current)
       const eligibleRivals = KEYS.filter((k) => k !== currentKey && eligible[k]);
