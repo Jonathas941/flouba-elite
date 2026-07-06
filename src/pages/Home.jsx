@@ -35,31 +35,26 @@ export default function Home() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [botSettings, setBotSettings] = useState(null);
 
-  const wsRef = useRef(null);
   const pollRef = useRef(null);
+  const slowPollRef = useRef(null);
+  const settingsRef = useRef(null);
   const touchStartY = useRef(0);
   const [pullY, setPullY] = useState(0);
 
-  const load = useCallback(async () => {
+  // Fast poll (8s): live MT5 data — account, positions, robot status
+  const loadFast = useCallback(async () => {
     try {
-      const [acctRes, posRes, robotRes, settingsRes] = await Promise.all([
+      const [acctRes, posRes, robotRes] = await Promise.all([
         mt5Api.account(),
         mt5Api.positions(),
         mt5Api.robotStatus(),
-        base44.entities.BotSettings.list('-created_date', 1).catch(() => []),
       ]);
 
-      // Unread notification count for the bell badge (failures ignored)
-      base44.entities.Notification.filter({ read: false }).then((u) => setUnreadCount(u?.length || 0)).catch(() => {});
-
-      const hasCreds = settingsRes?.[0]?.mt5_account;
+      const hasCreds = settingsRef.current?.mt5_account;
       if (acctRes?.ok && acctRes.data?.account) {
         const a = acctRes.data.account;
         setConnected(a.connected === true);
         setAccount(a);
-        // If the bridge reports disconnected but we have saved credentials,
-        // send an explicit connect to re-establish the MT5 terminal session.
-        // This handles idle timeouts and EA reconnects without user action.
         if (!a.connected && hasCreds) {
           mt5Api.connect().catch(() => {});
         }
@@ -76,14 +71,6 @@ export default function Home() {
         setPositions([]);
       }
 
-      if (settingsRes?.length > 0) {
-        setBotSettings(settingsRes[0]);
-        setAutoStartEnabled(settingsRes[0].auto_start_enabled ?? false);
-        if (settingsRes[0].win_rate != null && settingsRes[0].win_rate > 0) setWinRate(settingsRes[0].win_rate);
-      } else {
-        setBotSettings(null);
-      }
-
       if (robotRes?.ok && robotRes.data?.robot) {
         const r = robotRes.data.robot;
         setRobotStatus(r.running ? "Scanning Market" : "Paused");
@@ -96,21 +83,46 @@ export default function Home() {
     }
   }, []);
 
-  // Reliable polling — 8s interval with auto-reconnect via connect().
-  // The previous WebSocket was unauthenticated and received generic "disconnected"
-  // broadcasts from the bridge, which overrode the correct per-user polling data.
+  // Slow poll (60s): settings + notification count — rarely changes, saves DB load
+  const loadSlow = useCallback(async () => {
+    try {
+      const [settingsRes] = await Promise.all([
+        base44.entities.BotSettings.list('-created_date', 1).catch(() => []),
+      ]);
+      base44.entities.Notification.filter({ read: false }).then((u) => setUnreadCount(u?.length || 0)).catch(() => {});
+
+      if (settingsRes?.length > 0) {
+        settingsRef.current = settingsRes[0];
+        setBotSettings(settingsRes[0]);
+        setAutoStartEnabled(settingsRes[0].auto_start_enabled ?? false);
+        if (settingsRes[0].win_rate != null && settingsRes[0].win_rate > 0) setWinRate(settingsRes[0].win_rate);
+      } else {
+        settingsRef.current = null;
+        setBotSettings(null);
+      }
+    } catch {}
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    await Promise.all([loadFast(), loadSlow()]);
+  }, [loadFast, loadSlow]);
+
+  // Two-tier polling: fast (8s) for live MT5 data, slow (60s) for settings/notifications.
+  // This cuts per-poll DB calls from 5 to 3, reducing bridge and database load by ~40%.
   useEffect(() => {
-    load();
-    pollRef.current = setInterval(load, 8000);
+    loadAll();
+    pollRef.current = setInterval(loadFast, 8000);
+    slowPollRef.current = setInterval(loadSlow, 60000);
     const onVisibility = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") loadAll();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       clearInterval(pollRef.current);
+      clearInterval(slowPollRef.current);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [load]);
+  }, [loadAll, loadFast, loadSlow]);
 
   const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
   const handleTouchMove = (e) => {
@@ -118,7 +130,7 @@ export default function Home() {
     if (dy > 0 && window.scrollY === 0) setPullY(Math.min(dy * 0.4, 60));
   };
   const handleTouchEnd = async () => {
-    if (pullY > 45) { setRefreshing(true); await load(); setRefreshing(false); }
+    if (pullY > 45) { setRefreshing(true); await loadAll(); setRefreshing(false); }
     setPullY(0);
   };
 
@@ -182,7 +194,7 @@ export default function Home() {
     setRobotStatus("Paused");
     toast({ title: "Stop All Sent", description: "Robot paused · close-all requested from MT5 backend.", duration: 3500 });
     logNotification({ type: "alert", title: "Stop All Executed", message: "Robot paused and all open positions requested to close.", category: "warning", meta: { openPositions: positions.length } });
-    setTimeout(load, 1500);
+    setTimeout(loadFast, 1500);
   };
 
   const handleDisconnect = async () => {
@@ -249,7 +261,7 @@ export default function Home() {
             {connected && (
               <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-red-400/80 px-2.5 py-1.5 rounded-lg glass">CONNECTED</button>
             )}
-            <button onClick={load} className="w-8 h-8 rounded-full glass flex items-center justify-center">
+            <button onClick={loadAll} className="w-8 h-8 rounded-full glass flex items-center justify-center">
               <RefreshCw className="w-3.5 h-3.5 text-red-400" />
             </button>
           </div>

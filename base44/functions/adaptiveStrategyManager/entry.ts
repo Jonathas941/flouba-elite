@@ -300,14 +300,14 @@ Deno.serve(async (req) => {
 
       // ── Build switch windows & attribute trades ──
       const logs = await base44.asServiceRole.entities.StrategySwitchLog.filter(
-        { created_by_id: userId }, "-created_date", 500
+        { created_by_id: userId }, "-created_date", 100
       ).catch(() => []);
       const logsAsc = (logs || []).slice().sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
       const initialStrategy = cfg.adaptive_active_strategy || (logsAsc[0]?.from_strategy || DEFAULT_STRATEGY);
       const windows = buildWindows(logsAsc, initialStrategy, cfg.adaptive_active_since);
 
       const closedTrades = await base44.asServiceRole.entities.Trade.filter(
-        { created_by_id: userId, status: "Closed" }, "-created_date", 500
+        { created_by_id: userId, status: "Closed" }, "-closed_at", 100
       ).catch(() => []);
       const closed = (closedTrades || []).filter((t) => t.closed_at);
 
@@ -620,7 +620,7 @@ Deno.serve(async (req) => {
 
       // ── Upsert StrategyMetrics ──
       const existingMetrics = await base44.asServiceRole.entities.StrategyMetrics.filter(
-        { created_by_id: userId }, "-created_date", 50
+        { created_by_id: userId }, "-created_date", 10
       ).catch(() => []);
       const metricByStrategy = {};
       for (const m of existingMetrics) metricByStrategy[m.strategy_name] = m;

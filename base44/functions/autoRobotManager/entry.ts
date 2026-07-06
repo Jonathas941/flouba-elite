@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
       const closedTrades = await base44.asServiceRole.entities.Trade.filter({
         created_by_id: config.created_by_id,
         status: "Closed",
-      });
+      }, "-closed_at", 50);
       const todayRealized = closedTrades
         .filter((t) => t.closed_at && new Date(t.closed_at) >= startOfDay)
         .reduce((sum, t) => sum + (t.profit ?? 0), 0);
