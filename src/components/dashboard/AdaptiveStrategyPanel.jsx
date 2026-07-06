@@ -66,7 +66,7 @@ export default function AdaptiveStrategyPanel({ connected }) {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 6000);
+    const id = setInterval(load, 30000);
     return () => clearInterval(id);
   }, [load]);
 

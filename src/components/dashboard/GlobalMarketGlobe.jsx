@@ -272,7 +272,7 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
       } catch { /* keep last real values */ }
     };
     fetchLive();
-    const timer = setInterval(fetchLive, 5000);
+    const timer = setInterval(fetchLive, 12000);
     return () => { active = false; clearInterval(timer); };
   }, []);
 

@@ -54,7 +54,7 @@ export default function StrategyTimeframePanel() {
       } catch { /* ignore */ }
     };
     load();
-    const id = setInterval(load, 5000);
+    const id = setInterval(load, 20000);
     const tick = setInterval(() => setNow(new Date()), 1000);
     return () => { clearInterval(id); clearInterval(tick); };
   }, []);
