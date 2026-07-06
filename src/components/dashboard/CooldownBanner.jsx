@@ -45,21 +45,21 @@ export default function CooldownBanner({ settings }) {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl p-4 flex items-center gap-3 overflow-hidden"
-      style={{ border: "1px solid rgba(255,206,77,0.30)" }}
+      style={{ border: "1px solid rgba(255,140,66,0.30)" }}
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: "rgba(255,206,77,0.10)", border: "1px solid rgba(255,206,77,0.35)" }}
+        style={{ background: "rgba(255,140,66,0.10)", border: "1px solid rgba(255,140,66,0.35)" }}
       >
-        <Timer className="w-5 h-5 text-[#ffce4d]" />
+        <Timer className="w-5 h-5 text-[#ff8c42]" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-heading font-bold text-[12px] text-[#ffce4d] tracking-wide">Session Target Reached</p>
+        <p className="font-heading font-bold text-[12px] text-[#ff8c42] tracking-wide">Session Target Reached</p>
         <p className="text-[10px] text-white/45 leading-tight">Bot in cooldown — resumes automatically</p>
         <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden" style={{ maxWidth: 160 }}>
           <motion.div
             className="h-full rounded-full"
-            style={{ background: "linear-gradient(90deg, #ffce4d, #ff9d4d)" }}
+            style={{ background: "linear-gradient(90deg, #ff8c42, #ff6b30)" }}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.5 }}

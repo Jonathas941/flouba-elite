@@ -13,7 +13,7 @@ const STATUS_BAR = [
 
 function Chip({ item }) {
   return (
-    <div className="glass rounded-xl px-2.5 py-1.5 flex items-center gap-2" style={{ border: "1px solid rgba(0,229,255,0.18)" }}>
+    <div className="glass rounded-xl px-2.5 py-1.5 flex items-center gap-2" style={{ border: "1px solid rgba(255,56,56,0.18)" }}>
       <span className="text-[8px] uppercase tracking-widest text-white/40 font-heading">{item.label}</span>
       <span className={`font-heading font-bold text-[11px] ${item.accent}`}>{item.value}</span>
     </div>
@@ -40,9 +40,9 @@ export default function GlobalMarketDataOverlay({ data, status, pairs, onPairCli
 
   const slots = [
     [
-      { label: "XAUUSD", value: data.prices.XAUUSD != null ? data.prices.XAUUSD.toFixed(2) : "—", accent: "text-[#ffce4d]" },
+      { label: "XAUUSD", value: data.prices.XAUUSD != null ? data.prices.XAUUSD.toFixed(2) : "—", accent: "text-[#ff8c42]" },
       { label: "NAS100", value: data.prices.NAS100 != null ? data.prices.NAS100.toFixed(0) : "—", accent: "text-[#00ff9d]" },
-      { label: "USDJPY", value: data.prices.USDJPY != null ? data.prices.USDJPY.toFixed(2) : "—", accent: "text-cyan-300" },
+      { label: "USDJPY", value: data.prices.USDJPY != null ? data.prices.USDJPY.toFixed(2) : "—", accent: "text-red-400" },
     ],
     [
       { label: "ATR", value: data.atr != null ? data.atr.toFixed(3) : "—", accent: "text-white" },
@@ -51,13 +51,13 @@ export default function GlobalMarketDataOverlay({ data, status, pairs, onPairCli
     ],
     [
       { label: "EMA", value: data.emaTrend, accent: data.emaTrend === "Bullish" ? "text-[#00ff9d]" : data.emaTrend === "Bearish" ? "text-[#ff4d4d]" : "text-white" },
-      { label: "AI SCORE", value: data.aiScore ? `${data.aiScore}%` : "—", accent: "text-cyan-300" },
+      { label: "AI SCORE", value: data.aiScore ? `${data.aiScore}%` : "—", accent: "text-red-400" },
       { label: "VOLUME", value: data.volume ? data.volume.toLocaleString() : "—", accent: "text-white" },
     ],
     [
-      { label: "EURUSD", value: data.prices.EURUSD != null ? data.prices.EURUSD.toFixed(4) : "—", accent: "text-cyan-300" },
-      { label: "GBPUSD", value: data.prices.GBPUSD != null ? data.prices.GBPUSD.toFixed(4) : "—", accent: "text-cyan-300" },
-      { label: "CONFIDENCE", value: data.confidence ? `${data.confidence}%` : "—", accent: "text-[#ffce4d]" },
+      { label: "EURUSD", value: data.prices.EURUSD != null ? data.prices.EURUSD.toFixed(4) : "—", accent: "text-red-400" },
+      { label: "GBPUSD", value: data.prices.GBPUSD != null ? data.prices.GBPUSD.toFixed(4) : "—", accent: "text-red-400" },
+      { label: "CONFIDENCE", value: data.confidence ? `${data.confidence}%` : "—", accent: "text-[#ff8c42]" },
     ],
   ];
   const positions = ["top-14 left-3", "top-14 right-3", "bottom-16 left-3", "bottom-16 right-3"];
@@ -72,10 +72,10 @@ export default function GlobalMarketDataOverlay({ data, status, pairs, onPairCli
         </div>
         <div className="flex items-center gap-2 pointer-events-auto">
           <button onClick={onTogglePause} className="w-8 h-8 rounded-lg glass flex items-center justify-center">
-            {paused ? <Play className="w-3.5 h-3.5 text-cyan-300" /> : <Pause className="w-3.5 h-3.5 text-cyan-300" />}
+            {paused ? <Play className="w-3.5 h-3.5 text-red-400" /> : <Pause className="w-3.5 h-3.5 text-red-400" />}
           </button>
           <button onClick={onToggleFocus} className="w-8 h-8 rounded-lg glass flex items-center justify-center">
-            {focus ? <Minimize2 className="w-3.5 h-3.5 text-cyan-300" /> : <Maximize2 className="w-3.5 h-3.5 text-cyan-300" />}
+            {focus ? <Minimize2 className="w-3.5 h-3.5 text-red-400" /> : <Maximize2 className="w-3.5 h-3.5 text-red-400" />}
           </button>
         </div>
       </div>
@@ -89,7 +89,7 @@ export default function GlobalMarketDataOverlay({ data, status, pairs, onPairCli
       {/* Scan label */}
       <div className="absolute top-12 left-1/2 -translate-x-1/2">
         <AnimatePresence mode="wait">
-          <motion.span key={scanIdx} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.4 }} className="text-[9px] font-heading tracking-[0.25em] text-cyan-300/80 whitespace-nowrap">
+          <motion.span key={scanIdx} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.4 }} className="text-[9px] font-heading tracking-[0.25em] text-red-400/80 whitespace-nowrap">
             {SCAN_LABELS[scanIdx]}
           </motion.span>
         </AnimatePresence>
@@ -109,14 +109,14 @@ export default function GlobalMarketDataOverlay({ data, status, pairs, onPairCli
       {/* Pair chips (clickable → scanner) */}
       <div className="absolute bottom-9 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-auto overflow-x-auto no-scrollbar max-w-[92%]">
         {pairs.map((p) => (
-          <button key={p} onClick={() => onPairClick(p)} className="shrink-0 text-[9px] font-heading tracking-widest px-2 py-1 rounded-lg glass text-cyan-300/80 whitespace-nowrap">
+          <button key={p} onClick={() => onPairClick(p)} className="shrink-0 text-[9px] font-heading tracking-widest px-2 py-1 rounded-lg glass text-red-400/80 whitespace-nowrap">
             {p}
           </button>
         ))}
       </div>
 
       {/* Bottom status bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-8 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)", borderTop: "1px solid rgba(0,229,255,0.12)" }}>
+      <div className="absolute bottom-0 left-0 right-0 h-8 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)", borderTop: "1px solid rgba(255,56,56,0.12)" }}>
         <AnimatePresence mode="wait">
           <motion.span key={barIdx} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.4 }} className="text-[9px] font-heading tracking-[0.2em] text-white/50">
             {STATUS_BAR[barIdx]}
@@ -127,12 +127,12 @@ export default function GlobalMarketDataOverlay({ data, status, pairs, onPairCli
       {/* City popover */}
       <AnimatePresence>
         {selectedCity && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute left-1/2 -translate-x-1/2 bottom-12 w-[80%] max-w-xs glass rounded-xl p-3 pointer-events-auto" style={{ border: "1px solid rgba(0,229,255,0.3)" }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute left-1/2 -translate-x-1/2 bottom-12 w-[80%] max-w-xs glass rounded-xl p-3 pointer-events-auto" style={{ border: "1px solid rgba(255,56,56,0.3)" }}>
             <button onClick={onCloseCity} className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white/5 flex items-center justify-center">
               <X className="w-3 h-3 text-white/50" />
             </button>
             <div className="flex items-center gap-2 mb-1">
-              <MapPin className="w-3.5 h-3.5 text-cyan-300" />
+              <MapPin className="w-3.5 h-3.5 text-red-400" />
               <span className="font-heading text-xs font-bold text-white tracking-wider">{selectedCity.name}</span>
             </div>
             <p className="text-[10px] text-white/60">{selectedCity.session}</p>

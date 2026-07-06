@@ -16,13 +16,13 @@ export default function StrategyControlCard() {
       <div className="flex items-center gap-3">
         <div
           className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-          style={{ background: "rgba(255,206,77,0.12)", border: "1px solid rgba(255,206,77,0.4)" }}
+          style={{ background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.4)" }}
         >
           {/* chess knight glyph */}
           <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
             <path
               d="M5 20h14M7 20v-2c0-1 1-2 2-2h6c1 0 2 1 2 2v2M9 14c0-3 2-5 5-5l-1-2 3 1 1.5 3C18 13 17 16 14 16H9z"
-              stroke="#ffce4d" strokeWidth="1.4" strokeLinejoin="round"
+              stroke="#ff8c42" strokeWidth="1.4" strokeLinejoin="round"
             />
           </svg>
         </div>
@@ -35,7 +35,7 @@ export default function StrategyControlCard() {
 
       <div className="flex flex-wrap gap-1.5 mt-3">
         {STRATEGY_TAGS.map((t) => (
-          <span key={t} className="px-2 py-1 rounded-full text-[9px] font-heading tracking-wider bg-cyan-500/8 text-cyan-200/80 border border-cyan-500/25">
+          <span key={t} className="px-2 py-1 rounded-full text-[9px] font-heading tracking-wider bg-red-500/8 text-red-300/80 border border-red-500/25">
             {t}
           </span>
         ))}
@@ -44,7 +44,7 @@ export default function StrategyControlCard() {
       <button
         onClick={() => navigate("/strategy")}
         className="w-full mt-3 h-11 rounded-xl flex items-center justify-center gap-1.5 font-heading font-bold tracking-widest text-[11px] active:scale-[0.98] transition-transform"
-        style={{ background: "linear-gradient(90deg, rgba(0,229,255,0.18), rgba(0,160,255,0.12))", border: "1px solid rgba(0,229,255,0.45)", color: "#5fe8ff", boxShadow: "0 0 14px rgba(0,229,255,0.25)" }}
+        style={{ background: "linear-gradient(90deg, rgba(255,56,56,0.18), rgba(200,24,24,0.12))", border: "1px solid rgba(255,56,56,0.45)", color: "#ff3838", boxShadow: "0 0 14px rgba(255,56,56,0.25)" }}
       >
         MANAGE STRATEGIES
         <ChevronRight className="w-3.5 h-3.5" />
@@ -61,8 +61,8 @@ function MiniSpark() {
   return (
     <div className="shrink-0">
       <svg width={w} height={h} className="overflow-visible">
-        <polyline points={d} fill="none" stroke="#5fe8ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ filter: "drop-shadow(0 0 4px rgba(0,229,255,0.7))" }} />
+        <polyline points={d} fill="none" stroke="#ff3838" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ filter: "drop-shadow(0 0 4px rgba(255,56,56,0.7))" }} />
       </svg>
     </div>
   );

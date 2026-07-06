@@ -252,8 +252,8 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" style={{ boxShadow: "0 0 18px rgba(0,229,255,0.4)" }} />
-          <p className="font-heading text-[10px] tracking-[0.3em] text-cyan-300/70">FLOUBA ELITE</p>
+          <div className="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" style={{ boxShadow: "0 0 18px rgba(255,56,56,0.4)" }} />
+          <p className="font-heading text-[10px] tracking-[0.3em] text-red-400/70">FLOUBA ELITE</p>
         </div>
       </div>
     );
@@ -285,10 +285,10 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2">
             {connected && (
-              <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-cyan-300/80 px-2.5 py-1.5 rounded-lg glass">CONNECTED</button>
+              <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-red-400/80 px-2.5 py-1.5 rounded-lg glass">CONNECTED</button>
             )}
             <button onClick={load} className="w-8 h-8 rounded-full glass flex items-center justify-center">
-              <RefreshCw className="w-3.5 h-3.5 text-cyan-300" />
+              <RefreshCw className="w-3.5 h-3.5 text-red-400" />
             </button>
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function Home() {
               <p className="text-[11px] font-heading tracking-wider text-white/80">No live data connected</p>
               <p className="text-[10px] text-white/45">Connect MT5 to view live chart, signals & bot status.</p>
             </div>
-            <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-cyan-300 px-3 py-2 rounded-lg" style={{ background: "rgba(0,229,255,0.1)", border: "1px solid rgba(0,229,255,0.4)" }}>CONNECT</button>
+            <button onClick={() => navigate("/connect-mt5")} className="text-[10px] font-heading tracking-widest text-red-400 px-3 py-2 rounded-lg" style={{ background: "rgba(255,56,56,0.1)", border: "1px solid rgba(255,56,56,0.4)" }}>CONNECT</button>
           </motion.div>
         )}
 
@@ -346,8 +346,8 @@ export default function Home() {
         <div className="space-y-2.5">
           {!connected ? (
             <button onClick={() => navigate("/connect-mt5")}
-              className="w-full rounded-2xl font-heading font-black tracking-widest text-[12px] text-[#021024] active:scale-[0.98] transition-transform py-3.5"
-              style={{ background: "linear-gradient(90deg, #5fe8ff, #00b4ff)", boxShadow: "0 0 22px rgba(0,229,255,0.45)" }}>
+              className="w-full rounded-2xl font-heading font-black tracking-widest text-[12px] text-[#1a0000] active:scale-[0.98] transition-transform py-3.5"
+              style={{ background: "linear-gradient(90deg, #ff3838, #cc1818)", boxShadow: "0 0 22px rgba(255,56,56,0.45)" }}>
               CONNECT MT5 ACCOUNT
             </button>
           ) : (
@@ -355,7 +355,7 @@ export default function Home() {
               className="w-full rounded-2xl font-heading font-black tracking-widest text-[12px] active:scale-[0.98] transition-transform py-3.5 disabled:opacity-50"
               style={active
                 ? { background: "rgba(0,255,157,0.08)", border: "1px solid rgba(0,255,157,0.35)", color: "#00ff9d" }
-                : { background: "linear-gradient(90deg, #5fe8ff, #00b4ff)", color: "#021024", boxShadow: "0 0 22px rgba(0,229,255,0.45)" }}>
+                : { background: "linear-gradient(90deg, #ff3838, #cc1818)", color: "#1a0000", boxShadow: "0 0 22px rgba(255,56,56,0.45)" }}>
               {active ? "ROBOT ACTIVE" : "START ROBOT"}
             </button>
           )}
@@ -363,9 +363,9 @@ export default function Home() {
           {connected && (
             <button onClick={toggleAutoStart}
               className="w-full h-11 rounded-2xl flex items-center justify-between px-4 font-heading font-bold tracking-widest text-[10px] transition-colors"
-              style={{ background: autoStartEnabled ? "rgba(255,206,77,0.1)" : "rgba(255,255,255,0.03)", border: autoStartEnabled ? "1px solid rgba(255,206,77,0.4)" : "1px solid rgba(255,255,255,0.08)" }}>
-              <span style={{ color: autoStartEnabled ? "#ffce4d" : "rgba(255,255,255,0.5)" }}>AUTO-START (MARKET OPEN)</span>
-              <div className={`w-9 h-5 rounded-full flex items-center transition-colors ${autoStartEnabled ? "bg-[#ffce4d]" : "bg-white/10"}`}>
+              style={{ background: autoStartEnabled ? "rgba(255,140,66,0.1)" : "rgba(255,255,255,0.03)", border: autoStartEnabled ? "1px solid rgba(255,140,66,0.4)" : "1px solid rgba(255,255,255,0.08)" }}>
+              <span style={{ color: autoStartEnabled ? "#ff8c42" : "rgba(255,255,255,0.5)" }}>AUTO-START (MARKET OPEN)</span>
+              <div className={`w-9 h-5 rounded-full flex items-center transition-colors ${autoStartEnabled ? "bg-[#ff8c42]" : "bg-white/10"}`}>
                 <div className={`w-4 h-4 rounded-full bg-white shadow transition-all ${autoStartEnabled ? "ml-4" : "ml-0.5"}`} />
               </div>
             </button>

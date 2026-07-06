@@ -8,18 +8,18 @@ import {
 } from "lucide-react";
 
 const REGIME_TONE = {
-  Trending: { color: "#5fe8ff", icon: TrendingUp, label: "Trending" },
-  "Liquidity Sweep": { color: "#b388ff", icon: Waves, label: "Liquidity Sweep" },
+  Trending: { color: "#ff3838", icon: TrendingUp, label: "Trending" },
+  "Liquidity Sweep": { color: "#ff6b6b", icon: Waves, label: "Liquidity Sweep" },
   Range: { color: "#9aa7b5", icon: Activity, label: "Range" },
   "High Spread": { color: "#ff6b6b", icon: ShieldAlert, label: "High Spread" },
   "Session Closed": { color: "#ff6b6b", icon: Pause, label: "Session Closed" },
 };
 
 const STRATS = [
-  { key: "swing", label: "Swing Trend Pullback", accent: "#5fe8ff", name: "Swing Trend Pullback Continuation 2026" },
-  { key: "smc", label: "SMC Liquidity Sweep", accent: "#b388ff", name: "Liquidity Sweep Scalping" },
-  { key: "tpr", label: "EMA Trend Recovery", accent: "#ffce4d", name: "EMA Trend Progressive Recovery" },
-  { key: "gdb", label: "Gold Daily Breakout", accent: "#ffb347", name: "Gold Daily Breakout" },
+  { key: "swing", label: "Swing Trend Pullback", accent: "#ff3838", name: "Swing Trend Pullback Continuation 2026" },
+  { key: "smc", label: "SMC Liquidity Sweep", accent: "#ff6b6b", name: "Liquidity Sweep Scalping" },
+  { key: "tpr", label: "EMA Trend Recovery", accent: "#ff8c42", name: "EMA Trend Progressive Recovery" },
+  { key: "gdb", label: "Gold Daily Breakout", accent: "#ffa500", name: "Gold Daily Breakout" },
 ];
 
 function fmtET(d) {
@@ -119,8 +119,8 @@ export default function AdaptiveStrategyPanel({ connected }) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/5">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(95,232,255,0.12)", border: "1px solid rgba(95,232,255,0.3)" }}>
-              <Layers className="w-5 h-5 text-cyan-300" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,56,56,0.12)", border: "1px solid rgba(255,56,56,0.3)" }}>
+              <Layers className="w-5 h-5 text-red-400" />
             </div>
             <div>
               <h3 className="font-heading text-sm font-black text-white tracking-wide leading-tight">ADAPTIVE STRATEGY MANAGER</h3>
@@ -135,9 +135,9 @@ export default function AdaptiveStrategyPanel({ connected }) {
 
         {/* Live reason banner */}
         <div className="mx-4 mt-3 rounded-xl px-3 py-2.5 flex items-start gap-2"
-          style={{ background: targetReached ? "rgba(255,206,77,0.08)" : "rgba(95,232,255,0.07)",
-                   border: `1px solid ${targetReached ? "rgba(255,206,77,0.25)" : "rgba(95,232,255,0.25)"}` }}>
-          {targetReached ? <Target className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" /> : <Activity className="w-4 h-4 text-cyan-300 mt-0.5 shrink-0" />}
+          style={{ background: targetReached ? "rgba(255,140,66,0.08)" : "rgba(255,56,56,0.07)",
+                   border: `1px solid ${targetReached ? "rgba(255,140,66,0.25)" : "rgba(255,56,56,0.25)"}` }}>
+          {targetReached ? <Target className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" /> : <Activity className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />}
           <p className="text-[11px] font-heading tracking-wide text-white/85 leading-snug">{reason}</p>
         </div>
 
@@ -168,7 +168,7 @@ export default function AdaptiveStrategyPanel({ connected }) {
           <div className="rounded-xl px-3 py-2.5 bg-white/5 border border-white/10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5 text-amber-400" />
+                <Target className="w-3.5 h-3.5 text-orange-400" />
                 <p className="text-[10px] font-heading tracking-wider text-white/70">DAILY PROFIT TARGET</p>
               </div>
               <p className="text-[10px] font-heading font-bold text-white/80">
@@ -176,11 +176,11 @@ export default function AdaptiveStrategyPanel({ connected }) {
               </p>
             </div>
             <div className="mt-2 h-2 rounded-full bg-white/8 overflow-hidden">
-              <motion.div className="h-full rounded-full" style={{ background: targetReached ? "#ffce4d" : "linear-gradient(90deg,#5fe8ff,#00b4ff)" }}
+              <motion.div className="h-full rounded-full" style={{ background: targetReached ? "#ff8c42" : "linear-gradient(90deg,#ff3838,#cc1818)" }}
                 animate={{ width: `${targetPctVal}%` }} transition={{ duration: 0.5 }} />
             </div>
             {targetReached && (
-              <p className="text-[10px] text-amber-300 mt-1.5 font-heading">Daily Profit Target Reached — Trading Paused Until Next Trading Day.</p>
+              <p className="text-[10px] text-orange-300 mt-1.5 font-heading">Daily Profit Target Reached — Trading Paused Until Next Trading Day.</p>
             )}
           </div>
         </div>
@@ -233,8 +233,8 @@ export default function AdaptiveStrategyPanel({ connected }) {
         {/* Run now */}
         <div className="px-4 pt-1 pb-4">
           <button onClick={runNow} disabled={saving}
-            className="w-full h-10 rounded-xl font-heading font-bold tracking-widest text-[10px] text-cyan-300 active:scale-[0.98] transition-transform"
-            style={{ background: "rgba(95,232,255,0.08)", border: "1px solid rgba(95,232,255,0.35)" }}>
+            className="w-full h-10 rounded-xl font-heading font-bold tracking-widest text-[10px] text-red-400 active:scale-[0.98] transition-transform"
+            style={{ background: "rgba(255,56,56,0.08)", border: "1px solid rgba(255,56,56,0.35)" }}>
             <span className="flex items-center justify-center gap-2"><Zap className="w-3.5 h-3.5" /> EVALUATE NOW</span>
           </button>
         </div>
@@ -265,7 +265,7 @@ function ScoreRow({ label, short, metric, accent, active, pend, pendBars, barsCo
       </div>
       <div className="flex items-center justify-between mt-0.5 text-[9px]">
         {enabled ? <span className="text-[#00ff9d]">Eligible</span> : <span className="text-[#ff6b6b]">{metric?.status_message || "Blocked"}</span>}
-        {pend && <span className="text-amber-400 font-heading">confirming {pendBars}/{barsConfirm}</span>}
+        {pend && <span className="text-orange-400 font-heading">confirming {pendBars}/{barsConfirm}</span>}
       </div>
     </div>
   );
@@ -274,12 +274,12 @@ function ScoreRow({ label, short, metric, accent, active, pend, pendBars, barsCo
 function CooldownChip({ label, until, wide }) {
   const active = until && new Date(until).getTime() > Date.now();
   return (
-    <div className={`rounded-xl px-3 py-2 ${wide ? "col-span-2" : ""}`} style={{ background: active ? "rgba(255,206,77,0.08)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "rgba(255,206,77,0.25)" : "rgba(255,255,255,0.08)"}` }}>
+    <div className={`rounded-xl px-3 py-2 ${wide ? "col-span-2" : ""}`} style={{ background: active ? "rgba(255,140,66,0.08)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "rgba(255,140,66,0.25)" : "rgba(255,255,255,0.08)"}` }}>
       <div className="flex items-center gap-1.5">
-        <Clock className="w-3 h-3" style={{ color: active ? "#ffce4d" : "rgba(255,255,255,0.3)" }} />
+        <Clock className="w-3 h-3" style={{ color: active ? "#ff8c42" : "rgba(255,255,255,0.3)" }} />
         <p className="text-[8px] uppercase tracking-[0.18em] text-white/45 font-heading">{label}</p>
       </div>
-      <p className="text-[11px] font-heading font-bold mt-0.5" style={{ color: active ? "#ffce4d" : "rgba(255,255,255,0.4)" }}>
+      <p className="text-[11px] font-heading font-bold mt-0.5" style={{ color: active ? "#ff8c42" : "rgba(255,255,255,0.4)" }}>
         {active ? countdown(until) : "None"}
       </p>
     </div>
@@ -291,7 +291,7 @@ function ToggleRow({ label, value, onChange, saving }) {
     <div className="flex items-center justify-between">
       <span className="text-[11px] text-white/70 font-heading tracking-wide">{label}</span>
       <button onClick={() => onChange(!value)} disabled={saving}
-        className={`w-10 rounded-full flex items-center transition-colors relative ${value ? "bg-cyan-500" : "bg-white/10"}`}
+        className={`w-10 rounded-full flex items-center transition-colors relative ${value ? "bg-red-500" : "bg-white/10"}`}
         style={{ height: 22 }}>
         <div className={`w-4 h-4 rounded-full bg-white shadow transition-all ${value ? "ml-5" : "ml-0.5"}`} />
       </button>
@@ -305,7 +305,7 @@ function NumRow({ label, value, onChange, saving }) {
       <span className="text-[11px] text-white/70 font-heading tracking-wide shrink-0">{label}</span>
       <input type="number" value={value} disabled={saving}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-24 h-8 px-2 glass rounded-lg text-[11px] text-white text-right focus:outline-none focus:ring-1 focus:ring-cyan-500/40 bg-transparent" />
+        className="w-24 h-8 px-2 glass rounded-lg text-[11px] text-white text-right focus:outline-none focus:ring-1 focus:ring-red-500/40 bg-transparent" />
     </div>
   );
 }

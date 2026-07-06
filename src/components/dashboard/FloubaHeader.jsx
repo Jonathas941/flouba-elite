@@ -9,9 +9,9 @@ export default function FloubaHeader({ onMenu, onBell, unread = 0 }) {
       style={{
         paddingTop: "calc(env(safe-area-inset-top) + 12px)",
         paddingBottom: 12,
-        background: "rgba(8,16,32,0.72)",
+        background: "rgba(6,0,0,0.72)",
         backdropFilter: "blur(18px)",
-        borderBottom: "1px solid rgba(0,229,255,0.18)",
+        borderBottom: "1px solid rgba(255,56,56,0.18)",
       }}
     >
       <button
@@ -19,16 +19,16 @@ export default function FloubaHeader({ onMenu, onBell, unread = 0 }) {
         className="w-10 h-10 rounded-xl glass flex items-center justify-center active:scale-95 transition-transform"
         aria-label="Menu"
       >
-        <Menu className="w-5 h-5 text-cyan-300" strokeWidth={2} />
+        <Menu className="w-5 h-5 text-red-400" strokeWidth={2} />
       </button>
 
       <div className="flex items-center gap-2.5">
         <FloubaLogo size={30} />
         <div className="text-center leading-none">
           <h1 className="font-heading font-black tracking-wider text-[15px] text-white">
-            FLOUBA <span style={{ color: "#ffce4d" }}>ELITE</span>
+            FLOUBA <span style={{ color: "#ff8c42" }}>ELITE</span>
           </h1>
-          <p className="text-[9px] uppercase tracking-[0.28em] text-cyan-300/70 mt-0.5 font-heading">
+          <p className="text-[9px] uppercase tracking-[0.28em] text-red-400/70 mt-0.5 font-heading">
             AI-Driven Trading Control
           </p>
         </div>
@@ -39,10 +39,10 @@ export default function FloubaHeader({ onMenu, onBell, unread = 0 }) {
         className="relative w-10 h-10 rounded-xl glass flex items-center justify-center active:scale-95 transition-transform"
         aria-label="Notifications"
       >
-        <Bell className="w-5 h-5 text-cyan-300" strokeWidth={2} />
+        <Bell className="w-5 h-5 text-red-400" strokeWidth={2} />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-heading font-bold text-[#021024]"
-            style={{ background: "#ffce4d", boxShadow: "0 0 8px rgba(255,206,77,0.9)" }}>
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-heading font-bold text-[#1a0000]"
+            style={{ background: "#ff8c42", boxShadow: "0 0 8px rgba(255,140,66,0.9)" }}>
             {unread > 9 ? "9+" : unread}
           </span>
         )}

@@ -70,11 +70,11 @@ export default function SmartControlGrid({ connected, robotStatus, account, posi
 }
 
 const TONE = {
-  cyan: { glow: "rgba(0,229,255,0.5)", color: "#5fe8ff" },
-  gold: { glow: "rgba(255,206,77,0.5)", color: "#ffce4d" },
+  cyan: { glow: "rgba(255,56,56,0.5)", color: "#ff3838" },
+  gold: { glow: "rgba(255,140,66,0.5)", color: "#ff8c42" },
   green: { glow: "rgba(0,255,157,0.5)", color: "#00ff9d" },
   red: { glow: "rgba(255,77,77,0.5)", color: "#ff4d4d" },
-  muted: { glow: "rgba(150,170,200,0.3)", color: "#9bb0c8" },
+  muted: { glow: "rgba(160,90,90,0.3)", color: "#a06060" },
 };
 
 function Card({ icon: Icon, title, desc, value, sub, tone = "cyan", ring, onClick, index }) {
@@ -123,12 +123,12 @@ function PerfRing({ pct }) {
       <svg width="36" height="36" className="-rotate-90">
         <circle cx="18" cy="18" r={r} stroke="rgba(255,255,255,0.1)" strokeWidth="3" fill="none" />
         <circle
-          cx="18" cy="18" r={r} stroke="#ffce4d" strokeWidth="3" fill="none"
+          cx="18" cy="18" r={r} stroke="#ff8c42" strokeWidth="3" fill="none"
           strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"
-          style={{ filter: "drop-shadow(0 0 4px rgba(255,206,77,0.7))" }}
+          style={{ filter: "drop-shadow(0 0 4px rgba(255,140,66,0.7))" }}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-heading font-bold text-[#ffce4d]">
+      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-heading font-bold text-[#ff8c42]">
         {Math.round(pct)}%
       </span>
     </div>

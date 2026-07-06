@@ -62,15 +62,15 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
 
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(1, 48, 48),
-      new THREE.MeshBasicMaterial({ color: 0x04101f, transparent: true, opacity: 0.92 })
+      new THREE.MeshBasicMaterial({ color: 0x0a0000, transparent: true, opacity: 0.92 })
     ));
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(1.002, 36, 28),
-      new THREE.MeshBasicMaterial({ color: 0x1f8fff, wireframe: true, transparent: true, opacity: 0.22 })
+      new THREE.MeshBasicMaterial({ color: 0xcc1818, wireframe: true, transparent: true, opacity: 0.22 })
     ));
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(1.06, 36, 36),
-      new THREE.MeshBasicMaterial({ color: 0x5fe8ff, transparent: true, opacity: 0.07, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+      new THREE.MeshBasicMaterial({ color: 0xff3838, transparent: true, opacity: 0.07, side: THREE.BackSide, blending: THREE.AdditiveBlending })
     ));
 
     // City nodes
@@ -79,14 +79,14 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
       const v = latLonToVec3(c.lat, c.lon, 1.01);
       const node = new THREE.Mesh(
         new THREE.SphereGeometry(0.022, 14, 14),
-        new THREE.MeshBasicMaterial({ color: 0x5fe8ff })
+        new THREE.MeshBasicMaterial({ color: 0xff3838 })
       );
       node.position.copy(v);
       node.userData.cityIndex = i;
       globe.add(node);
       const halo = new THREE.Mesh(
         new THREE.SphereGeometry(0.04, 14, 14),
-        new THREE.MeshBasicMaterial({ color: 0x5fe8ff, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending })
+        new THREE.MeshBasicMaterial({ color: 0xff3838, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending })
       );
       halo.position.copy(v);
       globe.add(halo);
@@ -115,7 +115,7 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
 
     // Orbiting rings
     const rings = [];
-    [[1.18, 0x5fe8ff, 0.35], [1.3, 0x00ff9d, 0.28], [1.42, 0xffce4d, 0.22]].forEach(([r, col, op]) => {
+    [[1.18, 0xff3838, 0.35], [1.3, 0x00ff9d, 0.28], [1.42, 0xff8c42, 0.22]].forEach(([r, col, op]) => {
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(r, 0.004, 8, 90),
         new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending })
@@ -140,7 +140,7 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
     }
     pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
     const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({
-      color: 0x5fe8ff, size: 0.018, transparent: true, opacity: 0.7,
+      color: 0xff3838, size: 0.018, transparent: true, opacity: 0.7,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     scene.add(particles);
@@ -148,7 +148,7 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
     // Radar sweep
     const radar = new THREE.Mesh(
       new THREE.CircleGeometry(1.02, 32, 0, Math.PI / 7),
-      new THREE.MeshBasicMaterial({ color: 0x5fe8ff, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: 0xff3838, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
     );
     radar.rotation.x = Math.PI / 2;
     scene.add(radar);
@@ -278,7 +278,7 @@ export default function GlobalMarketGlobe({ connected, navigate }) {
 
   const status = data.live
     ? { label: "LIVE MARKET DATA", color: "#00ff9d" }
-    : { label: "AWAITING LIVE DATA", color: "#5fe8ff" };
+    : { label: "AWAITING LIVE DATA", color: "#ff3838" };
 
   return (
     <div
