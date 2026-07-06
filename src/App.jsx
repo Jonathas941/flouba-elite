@@ -26,7 +26,6 @@ import Account from '@/pages/Account';
 import ConnectMT5 from '@/pages/ConnectMT5';
 import Notifications from '@/pages/Notifications';
 import Redeem from '@/pages/Redeem';
-import TradingView from '@/pages/TradingView';
 
 const PageSlide = ({ children }) => (
   <motion.div
@@ -79,7 +78,6 @@ const AuthenticatedApp = () => {
             <Route path="/connect-mt5" element={<PageSlide><ConnectMT5 /></PageSlide>} />
             <Route path="/notifications" element={<PageSlide><Notifications /></PageSlide>} />
             <Route path="/redeem" element={<PageSlide><Redeem /></PageSlide>} />
-            <Route path="/tradingview" element={<PageSlide><TradingView /></PageSlide>} />
           </Route>
         </Route>
         <Route path="*" element={<PageNotFound />} />
