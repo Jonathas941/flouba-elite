@@ -269,8 +269,8 @@ Deno.serve(async (req) => {
       // The robot will no longer be auto-paused when daily loss / profit target / consecutive loss limits are hit.
       // Mentality guard is still evaluated for auto-start gating below.
 
-      // === AUTO-START: launch only when mentality allows and a session is active ===
       // === DANGER MODE: HFT bypasses all gates — always auto-start immediately ===
+      // Calendar-based auto-start is DISABLED — user starts the robot manually via the modal.
       if (config.hft_mode_enabled && !robotRunning) {
         const symbol = config.active_pair || "XAUUSD";
         const hftLot = config.hft_current_lot ?? config.hft_base_lot ?? 0.01;
@@ -299,60 +299,6 @@ Deno.serve(async (req) => {
           actions.push(`DANGER MODE AUTO-START: HFT launched on ${symbol} at ${hftLot} lot — all limits bypassed`);
         } else {
           actions.push(`DANGER MODE START FAILED: ${startJson?.message ?? startJson?.error ?? `HTTP ${startRes.status}`}`);
-        }
-      } else if (config.auto_start_enabled && !robotRunning) {
-        const riskMultiplier = sessionInfo?.risk_multiplier ?? 0;
-        const allowedPairs = sessionInfo?.allowed_pairs ?? [];
-        const sessionName = sessionInfo?.session ?? "closed";
-
-        if (mentality.allow && riskMultiplier > 0) {
-          // Switch to an allowed pair if the current pair isn't in the server's allowed list
-          const symbol = allowedPairs.length && !allowedPairs.includes(config.active_pair)
-            ? allowedPairs[0]
-            : config.active_pair ?? "XAUUSD";
-
-          const startPayload = {
-            strategy: "auto",
-            symbol,
-            trading_mode: config.trading_mode ?? "Balanced",
-            trade_direction: config.trade_direction ?? "both",
-            lot_size: config.lot_size ?? 0.01,
-            max_concurrent_trades: config.max_concurrent_trades ?? 2,
-            risk_percentage: (config.risk_percentage ?? 1) * riskMultiplier,
-            stop_loss: config.stop_loss ?? 50,
-            take_profit: config.take_profit ?? 100,
-            daily_profit_target: config.daily_profit_target_mode === "Auto"
-              ? (config.adaptive_effective_target ?? config.daily_profit_target ?? 200)
-              : (config.daily_profit_target_amount ?? config.daily_profit_target ?? 200),
-            daily_profit_target_amount: config.daily_profit_target_amount ?? 200,
-            daily_profit_target_mode: config.daily_profit_target_mode ?? "Fixed",
-            session_cooldown_minutes: config.session_cooldown_minutes ?? 60,
-            daily_loss_limit: balance > 0 ? ((config.swing_max_daily_loss_pct ?? 40) / 100) * balance : (config.daily_loss_limit ?? 20),
-            stop_after_losses: config.stop_after_losses ?? 2,
-            lot_multiplier: resolvedLotMultiplier,
-            equity_guard_enabled: config.equity_guard_enabled ?? true,
-            equity_guard_min_equity_pct: config.equity_guard_min_equity_pct ?? 50,
-            trend_filter_enabled: config.trend_filter_enabled ?? true,
-            trend_filter_timeframe: config.trend_filter_timeframe ?? "M15",
-            trend_filter_ema_period: config.trend_filter_ema_period ?? 200,
-            break_even: config.break_even ?? true,
-            trailing_stop: config.trailing_stop ?? false,
-            max_spread_pips: 5,
-          };
-
-          const startRes = await fetch(`${BASE}/robot/start`, {
-            method: "POST",
-            headers: authHeaders,
-            body: JSON.stringify(startPayload),
-          });
-          const startJson = await startRes.json().catch(() => ({}));
-
-          if (startJson?.success === true) {
-            actions.push(`AUTO-START: ${sessionName} session active — robot launched (risk ×${riskMultiplier}, ${symbol}, lot ×${resolvedLotMultiplier})`);
-            actions.push(`MULTIPLIER: ${multiplierReason}`);
-          } else {
-            actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? `HTTP ${startRes.status}`}`);
-          }
         }
       }
 
