@@ -290,7 +290,7 @@ export default function Home() {
       )}
 
       {/* ── HERO SECTION ── */}
-      <div className="relative w-full" style={{ minHeight: 'clamp(280px, 50vh, 420px)' }}>
+      <div className="relative w-full" style={{ height: 300 }}>
         <img
           src={ROBOT_IMG}
           alt="Flouba Elite AI Robot"
@@ -298,9 +298,9 @@ export default function Home() {
           style={{ opacity: 0.9 }}
         />
         <div className="absolute inset-0" style={{
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 35%, rgba(0,0,0,0.85) 78%, #000 100%)"
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.85) 75%, #000 100%)"
         }} />
-        <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{
+        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none" style={{
           background: "radial-gradient(ellipse at 50% 0%, rgba(180,0,0,0.3), transparent 70%)"
         }} />
 
@@ -333,20 +333,20 @@ export default function Home() {
         </div>
 
         {/* Brand */}
-        <div className="relative z-10 flex flex-col items-center justify-end pb-5" style={{ marginTop: 'clamp(140px, 32vh, 260px)' }}>
+        <div className="relative z-10 flex flex-col items-center justify-end pb-3" style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
           <h1 className="font-heading font-black text-white text-center leading-none"
-            style={{ fontSize: 36, letterSpacing: "0.08em", textShadow: "0 0 28px rgba(220,0,0,0.85), 0 2px 18px rgba(0,0,0,0.8)" }}>
+            style={{ fontSize: 32, letterSpacing: "0.08em", textShadow: "0 0 28px rgba(220,0,0,0.85), 0 2px 18px rgba(0,0,0,0.8)" }}>
             FLOUBA ELITE
           </h1>
-          <p className="font-heading font-bold tracking-[0.35em] text-white/90 mt-1.5"
-            style={{ fontSize: 11, textShadow: "0 0 10px rgba(220,0,0,0.6)" }}>
+          <p className="font-heading font-bold tracking-[0.35em] text-white/90 mt-1"
+            style={{ fontSize: 10, textShadow: "0 0 10px rgba(220,0,0,0.6)" }}>
             AI TRADING ROBOT
           </p>
         </div>
       </div>
 
       {/* ── CONTROLS ── */}
-      <div className="relative z-10 px-4 sm:px-5 md:px-6 -mt-1 space-y-3 bg-black pt-3 pb-6">
+      <div className="relative z-10 px-4 sm:px-5 md:px-6 -mt-4 space-y-2.5 bg-black pt-2 pb-6">
 
         {/* START ROBOT */}
         <motion.button
