@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Play, Square, Bell, ChevronDown, Radar } from "lucide-react";
+import { Play, Square, Bell, ChevronDown, Radar, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
@@ -420,6 +420,21 @@ export default function Home() {
           <div className="flex-1 text-left">
             <p className="font-heading font-bold text-sm text-white tracking-wider">LSR-3R Scanner</p>
             <p className="text-[10px] text-white/40">Liquidity Sweep · CHOCH · FVG — 1:3 RR</p>
+          </div>
+          <ChevronDown className="w-4 h-4 text-white/30 rotate-[-90deg]" />
+        </button>
+
+        {/* Trade Journal — summary sheet of every closed trade */}
+        <button onClick={() => navigate("/trade-journal")}
+          className="w-full rounded-2xl flex items-center gap-3 px-4 py-3.5 transition-all active:scale-[0.98]"
+          style={{ background: "rgba(255,49,49,0.05)", border: "1px solid rgba(255,49,49,0.15)" }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: "rgba(255,49,49,0.10)", border: "1px solid rgba(255,49,49,0.25)" }}>
+            <FileText className="w-5 h-5" style={{ color: "#FF3131" }} />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-heading font-bold text-sm text-white tracking-wider">Trade Journal</p>
+            <p className="text-[10px] text-white/40">Summary sheet — every win &amp; loss with date &amp; time</p>
           </div>
           <ChevronDown className="w-4 h-4 text-white/30 rotate-[-90deg]" />
         </button>

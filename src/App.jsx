@@ -32,6 +32,7 @@ import LSR3RHistory from '@/pages/LSR3RHistory';
 import LSR3RAnalytics from '@/pages/LSR3RAnalytics';
 import LSR3RSettings from '@/pages/LSR3RSettings';
 import LSR3RWebhook from '@/pages/LSR3RWebhook';
+import TradeJournal from '@/pages/TradeJournal';
 
 const PageSlide = ({ children }) => (
   <motion.div
@@ -91,6 +92,7 @@ const AuthenticatedApp = () => {
               <Route path="/lsr3r/settings" element={<PageSlide><LSR3RSettings /></PageSlide>} />
               <Route path="/lsr3r/webhook" element={<PageSlide><LSR3RWebhook /></PageSlide>} />
             </Route>
+            <Route path="/trade-journal" element={<PageSlide><TradeJournal /></PageSlide>} />
           </Route>
         </Route>
         <Route path="*" element={<PageNotFound />} />
