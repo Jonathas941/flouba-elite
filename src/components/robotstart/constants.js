@@ -34,6 +34,7 @@ export const DEFAULT = {
   strategy: "Auto (AI Select)",
   trading_mode: "Balanced",
   bot_mentality: "Premium",
+  trade_direction: "both",
   // Lot & Risk
   lot_size: 0.03,
   max_concurrent_trades: 2,
