@@ -4,7 +4,7 @@ import { Zap, ZapOff } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
-export default function HftModeButton({ settings, onUpdate }) {
+export default function HftModeButton({ settings, onUpdate, onAutoStart }) {
   const { toast } = useToast();
   const [enabled, setEnabled] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -34,6 +34,7 @@ export default function HftModeButton({ settings, onUpdate }) {
           : "Normal trading rules restored.",
         duration: 4000,
       });
+      if (newVal && onAutoStart) onAutoStart();
     } catch (e) {
       toast({ title: "Toggle Failed", description: e.message, variant: "destructive" });
     }

@@ -185,6 +185,29 @@ export default function Home() {
     }
   };
 
+  const handleDangerAutoStart = async () => {
+    if (!connected) return;
+    try {
+      const pair = activePair || "XAUUSD";
+      const res = await mt5Api.robotStart(pair, {
+        symbol: pair,
+        strategy: "HFT Scalper",
+        lot_size: botSettings?.hft_base_lot ?? 0.01,
+        hft_mode_enabled: true,
+      });
+      if (res?.ok && res?.data?.success === true) {
+        setRobotStatus("Running");
+        toast({ title: "⚠ Robot Auto-Started", description: "Danger Mode is now trading live — no waiting.", duration: 4000 });
+        logNotification({ type: "bot_action", title: "Danger Mode Auto-Start", message: `Robot launched automatically on ${pair} in HFT Danger Mode.`, category: "danger", meta: { strategy: "HFT Scalper", symbol: pair } });
+        setUnreadCount((c) => c + 1);
+      } else {
+        toast({ title: "Auto-Start Failed", description: res?.error || res?.data?.message || "Could not start robot.", variant: "destructive", duration: 4000 });
+      }
+    } catch (e) {
+      toast({ title: "Auto-Start Failed", description: e.message, variant: "destructive", duration: 4000 });
+    }
+  };
+
   const handleStop = async () => {
     try { await mt5Api.robotStop(); } catch {}
     setRobotStatus("Paused");
@@ -366,7 +389,7 @@ export default function Home() {
         <DecisionGate />
 
         {/* HFT MODE — bypasses all rules, scalps any profit, compounds lots on wins */}
-        <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} />
+        <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} onAutoStart={handleDangerAutoStart} />
 
         {/* ACCOUNT OVERVIEW */}
         <div className="pt-2">
