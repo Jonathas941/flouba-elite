@@ -252,7 +252,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden transition-all"
+      className="min-h-screen bg-black flex flex-col w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto relative overflow-hidden transition-all"
       onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
       style={dangerMode ? { boxShadow: "inset 0 0 0 2px rgba(255,49,49,0.45), inset 0 0 80px rgba(255,49,49,0.12)" } : undefined}
     >
@@ -290,7 +290,7 @@ export default function Home() {
       )}
 
       {/* ── HERO SECTION ── */}
-      <div className="relative w-full" style={{ minHeight: 360 }}>
+      <div className="relative w-full" style={{ minHeight: 'clamp(280px, 50vh, 420px)' }}>
         <img
           src={ROBOT_IMG}
           alt="Flouba Elite AI Robot"
@@ -333,7 +333,7 @@ export default function Home() {
         </div>
 
         {/* Brand */}
-        <div className="relative z-10 flex flex-col items-center justify-end pb-5" style={{ marginTop: 230 }}>
+        <div className="relative z-10 flex flex-col items-center justify-end pb-5" style={{ marginTop: 'clamp(140px, 32vh, 260px)' }}>
           <h1 className="font-heading font-black text-white text-center leading-none"
             style={{ fontSize: 36, letterSpacing: "0.08em", textShadow: "0 0 28px rgba(220,0,0,0.85), 0 2px 18px rgba(0,0,0,0.8)" }}>
             FLOUBA ELITE
@@ -346,7 +346,7 @@ export default function Home() {
       </div>
 
       {/* ── CONTROLS ── */}
-      <div className="relative z-10 px-4 -mt-1 space-y-3 bg-black pt-3 pb-6">
+      <div className="relative z-10 px-4 sm:px-5 md:px-6 -mt-1 space-y-3 bg-black pt-3 pb-6">
 
         {/* START ROBOT */}
         <motion.button
@@ -394,7 +394,7 @@ export default function Home() {
         {/* ACCOUNT OVERVIEW */}
         <div className="pt-2">
           <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Account Overview</p>
-          <div className="rounded-2xl grid grid-cols-3 divide-x divide-white/5 overflow-hidden"
+          <div className="rounded-2xl grid grid-cols-3 sm:grid-cols-3 divide-x divide-white/5 overflow-hidden"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
             {[
               { label: "BALANCE",      value: fmt(account?.balance) },

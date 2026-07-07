@@ -265,8 +265,8 @@ Deno.serve(async (req) => {
         multiplierReason = "compounding active (equity gate met, auto off)";
       }
 
-      // === BOT MENTALITY: enforce capital protection / daily target / cooldown (always on) ===
-      if (robotRunning && mentality.block) {
+      // === DANGER MODE BYPASS: HFT ignores ALL limits — daily loss, consecutive losses, session, daily target ===
+      if (robotRunning && mentality.block && !config.hft_mode_enabled) {
         await fetch(`${BASE}/robot/stop`, { method: "POST", headers: authHeaders, body: "{}" }).catch(() => {});
         actions.push(`MENTALITY STOP: ${mentality.status} (P&L: $${dailyPnL.toFixed(2)})`);
 
@@ -300,7 +300,36 @@ Deno.serve(async (req) => {
       }
 
       // === AUTO-START: launch only when mentality allows and a session is active ===
-      if (config.auto_start_enabled && !robotRunning) {
+      // === DANGER MODE: HFT bypasses all gates — always auto-start immediately ===
+      if (config.hft_mode_enabled && !robotRunning) {
+        const symbol = config.active_pair || "XAUUSD";
+        const hftLot = config.hft_current_lot ?? config.hft_base_lot ?? 0.01;
+        const startRes = await fetch(`${BASE}/robot/start`, {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({
+            strategy: "HFT Scalper",
+            symbol,
+            trading_mode: "Aggressive",
+            lot_size: hftLot,
+            hft_mode_enabled: true,
+            max_concurrent_trades: 10,
+            risk_percentage: 5,
+            stop_loss: 0,
+            take_profit: 0,
+            daily_loss_limit: 0,
+            stop_after_losses: 999,
+            max_spread_pips: 100,
+            session_cooldown_minutes: 0,
+          }),
+        });
+        const startJson = await startRes.json().catch(() => ({}));
+        if (startJson?.success === true) {
+          actions.push(`DANGER MODE AUTO-START: HFT launched on ${symbol} at ${hftLot} lot — all limits bypassed`);
+        } else {
+          actions.push(`DANGER MODE START FAILED: ${startJson?.message ?? startJson?.error ?? `HTTP ${startRes.status}`}`);
+        }
+      } else if (config.auto_start_enabled && !robotRunning) {
         const riskMultiplier = sessionInfo?.risk_multiplier ?? 0;
         const allowedPairs = sessionInfo?.allowed_pairs ?? [];
         const sessionName = sessionInfo?.session ?? "closed";

@@ -82,7 +82,7 @@ async function processHftUser(base44, user, cfg, useServiceRole) {
 
   const balance = account.balance;
   const equity = account.equity ?? balance;
-  const minProfitUsd = 0.10;
+  const minProfitUsd = 0.01; // Danger Mode — take ANY profit, no minimum
   const lotMult = cfg.hft_lot_multiplier ?? 1.5;
   const maxLot = cfg.hft_max_lot ?? 0.5;
   const baseLot = cfg.hft_base_lot ?? 0.01;

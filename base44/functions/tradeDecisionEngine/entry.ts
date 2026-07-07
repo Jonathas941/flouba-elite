@@ -419,6 +419,44 @@ Deno.serve(async (req) => {
     const floatingPnl = account?.profit ?? (equity - balance);
 
     // ── Fetch today's closed trades ──
+    // ── DANGER MODE BYPASS: HFT ignores ALL 8 pillars, all limits, all gates ──
+    if (cfg.hft_mode_enabled === true) {
+      const hftLot = cfg.hft_current_lot ?? cfg.hft_base_lot ?? 0.01;
+      const emaFast = num(ind?.ema_6 ?? ind?.ema_5);
+      const emaSlow = num(ind?.ema_20 ?? ind?.ema_25);
+      const rsi = num(ind?.rsi);
+      let hftDir = "BUY";
+      if (emaFast != null && emaSlow != null) hftDir = emaFast > emaSlow ? "BUY" : "SELL";
+      else if (rsi != null) hftDir = rsi > 50 ? "BUY" : "SELL";
+      return Response.json({
+        ok: true,
+        connected: true,
+        decision: "TRADE",
+        reason: `DANGER MODE — all limits bypassed. Scalping ${hftDir} ${cfg.active_pair || "XAUUSD"} at ${hftLot} lot. No daily loss limit, no session gate, no cooldown.`,
+        score: 100,
+        min_score: 0,
+        regime: "HFT Danger",
+        regime_dir: hftDir === "BUY" ? "Bullish" : "Bearish",
+        direction: hftDir,
+        pillars: [],
+        danger_mode: true,
+        trade: {
+          direction: hftDir,
+          entry: quote?.bid,
+          lot_size: hftLot,
+          danger_mode: true,
+        },
+        account: {
+          balance: Math.round(balance * 100) / 100,
+          equity: Math.round(equity * 100) / 100,
+          floating_pnl: Math.round(floatingPnl * 100) / 100,
+        },
+        safety: { all_limits_bypassed: true },
+        robot_running: robotRunning,
+        checked_at: new Date().toISOString(),
+      });
+    }
+
     const closedTrades = await base44.entities.Trade.filter(
       { created_by_id: user.id, status: "Closed" }, "-closed_at", 50
     ).catch(() => []);
