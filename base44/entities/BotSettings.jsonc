@@ -1222,6 +1222,16 @@
       ],
       "default": "XAUUSD"
     },
+    "trade_direction": {
+      "type": "string",
+      "enum": [
+        "both",
+        "buy",
+        "sell"
+      ],
+      "default": "both",
+      "description": "Allowed trade directions. both = long and short, buy = long only, sell = short only."
+    },
     "mt5_account": {
       "type": "string"
     },
