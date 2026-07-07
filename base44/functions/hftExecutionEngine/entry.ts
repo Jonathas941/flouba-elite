@@ -78,7 +78,8 @@ async function processHftUser(base44, user, cfg, useServiceRole) {
   if (scanRes?.ok) { const j = await scanRes.json().catch(() => ({})); ind = j?.scanner?.indicators || j?.indicators || null; }
   if (histRes?.ok) { const j = await histRes.json().catch(() => ({})); history = j?.history || j?.deals || []; }
 
-  if (!account?.balance || !quote?.bid) return { ok: false, error: "No live data" };
+  if (!account?.balance) return { ok: false, error: "No live data" };
+  // Danger Mode — bypass quote requirement; trade at market price without live tick
 
   const balance = account.balance;
   const equity = account.equity ?? balance;
@@ -98,7 +99,7 @@ async function processHftUser(base44, user, cfg, useServiceRole) {
     const profit = num(pos.profit ?? pos.unrealized_pnl);
     if (profit != null && profit >= minProfitUsd) {
       const ticket = pos.ticket ?? pos.id ?? pos.position_id;
-      const closeRes = await fetch(`${BASE}/close`, {
+      const closeRes = await fetch(`${BASE}/trade/close`, {
         method: "POST", headers,
         body: JSON.stringify({ ticket }),
       }).catch(() => null);
@@ -150,7 +151,7 @@ async function processHftUser(base44, user, cfg, useServiceRole) {
     }
     if (!direction) direction = "BUY"; // HFT doesn't care — just trade
 
-    const endpoint = direction === "BUY" ? "buy" : "sell";
+    const endpoint = direction === "BUY" ? "trade/buy" : "trade/sell";
     const tradeRes = await fetch(`${BASE}/${endpoint}`, {
       method: "POST", headers,
       body: JSON.stringify({ symbol, volume: currentLot }),
