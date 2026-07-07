@@ -140,8 +140,8 @@ export default function RobotStartModal({ open, onClose, onStart }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="w-full max-w-md rounded-3xl overflow-hidden"
-            style={{ background: "#050505", border: "1px solid rgba(0,255,65,0.12)", maxHeight: "88vh", overflowY: "auto" }}
+            className="w-full max-w-md rounded-3xl overflow-hidden flex flex-col"
+            style={{ background: "#050505", border: "1px solid rgba(0,255,65,0.12)", height: "88vh" }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">
@@ -154,7 +154,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
               </button>
             </div>
 
-            <div className="px-5 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
               <CollapsibleSection title="Pair & Strategy" defaultOpen={true}>
                 <div className="space-y-2.5">
@@ -509,8 +509,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   <p className="text-[10px] text-red-400 font-heading">{error}</p>
                 </div>
               )}
+            </div>
 
-              {/* Launch */}
+            {/* Launch — pinned at bottom, always visible */}
+            <div className="px-5 pt-3 pb-4 border-t border-white/5 shrink-0">
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleStart}
@@ -525,8 +527,6 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     </>
                   : <><Play className="w-4 h-4 fill-current" /><span>LAUNCH ROBOT</span></>}
               </motion.button>
-
-              <div style={{ height: "env(safe-area-inset-bottom, 16px)" }} />
             </div>
           </motion.div>
         </motion.div>
