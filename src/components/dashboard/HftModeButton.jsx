@@ -28,9 +28,9 @@ export default function HftModeButton({ settings, onUpdate }) {
       onUpdate?.({ ...settings, hft_mode_enabled: newVal });
 
       toast({
-        title: newVal ? "HFT Mode Activated" : "HFT Mode Disabled",
+        title: newVal ? "⚠ DANGER MODE ACTIVATED" : "HFT Mode Disabled",
         description: newVal
-          ? "All rules bypassed. Scalping any profit. Lot multiplies on each win."
+          ? "ALL rules bypassed. Scalping any profit. Lot multiplies on each win."
           : "Normal trading rules restored.",
         duration: 4000,
       });
@@ -48,31 +48,31 @@ export default function HftModeButton({ settings, onUpdate }) {
       className="w-full rounded-2xl flex items-center gap-3 px-4 py-3.5 transition-all"
       style={{
         background: enabled
-          ? "linear-gradient(135deg, rgba(255,204,66,0.15), rgba(255,204,66,0.05))"
+          ? "linear-gradient(135deg, rgba(255,49,49,0.18), rgba(255,49,49,0.05))"
           : "rgba(255,255,255,0.03)",
-        border: enabled ? "1px solid rgba(255,204,66,0.40)" : "1px solid rgba(255,255,255,0.07)",
-        boxShadow: enabled ? "0 0 18px rgba(255,204,66,0.15)" : "none",
+        border: enabled ? "1.5px solid rgba(255,49,49,0.55)" : "1px solid rgba(255,255,255,0.07)",
+        boxShadow: enabled ? "0 0 22px rgba(255,49,49,0.25)" : "none",
       }}
     >
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
         style={{
-          background: enabled ? "rgba(255,204,66,0.15)" : "rgba(255,255,255,0.04)",
-          border: enabled ? "1px solid rgba(255,204,66,0.35)" : "1px solid rgba(255,255,255,0.08)",
+          background: enabled ? "rgba(255,49,49,0.15)" : "rgba(255,255,255,0.04)",
+          border: enabled ? "1px solid rgba(255,49,49,0.40)" : "1px solid rgba(255,255,255,0.08)",
         }}>
         {enabled
-          ? <Zap className="w-5 h-5" style={{ color: "#FFCC42" }} fill="currentColor" />
+          ? <Zap className="w-5 h-5" style={{ color: "#FF3131" }} fill="currentColor" />
           : <ZapOff className="w-5 h-5 text-white/30" />}
       </div>
       <div className="flex-1 text-left">
-        <p className="font-heading font-bold text-sm tracking-wider" style={{ color: enabled ? "#FFCC42" : "#fff" }}>
-          HFT MODE
+        <p className="font-heading font-bold text-sm tracking-wider" style={{ color: enabled ? "#FF3131" : "#fff" }}>
+          {enabled ? "⚠ DANGER MODE" : "HFT MODE"}
         </p>
-        <p className="text-[10px]" style={{ color: enabled ? "rgba(255,204,66,0.65)" : "rgba(255,255,255,0.35)" }}>
-          {enabled ? "ACTIVE — Scalping any profit · Lot multiplying on wins" : "Bypass all rules · Scalp any profit · Compound lots"}
+        <p className="text-[10px]" style={{ color: enabled ? "rgba(255,49,49,0.70)" : "rgba(255,255,255,0.35)" }}>
+          {enabled ? "ALL RULES BYPASSED — Scalping any profit · Lot compounding on wins" : "Bypass all rules · Scalp any profit · Compound lots"}
         </p>
       </div>
       <div className="w-11 h-6 rounded-full flex items-center px-0.5 transition-all shrink-0"
-        style={{ background: enabled ? "#FFCC42" : "rgba(255,255,255,0.10)", justifyContent: enabled ? "flex-end" : "flex-start" }}>
+        style={{ background: enabled ? "#FF3131" : "rgba(255,255,255,0.10)", justifyContent: enabled ? "flex-end" : "flex-start" }}>
         <motion.div className="w-5 h-5 rounded-full bg-white shadow"
           layout transition={{ type: "spring", stiffness: 500, damping: 30 }} />
       </div>

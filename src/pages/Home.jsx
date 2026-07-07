@@ -216,6 +216,7 @@ export default function Home() {
   const pair = activePair || "XAUUSD";
   const pairMeta = PAIR_META[pair] || { label: pair, icon: "📊" };
   const openPnl = positions.reduce((s, p) => s + (p.profit ?? p.unrealized_pnl ?? 0), 0);
+  const dangerMode = botSettings?.hft_mode_enabled === true;
 
   const statusLabel = active
     ? (robotStatus === "Running" ? "ROBOT IS RUNNING" : robotStatus.toUpperCase())
@@ -228,13 +229,41 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden"
+      className="min-h-screen bg-black flex flex-col max-w-md mx-auto relative overflow-hidden transition-all"
       onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+      style={dangerMode ? { boxShadow: "inset 0 0 0 2px rgba(255,49,49,0.45), inset 0 0 80px rgba(255,49,49,0.12)" } : undefined}
     >
       {pullY > 0 && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50" style={{ opacity: pullY / 60 }}>
           <div className={`w-6 h-6 border-2 border-red-500/40 border-t-red-500 rounded-full ${refreshing ? "animate-spin" : ""}`} />
         </div>
+      )}
+
+      {dangerMode && (
+        <motion.div
+          className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[60] px-4 pt-2"
+          initial={{ y: -60, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        >
+          <div className="rounded-xl flex items-center justify-center gap-2 py-2"
+            style={{ background: "rgba(255,49,49,0.18)", border: "1px solid rgba(255,49,49,0.50)", backdropFilter: "blur(12px)" }}>
+            <motion.span className="w-2 h-2 rounded-full bg-[#FF3131]"
+              animate={{ opacity: [1, 0.2, 1], scale: [1, 1.4, 1] }}
+              transition={{ duration: 0.9, repeat: Infinity }}
+              style={{ boxShadow: "0 0 10px rgba(255,49,49,0.8)" }}
+            />
+            <span className="font-heading font-black text-[11px] tracking-[0.25em] text-[#FF3131]"
+              style={{ textShadow: "0 0 12px rgba(255,49,49,0.6)" }}>
+              DANGER MODE ACTIVE
+            </span>
+            <motion.span className="w-2 h-2 rounded-full bg-[#FF3131]"
+              animate={{ opacity: [1, 0.2, 1], scale: [1, 1.4, 1] }}
+              transition={{ duration: 0.9, repeat: Infinity, delay: 0.45 }}
+              style={{ boxShadow: "0 0 10px rgba(255,49,49,0.8)" }}
+            />
+          </div>
+        </motion.div>
       )}
 
       {/* ── HERO SECTION ── */}
