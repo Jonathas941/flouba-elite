@@ -131,8 +131,8 @@ export default function RobotStartModal({ open, onClose, onStart }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          className="fixed inset-0 z-50 overflow-y-auto"
+          style={{ background: "#050505" }}
           onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
           <motion.div
@@ -140,8 +140,8 @@ export default function RobotStartModal({ open, onClose, onStart }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="w-full max-w-md rounded-3xl overflow-hidden flex flex-col"
-            style={{ background: "#050505", border: "1px solid rgba(0,255,65,0.12)", height: "88vh" }}
+            className="w-full max-w-md mx-auto min-h-full flex flex-col"
+            style={{ background: "#050505" }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">
@@ -154,7 +154,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-4">
 
               <CollapsibleSection title="Pair & Strategy" defaultOpen={true}>
                 <div className="space-y-2.5">
@@ -511,8 +511,10 @@ export default function RobotStartModal({ open, onClose, onStart }) {
               )}
             </div>
 
-            {/* Launch — pinned at bottom, always visible */}
-            <div className="px-5 pt-3 pb-4 border-t border-white/5 shrink-0">
+            {/* Launch */}
+            <div className="px-5 pt-3 pb-8 border-t border-white/5 shrink-0 sticky bottom-0"
+              style={{ background: "#050505" }}
+            >
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleStart}
