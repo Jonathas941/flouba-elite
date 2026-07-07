@@ -13,6 +13,8 @@ import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel"
 import CooldownBanner from "@/components/dashboard/CooldownBanner";
 import AutoStartButton from "@/components/dashboard/AutoStartButton";
 import HftModeButton from "@/components/dashboard/HftModeButton";
+import HolographicHero from "@/components/dashboard/hud/HolographicHero";
+import HudPanel from "@/components/dashboard/hud/HudPanel";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
@@ -289,82 +291,37 @@ export default function Home() {
         </motion.div>
       )}
 
-      {/* ── HERO SECTION ── */}
-      <div className="relative w-full" style={{ height: 300 }}>
-        <img
-          src={ROBOT_IMG}
-          alt="Flouba Elite AI Robot"
-          className="absolute inset-0 w-full h-full object-cover object-top"
-          style={{ opacity: 0.9 }}
-        />
-        <div className="absolute inset-0" style={{
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.85) 75%, #000 100%)"
-        }} />
-        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none" style={{
-          background: "radial-gradient(ellipse at 50% 0%, rgba(180,0,0,0.3), transparent 70%)"
-        }} />
-
-        {/* Status bar */}
-        <div className="relative z-10 flex items-center justify-between px-4 pt-4">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-heading font-bold uppercase tracking-widest ${connected ? "text-[#00FF41]" : "text-[#FF3131]"}`}
-            style={{ background: "rgba(0,0,0,0.6)", border: `1px solid ${connected ? "rgba(0,255,65,0.4)" : "rgba(255,49,49,0.4)"}` }}>
-            <motion.span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[#00FF41]" : "bg-[#FF3131]"}`}
-              animate={connected ? { scale: [1, 1.6, 1], opacity: [1, 0.4, 1] } : {}} transition={{ duration: 1.5, repeat: Infinity }} />
-            {connected ? "CONNECTED" : "OFFLINE"}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {connected && (
-              <button onClick={() => navigate("/connect-mt5")}
-                className="flex items-center gap-1 text-[11px] font-heading font-bold text-white/85 px-2.5 py-1.5 rounded-lg"
-                style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                MT5 LIVE <ChevronDown className="w-3 h-3" />
-              </button>
-            )}
-            <button onClick={() => navigate("/notifications")}
-              className="relative w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <Bell className="w-4 h-4 text-white/70" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#FF3131] text-[8px] font-bold text-white flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Brand */}
-        <div className="relative z-10 flex flex-col items-center justify-end pb-3" style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
-          <h1 className="font-heading font-black text-white text-center leading-none"
-            style={{ fontSize: 32, letterSpacing: "0.08em", textShadow: "0 0 28px rgba(220,0,0,0.85), 0 2px 18px rgba(0,0,0,0.8)" }}>
-            FLOUBA ELITE
-          </h1>
-          <p className="font-heading font-bold tracking-[0.35em] text-white/90 mt-1"
-            style={{ fontSize: 10, textShadow: "0 0 10px rgba(220,0,0,0.6)" }}>
-            AI TRADING ROBOT
-          </p>
-        </div>
-      </div>
+      <HolographicHero
+        connected={connected}
+        account={account}
+        openPnl={openPnl}
+        active={active}
+        robotStatus={robotStatus}
+        unreadCount={unreadCount}
+        onNotifications={() => navigate("/notifications")}
+        onConnectMT5={() => navigate("/connect-mt5")}
+      />
 
       {/* ── CONTROLS ── */}
-      <div className="relative z-10 px-4 sm:px-5 md:px-6 -mt-4 space-y-2.5 bg-black pt-2 pb-6">
+      <div className="relative z-10 px-4 sm:px-5 md:px-6 -mt-4 space-y-2.5 pt-2 pb-6 grid-lines"
+        style={{ background: "#050505" }}>
 
         {/* START ROBOT */}
         <motion.button
           onClick={handleStart}
           disabled={connected && active}
           whileTap={{ scale: 0.97 }}
-          className="w-full h-14 rounded-2xl flex items-center justify-between px-5 font-heading font-black tracking-[0.2em] text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="w-full h-14 hud-hex flex items-center justify-center gap-3 font-mono font-black tracking-[0.25em] text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           style={{
-            background: active ? "rgba(0,255,65,0.08)" : "rgba(255,255,255,0.04)",
+            background: "rgba(0,255,65,0.07)",
             color: "#00FF41",
-            border: `1px solid ${active ? "rgba(0,255,65,0.35)" : "rgba(0,255,65,0.5)"}`,
-            boxShadow: active ? "none" : "0 0 18px rgba(0,255,65,0.12)",
+            border: "1.5px solid rgba(0,255,65,0.5)",
+            boxShadow: active ? "0 0 12px rgba(0,255,65,0.12)" : "0 0 22px rgba(0,255,65,0.18), inset 0 0 12px rgba(0,255,65,0.04)",
+            textShadow: "0 0 10px rgba(0,255,65,0.5)",
           }}
         >
-          <span>{active ? "ROBOT ACTIVE" : "START ROBOT"}</span>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(0,255,65,0.15)", border: "1px solid rgba(0,255,65,0.4)" }}>
-            <Play className="w-4 h-4 fill-current text-[#00FF41]" />
-          </div>
+          <Play className="w-4 h-4 fill-current" />
+          <span>{active ? "ROBOT ACTIVE" : "INITIATE ROBOT"}</span>
         </motion.button>
 
         {/* STOP ROBOT */}
@@ -372,17 +329,16 @@ export default function Home() {
           onClick={handleStop}
           disabled={!connected || !active}
           whileTap={{ scale: 0.97 }}
-          className="w-full h-14 rounded-2xl flex items-center justify-between px-5 font-heading font-black tracking-[0.2em] text-sm text-[#FF3131] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="w-full h-14 hud-hex flex items-center justify-center gap-3 font-mono font-black tracking-[0.25em] text-sm text-[#FF3131] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           style={{
-            background: "transparent",
-            border: "1.5px solid rgba(255,49,49,0.6)",
-            boxShadow: active ? "0 0 18px rgba(255,49,49,0.12)" : "none",
+            background: "rgba(255,49,49,0.04)",
+            border: "1.5px solid rgba(255,49,49,0.5)",
+            boxShadow: active ? "0 0 18px rgba(255,49,49,0.15)" : "none",
+            textShadow: "0 0 10px rgba(255,49,49,0.4)",
           }}
         >
-          <span>STOP ROBOT</span>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(255,49,49,0.1)", border: "1px solid rgba(255,49,49,0.4)" }}>
-            <Square className="w-4 h-4 fill-current text-[#FF3131]" />
-          </div>
+          <Square className="w-4 h-4 fill-current" />
+          <span>TERMINATE</span>
         </motion.button>
 
         {/* AUTO-START — scheduled daily robot launch */}
@@ -392,66 +348,62 @@ export default function Home() {
         <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} onAutoStart={handleDangerAutoStart} />
 
         {/* ACCOUNT OVERVIEW */}
-        <div className="pt-2">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Account Overview</p>
-          <div className="rounded-2xl grid grid-cols-3 sm:grid-cols-3 divide-x divide-white/5 overflow-hidden"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <HudPanel label="Account Overview">
+          <div className="grid grid-cols-3 divide-x divide-[#00FF41]/10">
             {[
-              { label: "BALANCE",      value: fmt(account?.balance) },
-              { label: "EQUITY",       value: fmt(account?.equity) },
-              { label: "PROFIT TODAY", value: fmtProfit(connected ? (openPnl || account?.profit_today) : null), profit: true },
+              { label: "BALANCE", value: fmt(account?.balance) },
+              { label: "EQUITY",  value: fmt(account?.equity) },
+              { label: "PROFIT",  value: fmtProfit(connected ? (openPnl || account?.profit_today) : null), profit: true },
             ].map(({ label, value, profit }) => (
-              <div key={label} className="py-3 px-3 flex flex-col gap-0.5">
-                <span className="text-[9px] uppercase tracking-widest text-white/35">{label}</span>
-                <span className={`font-heading font-bold text-sm ${
+              <div key={label} className="py-1 px-2 flex flex-col gap-0.5 items-center text-center">
+                <span className="text-[8px] font-mono uppercase tracking-[0.15em] text-[#00FF41]/40">{label}</span>
+                <span className={`font-mono font-bold text-sm ${
                   value === "--" ? "text-white/25" :
                   profit ? (value.startsWith("+") ? "text-[#00FF41]" : "text-[#FF3131]") : "text-white"
-                }`}>{value}</span>
+                }`} style={profit && value !== "--" && value.startsWith("+") ? { textShadow: "0 0 6px rgba(0,255,65,0.4)" } : {}}>{value}</span>
               </div>
             ))}
           </div>
-        </div>
+        </HudPanel>
 
         {/* ACTIVE PAIR */}
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Active Pair</p>
-          <div className="rounded-2xl flex items-center justify-between px-4 py-3"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <HudPanel label="Active Pair" accent="#FFCC42">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-lg">
+              <div className="w-9 h-9 hud-clip-sm flex items-center justify-center text-lg"
+                style={{ background: "rgba(255,204,66,0.1)", border: "1px solid rgba(255,204,66,0.25)" }}>
                 {pairMeta.icon}
               </div>
               <div>
-                <p className="font-heading font-bold text-white text-sm">{pair}</p>
-                <p className="text-[10px] text-white/40">{pairMeta.label}</p>
+                <p className="font-mono font-bold text-white text-sm tracking-[0.1em]">{pair}</p>
+                <p className="text-[9px] font-mono text-white/35">{pairMeta.label}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[9px] uppercase tracking-widest text-white/30">CHANGE</p>
-              <p className={`font-heading font-bold text-sm ${connected ? "text-[#00FF41]" : "text-white/25"}`}>
+              <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-[#00FF41]/35">CHANGE</p>
+              <p className={`font-mono font-bold text-sm ${connected ? "text-[#00FF41]" : "text-white/25"}`}
+                style={connected ? { textShadow: "0 0 6px rgba(0,255,65,0.3)" } : {}}>
                 {connected ? "+0.45%" : "--"}
               </p>
             </div>
           </div>
-        </div>
+        </HudPanel>
 
         {/* ROBOT STATUS */}
-        <div className="pb-2">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-heading mb-2">Robot Status</p>
-          <div className="rounded-2xl flex items-center gap-3 px-4 py-3"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${active ? "bg-[#00FF41]/15 border border-[#00FF41]/30" : "bg-white/5 border border-white/10"}`}
-              style={active ? { boxShadow: "0 0 14px rgba(0,255,65,0.4)" } : undefined}>
+        <HudPanel label="Robot Status" accent={active ? "#00FF41" : "#FF3131"}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 hud-clip-sm flex items-center justify-center shrink-0 ${active ? "bg-[#00FF41]/12" : "bg-white/5"}`}
+              style={{ border: `1px solid ${active ? "rgba(0,255,65,0.3)" : "rgba(255,255,255,0.1)"}`, boxShadow: active ? "0 0 14px rgba(0,255,65,0.3)" : undefined }}>
               <motion.div className={`w-2.5 h-2.5 rounded-full ${statusDot}`}
                 animate={active ? { scale: [1, 1.5, 1], opacity: [1, 0.3, 1] } : {}}
                 transition={{ duration: 1.2, repeat: Infinity }} />
             </div>
             <div>
-              <p className={`font-heading font-bold text-sm tracking-wider ${statusColor}`}>{statusLabel}</p>
-              <p className="text-[10px] text-white/35 mt-0.5">{statusDesc}</p>
+              <p className={`font-mono font-bold text-sm tracking-[0.15em] ${statusColor}`}>{statusLabel}</p>
+              <p className="text-[9px] font-mono text-white/35 mt-0.5">{statusDesc}</p>
             </div>
           </div>
-        </div>
+        </HudPanel>
 
         {/* Cooldown countdown */}
         <CooldownBanner settings={botSettings} />
@@ -467,32 +419,32 @@ export default function Home() {
 
         {/* LSR-3R Scanner Module */}
         <button onClick={() => navigate("/lsr3r")}
-          className="w-full rounded-2xl flex items-center gap-3 px-4 py-3.5 mt-1 transition-all active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg, rgba(255,204,66,0.08), rgba(255,204,66,0.02))", border: "1px solid rgba(255,204,66,0.20)" }}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "rgba(255,204,66,0.12)", border: "1px solid rgba(255,204,66,0.30)" }}>
+          className="w-full hud-clip flex items-center gap-3 px-4 py-3.5 mt-1 transition-all active:scale-[0.98]"
+          style={{ background: "rgba(255,204,66,0.05)", border: "1px solid rgba(255,204,66,0.2)", backdropFilter: "blur(12px)" }}>
+          <div className="w-10 h-10 hud-clip-sm flex items-center justify-center shrink-0"
+            style={{ background: "rgba(255,204,66,0.1)", border: "1px solid rgba(255,204,66,0.3)" }}>
             <Radar className="w-5 h-5" style={{ color: "#FFCC42" }} />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-heading font-bold text-sm text-white tracking-wider">LSR-3R Scanner</p>
-            <p className="text-[10px] text-white/40">Liquidity Sweep · CHOCH · FVG — 1:3 RR</p>
+            <p className="font-mono font-bold text-sm text-white tracking-[0.1em]">LSR-3R SCANNER</p>
+            <p className="text-[9px] font-mono text-white/35">Liquidity Sweep · CHOCH · FVG — 1:3 RR</p>
           </div>
-          <ChevronDown className="w-4 h-4 text-white/30 rotate-[-90deg]" />
+          <ChevronDown className="w-4 h-4 text-[#FFCC42]/40 rotate-[-90deg]" />
         </button>
 
         {/* Trade Journal — summary sheet of every closed trade */}
         <button onClick={() => navigate("/trade-journal")}
-          className="w-full rounded-2xl flex items-center gap-3 px-4 py-3.5 transition-all active:scale-[0.98]"
-          style={{ background: "rgba(255,49,49,0.05)", border: "1px solid rgba(255,49,49,0.15)" }}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "rgba(255,49,49,0.10)", border: "1px solid rgba(255,49,49,0.25)" }}>
+          className="w-full hud-clip flex items-center gap-3 px-4 py-3.5 transition-all active:scale-[0.98]"
+          style={{ background: "rgba(255,49,49,0.04)", border: "1px solid rgba(255,49,49,0.18)", backdropFilter: "blur(12px)" }}>
+          <div className="w-10 h-10 hud-clip-sm flex items-center justify-center shrink-0"
+            style={{ background: "rgba(255,49,49,0.08)", border: "1px solid rgba(255,49,49,0.25)" }}>
             <FileText className="w-5 h-5" style={{ color: "#FF3131" }} />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-heading font-bold text-sm text-white tracking-wider">Trade Journal</p>
-            <p className="text-[10px] text-white/40">Summary sheet — every win &amp; loss with date &amp; time</p>
+            <p className="font-mono font-bold text-sm text-white tracking-[0.1em]">TRADE JOURNAL</p>
+            <p className="text-[9px] font-mono text-white/35">Summary sheet — every win &amp; loss with date &amp; time</p>
           </div>
-          <ChevronDown className="w-4 h-4 text-white/30 rotate-[-90deg]" />
+          <ChevronDown className="w-4 h-4 text-[#FF3131]/40 rotate-[-90deg]" />
         </button>
       </div>
 
