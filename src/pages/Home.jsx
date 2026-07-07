@@ -11,6 +11,7 @@ import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
 import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
 import CooldownBanner from "@/components/dashboard/CooldownBanner";
+import DecisionGate from "@/components/dashboard/DecisionGate";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
@@ -120,8 +121,28 @@ export default function Home() {
     setPullY(0);
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!connected) { navigate("/connect-mt5"); return; }
+    // Evaluate the decision engine before opening the start modal — professional intelligence
+    try {
+      const res = await base44.functions.invoke("tradeDecisionEngine", {});
+      const d = res?.data;
+      if (d?.ok && d.connected) {
+        if (d.decision === "NO_TRADE") {
+          toast({
+            title: "Market Not Optimal",
+            description: `${d.reason} Robot will start in scanning mode and wait for a high-quality setup.`,
+            duration: 5000,
+          });
+        } else if (d.decision === "TRADE") {
+          toast({
+            title: "Conditions Aligned",
+            description: `${d.direction} signal ready — confluence ${d.score}/100. All 8 pillars confirmed.`,
+            duration: 4000,
+          });
+        }
+      }
+    } catch {}
     setShowStartModal(true);
   };
 
@@ -310,6 +331,9 @@ export default function Home() {
             <Square className="w-4 h-4 fill-current text-[#FF3131]" />
           </div>
         </motion.button>
+
+        {/* DECISION ENGINE — Professional confluence gatekeeper */}
+        <DecisionGate />
 
         {/* ACCOUNT OVERVIEW */}
         <div className="pt-2">
