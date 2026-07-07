@@ -131,17 +131,17 @@ export default function RobotStartModal({ open, onClose, onStart }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
           style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
           onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
           <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="w-full max-w-md rounded-t-3xl overflow-hidden"
-            style={{ background: "#050505", border: "1px solid rgba(0,255,65,0.12)", borderBottom: "none", maxHeight: "90vh", overflowY: "auto" }}
+            className="w-full max-w-md rounded-3xl overflow-hidden"
+            style={{ background: "#050505", border: "1px solid rgba(0,255,65,0.12)", maxHeight: "88vh", overflowY: "auto" }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">
