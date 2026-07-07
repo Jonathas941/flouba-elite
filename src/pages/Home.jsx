@@ -252,7 +252,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-black flex flex-col w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto relative overflow-hidden transition-all"
+      className="min-h-screen bg-black flex flex-col w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto relative overflow-x-hidden transition-all"
       onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
       style={dangerMode ? { boxShadow: "inset 0 0 0 2px rgba(255,49,49,0.45), inset 0 0 80px rgba(255,49,49,0.12)" } : undefined}
     >
