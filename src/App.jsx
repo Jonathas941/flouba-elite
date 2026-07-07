@@ -26,6 +26,12 @@ import Account from '@/pages/Account';
 import ConnectMT5 from '@/pages/ConnectMT5';
 import Notifications from '@/pages/Notifications';
 import Redeem from '@/pages/Redeem';
+import LSR3RLayout from '@/components/lsr3r/LSR3RLayout';
+import LSR3RScanner from '@/pages/LSR3RScanner';
+import LSR3RHistory from '@/pages/LSR3RHistory';
+import LSR3RAnalytics from '@/pages/LSR3RAnalytics';
+import LSR3RSettings from '@/pages/LSR3RSettings';
+import LSR3RWebhook from '@/pages/LSR3RWebhook';
 
 const PageSlide = ({ children }) => (
   <motion.div
@@ -78,6 +84,13 @@ const AuthenticatedApp = () => {
             <Route path="/connect-mt5" element={<PageSlide><ConnectMT5 /></PageSlide>} />
             <Route path="/notifications" element={<PageSlide><Notifications /></PageSlide>} />
             <Route path="/redeem" element={<PageSlide><Redeem /></PageSlide>} />
+            <Route element={<LSR3RLayout />}>
+              <Route path="/lsr3r" element={<PageSlide><LSR3RScanner /></PageSlide>} />
+              <Route path="/lsr3r/history" element={<PageSlide><LSR3RHistory /></PageSlide>} />
+              <Route path="/lsr3r/analytics" element={<PageSlide><LSR3RAnalytics /></PageSlide>} />
+              <Route path="/lsr3r/settings" element={<PageSlide><LSR3RSettings /></PageSlide>} />
+              <Route path="/lsr3r/webhook" element={<PageSlide><LSR3RWebhook /></PageSlide>} />
+            </Route>
           </Route>
         </Route>
         <Route path="*" element={<PageNotFound />} />

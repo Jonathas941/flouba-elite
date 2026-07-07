@@ -1,0 +1,213 @@
+{
+  "name": "LSR3RSettings",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "enum": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD"
+      ],
+      "default": "XAUUSD"
+    },
+    "risk_per_trade_pct": {
+      "type": "number",
+      "default": 0.5
+    },
+    "max_daily_loss_pct": {
+      "type": "number",
+      "default": 1.0
+    },
+    "max_trades_per_day": {
+      "type": "number",
+      "default": 2
+    },
+    "max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "risk_reward": {
+      "type": "number",
+      "default": 3
+    },
+    "setup_expiry_minutes": {
+      "type": "number",
+      "default": 75
+    },
+    "fvg_entry_expiry_minutes": {
+      "type": "number",
+      "default": 20
+    },
+    "one_trade_per_anchor": {
+      "type": "boolean",
+      "default": true
+    },
+    "anchor_time_1": {
+      "type": "string",
+      "default": "14:00"
+    },
+    "anchor_time_2": {
+      "type": "string",
+      "default": "20:00"
+    },
+    "anchor_timezone_offset": {
+      "type": "number",
+      "default": 8,
+      "description": "GMT offset for anchor times (default GMT+8)"
+    },
+    "broker_timezone_offset": {
+      "type": "number",
+      "description": "Auto-detected broker UTC offset in hours"
+    },
+    "spread_filter_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "max_spread_pct_of_sl": {
+      "type": "number",
+      "default": 12
+    },
+    "news_filter_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "safe_mode": {
+      "type": "boolean",
+      "default": true
+    },
+    "notifications_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "default": true
+    },
+    "sweep_buffer_atr_mult": {
+      "type": "number",
+      "default": 0.08
+    },
+    "sl_buffer_atr_mult": {
+      "type": "number",
+      "default": 0.1
+    },
+    "min_fvg_size_atr_mult": {
+      "type": "number",
+      "default": 0.08
+    },
+    "min_break_body_atr_mult": {
+      "type": "number",
+      "default": 0.8
+    },
+    "min_sl_distance_atr_mult_m5": {
+      "type": "number",
+      "default": 0.2
+    },
+    "max_sl_distance_atr_mult_m5": {
+      "type": "number",
+      "default": 1.5
+    },
+    "webhook_url": {
+      "type": "string"
+    },
+    "webhook_secret": {
+      "type": "string"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "broker_server": {
+      "type": "string"
+    },
+    "webhook_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "last_webhook_update": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "broker_server_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "account_mode": {
+      "type": "string",
+      "enum": [
+        "Demo",
+        "Live"
+      ],
+      "default": "Demo"
+    },
+    "account_equity": {
+      "type": "number"
+    },
+    "account_balance": {
+      "type": "number"
+    },
+    "tick_value": {
+      "type": "number"
+    },
+    "tick_size": {
+      "type": "number"
+    },
+    "min_lot": {
+      "type": "number"
+    },
+    "lot_step": {
+      "type": "number"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "name": "LSR3RSignal",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "enum": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "BUY",
+        "SELL"
+      ]
+    },
+    "anchor_session": {
+      "type": "string",
+      "description": "Anchor time label, e.g. 14:00 or 20:00 (GMT+8)"
+    },
+    "anchor_high": {
+      "type": "number"
+    },
+    "anchor_low": {
+      "type": "number"
+    },
+    "anchor_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sweep_high": {
+      "type": "number",
+      "description": "Highest price reached during the liquidity sweep (SELL setup)"
+    },
+    "sweep_low": {
+      "type": "number",
+      "description": "Lowest price reached during the liquidity sweep (BUY setup)"
+    },
+    "choch_level": {
+      "type": "number",
+      "description": "Swing high or low that was broken to confirm CHOCH"
+    },
+    "fvg_high": {
+      "type": "number",
+      "description": "Upper edge of the detected Fair Value Gap"
+    },
+    "fvg_low": {
+      "type": "number",
+      "description": "Lower edge of the detected Fair Value Gap"
+    },
+    "entry_price": {
+      "type": "number"
+    },
+    "stop_loss": {
+      "type": "number"
+    },
+    "take_profit": {
+      "type": "number"
+    },
+    "risk_reward": {
+      "type": "number",
+      "default": 3
+    },
+    "risk_amount": {
+      "type": "number",
+      "description": "Dollar risk on the trade"
+    },
+    "lot_size": {
+      "type": "number"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "Pending",
+        "TP",
+        "SL",
+        "Expired",
+        "Invalidated",
+        "Skipped"
+      ],
+      "default": "Pending"
+    },
+    "pnl": {
+      "type": "number",
+      "description": "Realized profit or loss in dollars"
+    },
+    "setup_status": {
+      "type": "string",
+      "enum": [
+        "Waiting for anchor",
+        "Waiting for sweep",
+        "Sweep detected",
+        "Waiting for CHOCH",
+        "CHOCH confirmed",
+        "FVG detected",
+        "Pending retest",
+        "Entry signal ready",
+        "Setup invalidated",
+        "Session completed"
+      ],
+      "default": "Waiting for anchor"
+    },
+    "expiry_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "entry_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "close_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "close_reason": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason the trade was taken or skipped"
+    },
+    "news_filtered": {
+      "type": "boolean",
+      "default": false
+    },
+    "screenshot_url": {
+      "type": "string"
+    },
+    "is_demo": {
+      "type": "boolean",
+      "default": true
+    },
+    "broker_time_offset": {
+      "type": "number",
+      "description": "Broker UTC offset in hours at time of signal"
+    },
+    "spread_at_signal": {
+      "type": "number"
+    },
+    "atr_at_signal": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "symbol",
+    "direction",
+    "anchor_session"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
