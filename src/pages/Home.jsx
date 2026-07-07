@@ -11,7 +11,7 @@ import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
 import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
 import CooldownBanner from "@/components/dashboard/CooldownBanner";
-import DecisionGate from "@/components/dashboard/DecisionGate";
+import AutoStartButton from "@/components/dashboard/AutoStartButton";
 import HftModeButton from "@/components/dashboard/HftModeButton";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
@@ -385,8 +385,8 @@ export default function Home() {
           </div>
         </motion.button>
 
-        {/* DECISION ENGINE — Professional confluence gatekeeper */}
-        <DecisionGate />
+        {/* AUTO-START — scheduled daily robot launch */}
+        <AutoStartButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} />
 
         {/* HFT MODE — bypasses all rules, scalps any profit, compounds lots on wins */}
         <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} onAutoStart={handleDangerAutoStart} />
