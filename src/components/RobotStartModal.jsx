@@ -178,7 +178,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 </div>
               </CollapsibleSection>
 
-              <CollapsibleSection title="Lot & Risk" defaultOpen={true}>
+              <CollapsibleSection title="Lot & Risk" defaultOpen={false}>
                 <div className="space-y-2.5">
                   <Field label="Lot Size">
                     <NumberInput value={form.lot_size} onChange={set("lot_size")} min={0.01} step={0.01} />
@@ -280,24 +280,24 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 </div>
               </CollapsibleSection>
 
-              {/* Equity Guard — hard-stop protection, always visible */}
-              <div className="rounded-2xl border border-red-500/25 bg-red-500/5 px-4 py-4 space-y-2.5">
-                <p className="text-[9px] uppercase tracking-[0.25em] text-red-400 font-heading font-bold">🛑 Equity Guard (Hard-Stop)</p>
-                <Field label="Enable Equity Guard">
-                  <div className="flex items-center gap-1.5">
-                    <Lock className="w-3 h-3 text-green-400" />
-                    <div className="w-11 h-6 rounded-full bg-green-500 flex items-center pointer-events-none">
-                      <div className="w-5 h-5 rounded-full bg-white shadow ml-[22px]" />
+              <CollapsibleSection title="🛑 Equity Guard (Hard-Stop)" defaultOpen={false} accent="red">
+                <div className="space-y-2.5">
+                  <Field label="Enable Equity Guard">
+                    <div className="flex items-center gap-1.5">
+                      <Lock className="w-3 h-3 text-green-400" />
+                      <div className="w-11 h-6 rounded-full bg-green-500 flex items-center pointer-events-none">
+                        <div className="w-5 h-5 rounded-full bg-white shadow ml-[22px]" />
+                      </div>
                     </div>
-                  </div>
-                </Field>
-                {form.equity_guard_enabled && (
-                  <Field label="Min Equity (% of Balance)">
-                    <NumberInput value={form.equity_guard_min_equity_pct} onChange={set("equity_guard_min_equity_pct")} min={1} max={99} />
                   </Field>
-                )}
-                <p className="text-[9px] text-white/25 leading-relaxed">Closes all trades if equity drops below this %.</p>
-              </div>
+                  {form.equity_guard_enabled && (
+                    <Field label="Min Equity (% of Balance)">
+                      <NumberInput value={form.equity_guard_min_equity_pct} onChange={set("equity_guard_min_equity_pct")} min={1} max={99} />
+                    </Field>
+                  )}
+                  <p className="text-[9px] text-white/25 leading-relaxed">Closes all trades if equity drops below this %.</p>
+                </div>
+              </CollapsibleSection>
 
               <CollapsibleSection title="Trend Filter" defaultOpen={false} accent="blue">
                 <TrendFilterSettings
