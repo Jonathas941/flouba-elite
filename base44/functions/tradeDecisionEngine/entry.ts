@@ -539,6 +539,76 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Recovery Engine: multi-trade to pull equity back above balance ──
+    // When equity drops below balance by threshold, opens a larger confirmed-direction
+    // position to recuperate drawdown. Bypasses max_concurrent but requires trend confirmation.
+    const recoveryEnabled = cfg.recovery_enabled !== false;
+    let recoveryAction = null;
+    if (recoveryEnabled && balance > 0 && equity < balance && !cfg.hft_mode_enabled) {
+      const drawdownPct = ((balance - equity) / balance) * 100;
+      const minDD = cfg.recovery_min_drawdown_pct ?? 1.0;
+      if (drawdownPct >= minDD && positions.length > 0) {
+        const posDir = (p) => {
+          const t = (p.type || p.direction || "").toString().toLowerCase();
+          if (t.includes("buy") || t.includes("long")) return "BUY";
+          if (t.includes("sell") || t.includes("short")) return "SELL";
+          return null;
+        };
+        const buys = positions.filter((p) => posDir(p) === "BUY");
+        const sells = positions.filter((p) => posDir(p) === "SELL");
+        const dominantDir = (buys.length >= sells.length && buys.length > 0) ? "BUY"
+          : (sells.length > buys.length ? "SELL" : null);
+
+        if (dominantDir) {
+          const trendConfirms = (dominantDir === "BUY" && (regimeDir === "Bullish" || p2Trend.direction === "BUY")) ||
+                                (dominantDir === "SELL" && (regimeDir === "Bearish" || p2Trend.direction === "SELL"));
+          const requireConfirm = cfg.recovery_require_confirmation !== false;
+          const recoveryMax = cfg.recovery_max_positions ?? 2;
+          const maxConcurrent = cfg.max_concurrent_trades ?? 2;
+          const recoveryCount = Math.max(0, positions.length - maxConcurrent);
+
+          if (recoveryCount < recoveryMax && (trendConfirms || !requireConfirm)) {
+            const recoveryLotMult = cfg.recovery_lot_multiplier ?? 2;
+            const baseLot = cfg.lot_size ?? 0.01;
+            const recoveryLot = Math.max(0.01, Math.round(baseLot * recoveryLotMult * 100) / 100);
+            const atrVal = atr ?? 0;
+            const slMult = cfg.swing_atr_sl_multiplier ?? 1.5;
+            const slDist = atrVal * slMult;
+            const tpDist = slDist * (cfg.swing_min_rr ?? 2);
+
+            recoveryAction = {
+              active: true,
+              drawdown_pct: Math.round(drawdownPct * 100) / 100,
+              direction: dominantDir,
+              lot_size: recoveryLot,
+              positions_open: positions.length,
+              recovery_count: recoveryCount,
+              reason: `Equity ${drawdownPct.toFixed(1)}% below balance — opening ${recoveryLot} lot ${dominantDir} recovery position (${recoveryLotMult}x base). Trend confirms. Goal: pull equity >= balance.`,
+            };
+
+            decision = "RECOVERY_TRADE";
+            reason = recoveryAction.reason;
+            tradeParams = {
+              direction: dominantDir,
+              entry: price,
+              lot_size: recoveryLot,
+              stop_loss: dominantDir === "BUY" ? price - slDist : price + slDist,
+              take_profit: dominantDir === "BUY" ? price + tpDist : price - tpDist,
+              sl_distance: slDist,
+              tp_distance: tpDist,
+              risk_reward: cfg.swing_min_rr ?? 2,
+              recovery: true,
+              recovery_lot_multiplier: recoveryLotMult,
+            };
+          } else if (recoveryCount >= recoveryMax) {
+            recoveryAction = { active: false, reason: `Recovery limit reached (${recoveryMax} max). Waiting for positions to close.` };
+          } else {
+            recoveryAction = { active: false, reason: `Drawdown ${drawdownPct.toFixed(1)}% but trend does not confirm ${dominantDir}. Waiting for confirmation signal.` };
+          }
+        }
+      }
+    }
+
     // ── Dangerous behavior prevention summary ──
     const safety = {
       no_martingale: true,        // Lot never increases after a loss — always computed fresh from risk%
@@ -572,6 +642,7 @@ Deno.serve(async (req) => {
         max_concurrent: cfg.max_concurrent_trades ?? 2,
       },
       safety,
+      recovery: recoveryAction,
       robot_running: robotRunning,
       checked_at: new Date().toISOString(),
     });

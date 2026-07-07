@@ -12,6 +12,7 @@ import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePane
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
 import CooldownBanner from "@/components/dashboard/CooldownBanner";
 import DecisionGate from "@/components/dashboard/DecisionGate";
+import HftModeButton from "@/components/dashboard/HftModeButton";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
@@ -334,6 +335,9 @@ export default function Home() {
 
         {/* DECISION ENGINE — Professional confluence gatekeeper */}
         <DecisionGate />
+
+        {/* HFT MODE — bypasses all rules, scalps any profit, compounds lots on wins */}
+        <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} />
 
         {/* ACCOUNT OVERVIEW */}
         <div className="pt-2">

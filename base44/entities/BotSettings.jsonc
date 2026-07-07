@@ -1365,6 +1365,66 @@
     "stop_trading_at_daily_target": {
       "type": "boolean",
       "default": true
+    },
+    "recovery_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Multi-trade recovery engine \u2014 when equity drops below balance, opens larger confirmed-direction positions to pull equity back up. Prevents account blowup."
+    },
+    "recovery_lot_multiplier": {
+      "type": "number",
+      "default": 2,
+      "description": "Lot multiplier for recovery positions (e.g. 2 = double the base lot)."
+    },
+    "recovery_max_positions": {
+      "type": "number",
+      "default": 2,
+      "description": "Maximum additional recovery positions allowed beyond max_concurrent_trades."
+    },
+    "recovery_min_drawdown_pct": {
+      "type": "number",
+      "default": 1.0,
+      "description": "Drawdown % threshold to trigger recovery (equity must be this far below balance)."
+    },
+    "recovery_require_confirmation": {
+      "type": "boolean",
+      "default": true,
+      "description": "Require trend confirmation signal before opening a recovery position."
+    },
+    "hft_mode_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "HFT Mode \u2014 ignores ALL rules and scalps for any profit. Multiplies lot on every profitable close."
+    },
+    "hft_lot_multiplier": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Lot multiplier applied after each profitable HFT close."
+    },
+    "hft_min_profit_points": {
+      "type": "number",
+      "default": 3,
+      "description": "Minimum profit in points to trigger an HFT close (take any profit)."
+    },
+    "hft_max_lot": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Hard cap on HFT lot size \u2014 never exceeded even after many consecutive profits."
+    },
+    "hft_current_lot": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Current HFT lot size (escalates after each profitable close, resets on loss)."
+    },
+    "hft_consecutive_profits": {
+      "type": "number",
+      "default": 0,
+      "description": "Current streak of consecutive profitable HFT closes."
+    },
+    "hft_base_lot": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Starting lot size for HFT mode (reset target after a loss)."
     }
   },
   "required": [],
