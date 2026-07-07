@@ -15,6 +15,7 @@ import AutoStartButton from "@/components/dashboard/AutoStartButton";
 import HftModeButton from "@/components/dashboard/HftModeButton";
 import HolographicHero from "@/components/dashboard/hud/HolographicHero";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
+import DynamicDailyTargetPanel from "@/components/dashboard/DynamicDailyTargetPanel";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
@@ -150,6 +151,23 @@ export default function Home() {
   };
 
   const handleLaunchRobot = async (form) => {
+    // ── Dynamic Daily Target: check lock + risk reduction before launching ──
+    try {
+      const ddtRes = await base44.functions.invoke("dynamicDailyTargetEngine", {});
+      const ddt = ddtRes?.data;
+      if (ddt?.ok && ddt?.enabled) {
+        if (!ddt.trading_allowed) {
+          toast({ title: "DDT Lock Active", description: ddt.lock_message || "Trading locked by Dynamic Daily Target.", variant: "destructive", duration: 5000 });
+          setShowStartModal(false);
+          return;
+        }
+        if (ddt.risk_multiplier < 1) {
+          form = { ...form, lot_size: Number((form.lot_size * ddt.risk_multiplier).toFixed(2)) };
+          toast({ title: "DDT Risk Reduction", description: `Lot reduced to ${form.lot_size} (${(ddt.risk_multiplier * 100).toFixed(0)}% — tier ${ddt.tier}).`, duration: 4000 });
+        }
+      }
+    } catch {}
+
     let strategy = form.strategy;
     if (form.strategy === "Auto (AI Select)") {
       try {
@@ -346,6 +364,9 @@ export default function Home() {
 
         {/* HFT MODE — bypasses all rules, scalps any profit, compounds lots on wins */}
         <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} onAutoStart={handleDangerAutoStart} />
+
+        {/* DYNAMIC DAILY TARGET — tiered profit targets with progressive risk reduction */}
+        <DynamicDailyTargetPanel />
 
         {/* ACCOUNT OVERVIEW */}
         <HudPanel label="Account Overview">

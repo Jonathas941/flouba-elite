@@ -1,0 +1,153 @@
+{
+  "name": "DynamicDailyTargetSettings",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Master toggle for the Dynamic Daily Target strategy."
+    },
+    "account_mode": {
+      "type": "string",
+      "enum": [
+        "Conservative",
+        "Balanced",
+        "Aggressive Scalping"
+      ],
+      "default": "Aggressive Scalping",
+      "description": "Overall account trading mode."
+    },
+    "target_1": {
+      "type": "number",
+      "default": 75,
+      "description": "First daily profit tier \u2014 after reaching this, risk is reduced by 50% and only A+ setups are taken."
+    },
+    "target_2": {
+      "type": "number",
+      "default": 120,
+      "description": "Second daily profit tier \u2014 after reaching this, trading only continues if strategy score >= 85, spread is normal, and market conditions are strong."
+    },
+    "target_final": {
+      "type": "number",
+      "default": 200,
+      "description": "Final daily profit target \u2014 all new entries stop immediately when reached."
+    },
+    "hard_loss_stop": {
+      "type": "number",
+      "default": 60,
+      "description": "Daily hard loss stop in dollars \u2014 all trading stops when realized loss reaches this amount."
+    },
+    "max_trades": {
+      "type": "number",
+      "default": 3,
+      "description": "Maximum number of trades per NY trading day."
+    },
+    "max_open_positions": {
+      "type": "number",
+      "default": 1,
+      "description": "Maximum simultaneously open positions."
+    },
+    "stop_after_losses": {
+      "type": "number",
+      "default": 2,
+      "description": "Stop trading after this many consecutive losses."
+    },
+    "risk_reduction_pct": {
+      "type": "number",
+      "default": 50,
+      "description": "Percentage to reduce risk/lot by after reaching Target 1 (e.g. 50 = halve the lot)."
+    },
+    "min_strategy_score_tier2": {
+      "type": "number",
+      "default": 85,
+      "description": "Minimum adaptive strategy score (out of 100) required to continue trading after Target 2."
+    },
+    "current_tier": {
+      "type": "string",
+      "enum": [
+        "pre_target",
+        "tier_1",
+        "tier_2",
+        "final_reached",
+        "loss_stopped"
+      ],
+      "default": "pre_target",
+      "description": "Current DDT tier \u2014 computed live by the engine."
+    },
+    "realized_today": {
+      "type": "number",
+      "default": 0,
+      "description": "Realized P&L since the current NY trading day started."
+    },
+    "trades_today": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of trades closed since the current NY trading day started."
+    },
+    "consecutive_losses": {
+      "type": "number",
+      "default": 0,
+      "description": "Current streak of consecutive losing trades."
+    },
+    "lock_message": {
+      "type": "string",
+      "description": "Human-readable lock message displayed when trading is halted."
+    },
+    "last_reset_date": {
+      "type": "string",
+      "format": "date",
+      "description": "NY trading date of the last reset (YYYY-MM-DD in America/Detroit)."
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
