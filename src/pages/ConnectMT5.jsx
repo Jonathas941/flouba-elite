@@ -273,6 +273,20 @@ export default function ConnectMT5() {
       const created = await base44.entities.BotSettings.create(payload);
       setSettingsId(created.id);
     }
+    // Upsert a TradingAccount record so the dashboard switcher can list this account
+    try {
+      const existing = await base44.entities.TradingAccount.filter({ account_number: login });
+      if (existing?.length) {
+        await base44.entities.TradingAccount.update(existing[0].id, { broker_name: broker, server, password, is_active: true });
+      } else {
+        await base44.entities.TradingAccount.create({ account_number: login, broker_name: broker, server, password, is_active: true });
+      }
+      const all = await base44.entities.TradingAccount.list();
+      const others = all.filter((a) => a.account_number !== login);
+      if (others.length) {
+        await base44.entities.TradingAccount.bulkUpdate(others.map((a) => ({ id: a.id, is_active: false })));
+      }
+    } catch {}
   };
 
   const handleTest = async () => {

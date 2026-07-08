@@ -16,6 +16,7 @@ import HftModeButton from "@/components/dashboard/HftModeButton";
 import HolographicHero from "@/components/dashboard/hud/HolographicHero";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import DynamicDailyTargetPanel from "@/components/dashboard/DynamicDailyTargetPanel";
+import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
@@ -367,6 +368,9 @@ export default function Home() {
 
         {/* DYNAMIC DAILY TARGET — tiered profit targets with progressive risk reduction */}
         <DynamicDailyTargetPanel />
+
+        {/* ACCOUNT SWITCHER — toggle between linked MT5 accounts */}
+        <AccountSwitcher botSettings={botSettings} onSwitched={loadAll} />
 
         {/* ACCOUNT OVERVIEW */}
         <HudPanel label="Account Overview">

@@ -1,0 +1,84 @@
+{
+  "name": "TradingAccount",
+  "type": "object",
+  "properties": {
+    "account_number": {
+      "type": "string",
+      "description": "MT5 login / account number."
+    },
+    "broker_name": {
+      "type": "string"
+    },
+    "server": {
+      "type": "string",
+      "description": "MT5 server name (e.g. Exness-MT5Real8)."
+    },
+    "password": {
+      "type": "string",
+      "description": "MT5 account password (encrypted at rest)."
+    },
+    "nickname": {
+      "type": "string",
+      "description": "Optional friendly label shown in the switcher (e.g. 'Gold Live', 'Prop Challenge')."
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this is the currently selected account in the dashboard switcher."
+    }
+  },
+  "required": [
+    "account_number",
+    "server"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
