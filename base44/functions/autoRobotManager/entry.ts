@@ -269,8 +269,53 @@ Deno.serve(async (req) => {
       // The robot will no longer be auto-paused when daily loss / profit target / consecutive loss limits are hit.
       // Mentality guard is still evaluated for auto-start gating below.
 
+      // === CALENDAR AUTO-START: launch the robot at the user's scheduled time ===
+      // Runs every 5 min via scheduled automation — checks if current NY time is in
+      // the 5-minute window matching auto_start_time, then launches with saved settings.
+      if (config.auto_start_enabled && !robotRunning && !config.hft_mode_enabled) {
+        const startStr = validTime(config.auto_start_time, "09:00");
+        const startMin = parseHM(startStr);
+        const nowParts = new Intl.DateTimeFormat("en-US", {
+          timeZone: SM_TZ, hour: "2-digit", minute: "2-digit", hour12: false,
+        }).formatToParts(new Date());
+        const nowHr = parseInt(nowParts.find((p) => p.type === "hour").value, 10) % 24;
+        const nowMin = parseInt(nowParts.find((p) => p.type === "minute").value, 10);
+        const nowTotalMin = nowHr * 60 + nowMin;
+        const inStartWindow = nowTotalMin >= startMin && nowTotalMin < startMin + 5;
+
+        if (inStartWindow && !sessionInfo?.trading_blocked) {
+          const symbol = config.active_pair || "XAUUSD";
+          const startRes = await fetch(`${BASE}/robot/start`, {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({
+              strategy: config.adaptive_enabled ? "Auto (AI Select)" : (config.adaptive_active_strategy || "Momentum Scalping"),
+              symbol,
+              trading_mode: config.trading_mode || "Balanced",
+              bot_mentality: config.bot_mentality || "Premium",
+              lot_size: config.lot_size || 0.01,
+              risk_percentage: config.risk_percentage || 1,
+              stop_loss: config.dynamic_stop_loss ? 0 : (config.stop_loss || 50),
+              take_profit: config.take_profit || 100,
+              max_concurrent_trades: config.max_concurrent_trades || 2,
+              trade_direction: config.trade_direction || "both",
+              daily_loss_limit: config.daily_loss_limit || 50,
+              stop_after_losses: config.stop_after_losses || 2,
+              lot_multiplier: config.lot_multiplier || 1,
+            }),
+          });
+          const startJson = await startRes.json().catch(() => ({}));
+          if (startJson?.success === true) {
+            actions.push(`AUTO-START: Robot launched at ${startStr} (NY) on ${symbol}`);
+          } else {
+            actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? `HTTP ${startRes.status}`}`);
+          }
+        } else if (inStartWindow && sessionInfo?.trading_blocked) {
+          actions.push(`AUTO-START SKIPPED: market closed (${sessionInfo?.session || "closed"})`);
+        }
+      }
+
       // === DANGER MODE: HFT bypasses all gates — always auto-start immediately ===
-      // Calendar-based auto-start is DISABLED — user starts the robot manually via the modal.
       if (config.hft_mode_enabled && !robotRunning) {
         const symbol = config.active_pair || "XAUUSD";
         const hftLot = config.hft_current_lot ?? config.hft_base_lot ?? 0.01;
