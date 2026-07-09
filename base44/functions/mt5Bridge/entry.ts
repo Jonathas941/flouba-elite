@@ -126,6 +126,39 @@ Deno.serve(async (req) => {
       return Response.json({ ok: false, status: res.status, data, error: errMsg }, { status: 200 });
     }
 
+    // ── Privacy guard: verify the bridge returned THIS user's account data ──
+    // The bridge runs a shared MT5 terminal — if another user's EA is connected,
+    // the /account and /positions endpoints could return their data. Reject any
+    // response whose account number doesn't match the user's stored credentials.
+    if (data?.account?.login || data?.account?.account) {
+      const returnedLogin = String(data.account.login || data.account.account || "");
+      const userLogin = String(userSettings.mt5_account || "");
+      if (returnedLogin && userLogin && returnedLogin !== userLogin) {
+        return Response.json({
+          ok: false,
+          status: 200,
+          data: { account: { connected: false }, positions: [], robot: { running: false } },
+          error: "Account mismatch — the bridge returned a different account. Please ensure your EA is connected to your own MT5 account.",
+        }, { status: 200 });
+      }
+    }
+
+    // ── Persist the user's account snapshot to the database (per-user storage) ──
+    // Each user's balance/equity/profit is stored in their own BotSettings record,
+    // so the dashboard always shows personal data — never another user's.
+    if (data?.account && userSettings?.id) {
+      const a = data.account;
+      const patch = {};
+      if (a.balance != null) patch.balance = a.balance;
+      if (a.equity != null) patch.equity = a.equity;
+      if (a.margin != null) patch.margin = a.margin;
+      if (a.margin_free != null || a.free_margin != null) patch.free_margin = a.margin_free ?? a.free_margin;
+      if (a.profit != null) patch.profit_today = a.profit;
+      if (Object.keys(patch).length > 0) {
+        await base44.entities.BotSettings.update(userSettings.id, patch).catch(() => {});
+      }
+    }
+
     return Response.json({ ok: true, status: res.status, data }, { status: 200 });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
