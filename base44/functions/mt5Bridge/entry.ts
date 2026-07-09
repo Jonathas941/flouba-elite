@@ -79,6 +79,16 @@ Deno.serve(async (req) => {
     try { body = JSON.parse(bodyText); } catch { body = {}; }
     const { action, ...params } = body;
 
+    // ── For "connect": inject the user's stored MT5 credentials into the body ──
+    // The bridge /connect endpoint requires account_number + password in the body,
+    // not just headers. This lets us trigger a direct bridge→MT5 server connection.
+    if (action === "connect" && userSettings) {
+      if (userSettings.mt5_account) params.account_number = Number(userSettings.mt5_account);
+      if (userSettings.mt5_password) params.password = userSettings.mt5_password;
+      if (userSettings.mt5_server) params.server = userSettings.mt5_server;
+      if (userSettings.broker_name) params.broker = userSettings.broker_name;
+    }
+
     const ROUTES = {
       status:         ["GET",  "/status"],
       connect:        ["POST", "/connect"],

@@ -402,6 +402,21 @@ Deno.serve(async (req) => {
     if (acctRes?.ok) { const j = await acctRes.json().catch(() => ({})); account = j?.account || j; }
     if (robotRes?.ok) { const j = await robotRes.json().catch(() => ({})); robotRunning = j?.running ?? j?.robot?.running ?? false; }
 
+    // ── Fallback: if /symbols returned null prices, use the scanner's live indicator data ──
+    // The scanner publishes real bid/ask/spread in its indicators object even when
+    // the /symbols endpoint hasn't been populated by the EA yet.
+    if (!quote?.bid && ind?.bid != null) {
+      const indAsk = num(ind?.ask);
+      const indBid = num(ind?.bid);
+      if (indBid != null) {
+        quote = {
+          bid: indBid,
+          ask: indAsk ?? indBid,
+          spread: ind?.spread_pips != null ? Number(ind.spread_pips) : ((indAsk ?? indBid) - indBid),
+        };
+      }
+    }
+
     const connected = account?.balance != null && quote?.bid != null;
     if (!connected) {
       return Response.json({
