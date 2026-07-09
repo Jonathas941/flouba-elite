@@ -79,6 +79,13 @@ Deno.serve(async (req) => {
     try { body = JSON.parse(bodyText); } catch { body = {}; }
     const { action, ...params } = body;
 
+    // ── Strip broker suffix from symbol ──
+    // The bridge only accepts base symbols (XAUUSD, EURUSD, NAS100, etc.).
+    // Brokers like Exness append "m" (micro) or "s" (standard) suffixes.
+    if (params.symbol && typeof params.symbol === "string") {
+      params.symbol = params.symbol.replace(/^(.+?)[ms]$/, "$1");
+    }
+
     // ── For "connect": inject the user's stored MT5 credentials into the body ──
     // The bridge /connect endpoint requires account_number + password in the body,
     // not just headers. This lets us trigger a direct bridge→MT5 server connection.
