@@ -278,16 +278,85 @@ function checkSession(cfg) {
   return { pass: true, score: s, reason: `${sess.name} session active — prime trading window.`, sess };
 }
 
+// ── AI Dynamic SL/TP Engine ───────────────────────────────────────────────
+// Asks the LLM to analyze live market structure & liquidity to propose
+// confidence-adjusted SL (ATR multiplier) and TP (risk-reward ratio).
+// Returns values clamped within hard capital-protection guardrails.
+async function getAiSlTp(ind, regime, regimeDir, cfg) {
+  const ema20 = num(ind?.ema_20 ?? ind?.ema20);
+  const ema50 = num(ind?.ema_50 ?? ind?.ema50);
+  const ema200 = num(ind?.ema_200 ?? ind?.ema200);
+  const atr = num(ind?.atr_14 ?? ind?.atr14);
+  const adx = num(ind?.adx);
+  const rsi = num(ind?.rsi ?? ind?.rsi_14);
+  const macd = num(ind?.macd ?? ind?.macd_histogram);
+  const slope = num(ind?.ema_slope ?? ind?.slope);
+  const sweep = ind?.liquidity_sweep === true || ind?.sweep === true;
+  const sweepDir = ind?.sweep_dir || ind?.sweep_direction;
+
+  const marketContext = {
+    regime, regime_dir: regimeDir,
+    ema_20: ema20, ema_50: ema50, ema_200: ema200,
+    ema_slope: slope,
+    atr_14: atr, adx, rsi_14: rsi, macd,
+    liquidity_sweep: sweep, sweep_dir: sweepDir,
+    symbol: cfg.active_pair || "XAUUSD",
+  };
+
+  // Hard guardrails — AI can NEVER exceed these bounds
+  const minSlMult = 1.0;
+  const maxSlMult = 3.0;
+  const minRr = 1.0;
+  const maxRr = 4.0;
+  const userDefaultSl = cfg.swing_atr_sl_multiplier ?? 1.5;
+  const userDefaultRr = cfg.swing_min_rr ?? 2;
+
+  try {
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are a risk-adjusted trading analyst. Given the live market data below, determine the optimal Stop Loss (as an ATR multiplier) and Take Profit (as a risk-reward ratio).
+
+Rules:
+- In a strong TRENDING market with high ADX (>30), use a TIGHTER SL (1.0–1.5x ATR) and a WIDER TP (2.5–3.5 RR) to maximize trend capture.
+- In a LIQUIDITY SWEEP / reversal setup, use a WIDER SL (1.8–2.5x ATR) to survive wick retests, and moderate TP (2.0–2.5 RR).
+- In choppy/range conditions, favor a balanced SL (1.5x ATR) and conservative TP (1.5–2.0 RR).
+- If RSI is overbought (>70) for a BUY or oversold (<30) for a SELL, widen SL slightly to avoid premature stop-out.
+- Never suggest SL < 1.0x ATR or > 3.0x ATR. Never suggest RR < 1.0 or > 4.0.
+
+Live market data:
+${JSON.stringify(marketContext, null, 2)}
+
+Respond with the optimal sl_atr_multiplier and tp_rr_ratio.`,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          sl_atr_multiplier: { type: "number", description: "Stop loss as ATR multiplier (1.0–3.0)" },
+          tp_rr_ratio: { type: "number", description: "Take profit as risk-reward ratio (1.0–4.0)" },
+          reasoning: { type: "string" },
+        },
+        required: ["sl_atr_multiplier", "tp_rr_ratio"],
+      },
+    });
+
+    const aiSl = clamp(num(res?.sl_atr_multiplier) ?? userDefaultSl, minSlMult, maxSlMult);
+    const aiRr = clamp(num(res?.tp_rr_ratio) ?? userDefaultRr, minRr, maxRr);
+    return { sl_mult: aiSl, rr: aiRr, reasoning: res?.reasoning || null };
+  } catch {
+    // Fallback to user defaults if LLM unavailable
+    return { sl_mult: userDefaultSl, rr: userDefaultRr, reasoning: null };
+  }
+}
+
 // ── SL / TP / Lot calculation ─────────────────────────────────────────────
 function computeTradeParams(args) {
-  const { direction, price, atr, spread, balance, cfg, symbol } = args;
+  const { direction, price, atr, spread, balance, cfg, symbol, aiSlMult, aiRr } = args;
   if (!direction || !price || !atr || !balance) return null;
 
-  const atrMult = cfg.swing_atr_sl_multiplier ?? 1.5;
+  // AI override takes priority; fallback to user-configured defaults
+  const atrMult = aiSlMult ?? cfg.swing_atr_sl_multiplier ?? 1.5;
   const slDistance = atr * atrMult;
   const slPrice = direction === "BUY" ? price - slDistance : price + slDistance;
 
-  const rr = cfg.swing_min_rr ?? 2;
+  const rr = aiRr ?? cfg.swing_min_rr ?? 2;
   const tpDistance = slDistance * rr;
   const tpPrice = direction === "BUY" ? price + tpDistance : price - tpDistance;
 
@@ -316,6 +385,8 @@ function computeTradeParams(args) {
     risk_amount: Math.round(riskAmount * 100) / 100,
     lot_size: lot,
     atr: atr,
+    ai_sl_mult: aiSlMult ?? null,
+    ai_rr: aiRr ?? null,
   };
 }
 
@@ -573,7 +644,10 @@ Deno.serve(async (req) => {
       decision = "NO_TRADE";
       reason = "Trend direction unclear — no confident BUY or SELL signal. Staying flat.";
     } else {
-      // All gates pass — compute trade parameters
+      // All gates pass — ask AI for dynamic SL/TP based on live market structure
+      const aiSlTp = await getAiSlTp(ind, regime, regimeDir, cfg);
+
+      // Compute trade parameters with AI-suggested SL multiplier & RR ratio
       tradeParams = computeTradeParams({
         direction,
         price,
@@ -582,10 +656,12 @@ Deno.serve(async (req) => {
         balance,
         cfg,
         symbol: cfg.active_pair || "XAUUSD",
+        aiSlMult: aiSlTp.sl_mult,
+        aiRr: aiSlTp.rr,
       });
       if (tradeParams) {
         decision = "TRADE";
-        reason = `All 8 pillars aligned — ${direction} signal on ${cfg.active_pair}. Confluence ${techScore}/100. SL ${tradeParams.sl_distance}, TP 1:${tradeParams.risk_reward}, lot ${tradeParams.lot_size}.`;
+        reason = `All 8 pillars aligned — ${direction} signal on ${cfg.active_pair}. Confluence ${techScore}/100. AI SL ${aiSlTp.sl_mult}x ATR, TP 1:${aiSlTp.rr} RR${aiSlTp.reasoning ? ` (${aiSlTp.reasoning.slice(0, 80)})` : ""}. Lot ${tradeParams.lot_size}.`;
       } else {
         decision = "NO_TRADE";
         reason = "Could not compute trade parameters — insufficient data for SL/TP/lot.";
