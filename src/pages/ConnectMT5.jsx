@@ -319,8 +319,9 @@ export default function ConnectMT5() {
     setStatus("connecting");
     setErrorMsg("");
     try {
-      // Save credentials first so the bridge can authenticate to the user's MT5 account
-      await saveToDb("Connecting");
+      // Save credentials first so the bridge can authenticate to the user's MT5 account.
+      // "Connecting" is not a valid connection_status enum value — use "Disconnected" until confirmed.
+      await saveToDb("Disconnected");
       // The EA connects to MT5 automatically when running. Poll the account endpoint
       // to confirm live MT5 data is flowing (balance/equity present).
       // Try up to 6 times with 5s delays (30s total).
