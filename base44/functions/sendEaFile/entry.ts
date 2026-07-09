@@ -20,6 +20,24 @@ Deno.serve(async (req) => {
     const eaUrl = Deno.env.get("EA_FILE_URL");
     if (!eaUrl) return Response.json({ error: "EA_FILE_URL secret not set" }, { status: 500 });
 
+    // ── Fetch the user's BotSettings to extract the broker symbol suffix ──
+    // Exness and other brokers append suffixes to instrument names (e.g. XAUUSDm,
+    // EURUSDs). The bridge normalizes to base symbols (XAUUSD), so the EA must
+    // know the suffix to map base symbols back to the broker's actual instruments.
+    const settingsRecords = await base44.entities.BotSettings.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
+    const userSettings = settingsRecords?.[0];
+    const activePair = userSettings?.active_pair || "XAUUSD";
+    // Extract trailing suffix: letters after the base symbol (e.g. "m" from "XAUUSDm")
+    const suffixMatch = activePair.match(/[a-zA-Z]+$/);
+    const knownBases = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
+    let symbolSuffix = "";
+    for (const base of knownBases) {
+      if (activePair.startsWith(base) && activePair.length > base.length) {
+        symbolSuffix = activePair.slice(base.length);
+        break;
+      }
+    }
+
     // ── Provision / fetch the user's bridge API key ──
     // Same flow as mt5Bridge: provision on first use, persist to the User entity.
     let apiKey = user.mt5_api_key;
@@ -52,6 +70,7 @@ Deno.serve(async (req) => {
       `; Do not share. This links your EA to your private bridge account.`,
       `API_KEY=${apiKey}`,
       `BASE_URL=${BRIDGE_BASE_URL}`,
+      ...(symbolSuffix ? [`SYMBOL_SUFFIX=${symbolSuffix}`] : []),
       ``,
     ].join("\r\n");
 
@@ -78,6 +97,8 @@ Deno.serve(async (req) => {
           <p style="margin:0 0 12px;font-family:monospace;font-size:12px;color:#ffffff;word-break:break-all;background:#080808;padding:8px 10px;border-radius:6px;">${apiKey}</p>
           <p style="margin:0 0 6px;font-size:12px;color:#9a9a9a;">BASE_URL</p>
           <p style="margin:0;font-family:monospace;font-size:12px;color:#ffffff;word-break:break-all;background:#080808;padding:8px 10px;border-radius:6px;">${BRIDGE_BASE_URL}</p>
+          ${symbolSuffix ? `<p style="margin:12px 0 6px;font-size:12px;color:#9a9a9a;">SYMBOL_SUFFIX <span style="color:#5fe8ff;">(Broker-specific — ${activePair})</span></p>
+          <p style="margin:0;font-family:monospace;font-size:12px;color:#ffffff;background:#080808;padding:8px 10px;border-radius:6px;">${symbolSuffix}</p>` : ""}
         </td></tr>
       </table>`;
 
