@@ -79,11 +79,24 @@ Deno.serve(async (req) => {
     try { body = JSON.parse(bodyText); } catch { body = {}; }
     const { action, ...params } = body;
 
-    // ── Strip broker suffix from symbol ──
-    // The bridge only accepts base symbols (XAUUSD, EURUSD, NAS100, etc.).
-    // Brokers like Exness append "m" (micro) or "s" (standard) suffixes.
+    // ── Extract broker suffix from symbol, then strip it ──
+    // The bridge validates `symbol` against a hardcoded whitelist of 90 base
+    // symbols (XAUUSD, EURUSD, NAS100, …) and rejects suffixed names with 422.
+    // Brokers like Exness append "m" / "s" suffixes (XAUUSDm, EURUSDs).
+    //
+    // Solution: strip the suffix so the bridge accepts the base symbol, AND pass
+    // the suffix as a separate `symbol_suffix` field. The bridge passes this
+    // field through to the EA in the robot config and trade commands, so the EA
+    // can map the base symbol back to the broker's actual instrument name.
     if (params.symbol && typeof params.symbol === "string") {
-      params.symbol = params.symbol.replace(/^(.+?)[ms]$/, "$1");
+      const knownBases = ["XAUUSD","XAUEUR","XAUUSD","EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","NAS100","US30","US500","US2000","UK100","GER40","GER30","FRA40","JPN225","AUS200","HK50","CHINA50","SWI20","USOIL","UKOIL","NATGAS","BTCUSD","ETHUSD","LTCUSD","XRPUSD","BCHUSD","ADAUSD","DOTUSD","SOLUSD","DOGUSD","BNBUSD"];
+      for (const base of knownBases) {
+        if (params.symbol.startsWith(base) && params.symbol.length > base.length) {
+          params.symbol_suffix = params.symbol.slice(base.length);
+          params.symbol = base;
+          break;
+        }
+      }
     }
 
     // ── For "connect": inject the user's stored MT5 credentials into the body ──
