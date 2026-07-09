@@ -188,12 +188,7 @@ export default function Home() {
         } else { strategy = "Momentum Scalping"; toast({ title: "AI Unavailable", description: "Defaulting to Momentum Scalping.", duration: 3000 }); }
       } catch { strategy = "Momentum Scalping"; toast({ title: "AI Unavailable", description: "Defaulting to Momentum Scalping.", duration: 3000 }); }
     }
-    const minRatio = form.multiplier_min_equity_ratio ?? 2;
-    const multiplierActive = connected && account?.balance > 0 && account?.equity >= minRatio * account.balance;
-    const launchForm = { ...form, lot_multiplier: multiplierActive ? form.lot_multiplier : 1 };
-    if (!multiplierActive && form.lot_multiplier > 1) {
-      toast({ title: "Multiplier Disabled", description: `Equity must reach ${minRatio}x balance to activate lot multiplier.`, duration: 3000 });
-    }
+    const launchForm = { ...form, lot_multiplier: form.lot_multiplier ?? 1 };
     const tf = getStrategyTimeframes(strategy);
     const launchFormWithTF = {
       ...launchForm, strategy,
