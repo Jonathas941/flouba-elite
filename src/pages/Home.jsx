@@ -16,6 +16,7 @@ import HftModeButton from "@/components/dashboard/HftModeButton";
 import HolographicHero from "@/components/dashboard/hud/HolographicHero";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import DynamicDailyTargetPanel from "@/components/dashboard/DynamicDailyTargetPanel";
+import EmaIndicatorPanel from "@/components/dashboard/EmaIndicatorPanel";
 import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
@@ -432,6 +433,9 @@ export default function Home() {
             </div>
           </div>
         </HudPanel>
+
+        {/* EMA 20 & 200 — live trend engine */}
+        <EmaIndicatorPanel />
 
         {/* Cooldown countdown */}
         <CooldownBanner settings={botSettings} />
