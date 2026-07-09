@@ -1213,12 +1213,20 @@
       "type": "string",
       "enum": [
         "XAUUSD",
+        "XAUUSDm",
+        "XAUUSDs",
         "EURUSD",
+        "EURUSDm",
         "GBPUSD",
+        "GBPUSDm",
         "USDJPY",
+        "USDJPYm",
         "NAS100",
+        "NAS100m",
         "US30",
-        "BTCUSD"
+        "US30m",
+        "BTCUSD",
+        "BTCUSDm"
       ],
       "default": "XAUUSD"
     },

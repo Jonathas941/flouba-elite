@@ -20,13 +20,21 @@ import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
-  XAUUSD: { label: "Gold / US Dollar",  icon: "🥇" },
-  EURUSD: { label: "Euro / US Dollar",   icon: "💶" },
-  GBPUSD: { label: "Pound / US Dollar",  icon: "💷" },
-  USDJPY: { label: "US Dollar / Yen",    icon: "💴" },
-  NAS100: { label: "Nasdaq 100 Index",   icon: "📈" },
-  US30:   { label: "Dow Jones Index",    icon: "🏦" },
-  BTCUSD: { label: "Bitcoin / US Dollar", icon: "₿" },
+  XAUUSD:   { label: "Gold / US Dollar",       icon: "🥇" },
+  XAUUSDm:  { label: "Gold / USD (Micro)",     icon: "🥇" },
+  XAUUSDs:  { label: "Gold / USD (Standard)",  icon: "🥇" },
+  EURUSD:   { label: "Euro / US Dollar",       icon: "💶" },
+  EURUSDm:  { label: "Euro / USD (Micro)",     icon: "💶" },
+  GBPUSD:   { label: "Pound / US Dollar",      icon: "💷" },
+  GBPUSDm:  { label: "Pound / USD (Micro)",    icon: "💷" },
+  USDJPY:   { label: "US Dollar / Yen",        icon: "💴" },
+  USDJPYm:  { label: "USD / Yen (Micro)",      icon: "💴" },
+  NAS100:   { label: "Nasdaq 100 Index",       icon: "📈" },
+  NAS100m:  { label: "Nasdaq 100 (Micro)",     icon: "📈" },
+  US30:     { label: "Dow Jones Index",        icon: "🏦" },
+  US30m:    { label: "Dow Jones (Micro)",      icon: "🏦" },
+  BTCUSD:   { label: "Bitcoin / US Dollar",    icon: "₿" },
+  BTCUSDm:  { label: "Bitcoin / USD (Micro)",  icon: "₿" },
 };
 
 const ROBOT_IMG = "https://media.base44.com/images/public/6a437ad84dc8721fedd64296/586a57cc0_generated_image.png";

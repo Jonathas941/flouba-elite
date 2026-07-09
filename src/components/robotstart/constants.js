@@ -18,7 +18,15 @@ export const STRATEGIES = [
   "Auto (AI Select)",
 ];
 
-export const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
+export const PAIRS = [
+  "XAUUSD", "XAUUSDm", "XAUUSDs",
+  "EURUSD", "EURUSDm",
+  "GBPUSD", "GBPUSDm",
+  "USDJPY", "USDJPYm",
+  "NAS100", "NAS100m",
+  "US30", "US30m",
+  "BTCUSD", "BTCUSDm",
+];
 export const MODES = ["Conservative", "Balanced", "Aggressive"];
 export const MENTALITIES = ["Basic", "Premium"];
 
