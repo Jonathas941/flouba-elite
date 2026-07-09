@@ -99,24 +99,40 @@ LIVE MARKET DATA:
 - Account Balance: $${account.balance ?? "N/A"}
 - Account Equity: $${account.equity ?? "N/A"}
 
-AVAILABLE STRATEGIES — pick exactly ONE:
+AVAILABLE STRATEGIES — pick exactly ONE based on current market conditions:
 1. "Momentum Scalping" — Best for strong trending markets (ADX > 25) with clear directional momentum. Rides the trend with tight stops. Ideal when ADX is high and RSI confirms direction.
 2. "Range Breakout" — Best when ADX is low (ranging) and price is consolidating near key levels, about to break out. Captures the breakout move with momentum.
 3. "Volatility Spike" — Best during sudden volatility expansion (high ATR spike) or news events. Capitalizes on sharp directional moves. Use when ATR is unusually high.
-4. "HFT Scalper" — Best for highly liquid pairs with very low spread (< 3 pips). Opens/closes many small trades rapidly for tiny pip gains. Only when spread is low.
+4. "HFT Scalper" — Best for highly liquid pairs with very low spread (< 3 pips). Opens/closes many small trades rapidly for tiny pip gains. Only when spread is low and volatility is healthy.
 5. "Grid Trading" — Best for ranging/choppy markets where price oscillates in a band (low ADX, neutral RSI). Places buy/sell orders at fixed intervals to profit from oscillation.
-6. "Liquidity Sweep Scalping" — Best when price is likely to sweep liquidity pools (stop hunts) before reversing. Detects false breakouts. Good near key levels with mixed signals.
+6. "Liquidity Sweep Scalping" — Best when price is likely to sweep liquidity pools (stop hunts) before reversing. Detects false breakouts. Good near key levels with mixed signals and moderate volatility.
 7. "Hedge Scalper" — Best for uncertain/volatile markets where direction is unclear. Opens Buy+Sell simultaneously, closes winner when loser hits SL. Good when trend direction is ambiguous.
+8. "Swing Trend Pullback Continuation 2026" — Best for established trends (ADX > 20, clear EMA alignment) where price pulls back to EMA20/EMA50 before continuing. Captures swing entries with 1:2+ RR. Ideal in trending markets with healthy pullbacks.
+9. "EMA Trend Progressive Recovery" — Best when EMA fast/slow separation confirms a trend and price is trending but equity needs recovery. Opens initial + controlled recovery positions with capped lot multiplier. Good in steady trends with moderate volatility.
+10. "Hybrid Confluence Mode" — Best when multiple confluence factors align: trend (EMA stack), pullback to EMA20, liquidity sweep, and engulfing confirmation. Requires high confluence score (80+). Ideal in trending markets with clean pullbacks and sweep setups.
+11. "NQ London Kill Zone Breakout" — Best for index pairs (NAS100, US30) during the London Kill Zone session window. Captures breakout of the kill zone range with volume confirmation. Ideal for indices during London open with clear range.
+12. "Market Structure BOS Retest Scalper" — Best when a Break of Structure (BOS) occurs on M5 and price retests the broken level. Uses H1 for structure, M5 for entry. Ideal in trending markets with clean structural breaks and retest setups.
+13. "Orderflow Opening Range Breakout" — Best during session opens (London/NY) when price breaks the opening range with volume/orderflow expansion. Requires retest of broken level. Ideal at session open with strong volume participation.
+14. "Gold Morning Range Breakout" — Best for XAUUSD during the morning session. Defines a morning range, then trades the breakout with volume and ATR confirmation. Ideal for gold during morning hours with healthy volatility.
+15. "Gold Daily Breakout" — Best for XAUUSD using previous day high/low as breakout levels. Places pending orders with ATR filter and trailing stop. Ideal for gold with moderate daily volatility and clean previous-day range.
 
 DECISION RULES:
-- If ADX > 25 and RSI confirms direction → Momentum Scalping
+- If ADX > 25 and RSI confirms direction → Momentum Scalping or Swing Trend Pullback Continuation 2026
+- If ADX > 20 with clean EMA trend + pullback → Swing Trend Pullback Continuation 2026 or Hybrid Confluence Mode
 - If ADX < 20 and price oscillating → Grid Trading or Range Breakout
 - If spread > 5 pips → avoid HFT Scalper, prefer Hedge Scalper or Momentum Scalping
 - If direction ambiguous but volatility high → Hedge Scalper
 - If ATR very high with clear direction → Volatility Spike or Momentum Scalping
 - If near key levels with mixed signals → Liquidity Sweep Scalping
+- If trending with BOS + retest setup → Market Structure BOS Retest Scalper
+- If session open with volume expansion → Orderflow Opening Range Breakout
+- If XAUUSD morning session with range → Gold Morning Range Breakout
+- If XAUUSD with clean previous-day range → Gold Daily Breakout
+- If NAS100/US30 during London Kill Zone → NQ London Kill Zone Breakout
+- If trend + pullback + sweep + engulfing all align → Hybrid Confluence Mode
+- If trend confirmed but equity needs recovery → EMA Trend Progressive Recovery
 
-Respond with the single best strategy and a concise reason (1-2 sentences).`;
+Respond with the single best strategy and a concise reason (1-2 sentences) explaining why it fits the current market conditions.`;
 
     const llmRes = await base44.integrations.Core.InvokeLLM({
       prompt,
@@ -133,6 +149,14 @@ Respond with the single best strategy and a concise reason (1-2 sentences).`;
               "Grid Trading",
               "Liquidity Sweep Scalping",
               "Hedge Scalper",
+              "Swing Trend Pullback Continuation 2026",
+              "EMA Trend Progressive Recovery",
+              "Hybrid Confluence Mode",
+              "NQ London Kill Zone Breakout",
+              "Market Structure BOS Retest Scalper",
+              "Orderflow Opening Range Breakout",
+              "Gold Morning Range Breakout",
+              "Gold Daily Breakout",
             ],
           },
           reason: { type: "string" },
