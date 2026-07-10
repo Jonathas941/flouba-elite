@@ -2,6 +2,22 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const BASE = "https://294108ed-e055-41b7-b93f-e2ddafbe8693-00-1ryk2spld8s3q.riker.replit.dev/api";
 
+const KNOWN_PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
+
+// Multi-pair: fetch live quotes and select the top N pairs by lowest spread
+async function selectPairsBySpread(authHeaders, count) {
+  const quotesRes = await fetch(`${BASE}/symbols`, { headers: authHeaders }).catch(() => null);
+  if (!quotesRes?.ok) return [];
+  const j = await quotesRes.json().catch(() => ({}));
+  const rawSyms = Array.isArray(j?.symbols) ? j.symbols : (Array.isArray(j) ? j : []);
+  return rawSyms
+    .map(s => ({ symbol: (s.symbol || s.name || "").toUpperCase(), spread: Number(s.spread != null ? s.spread : (s.ask - s.bid)) }))
+    .filter(s => !isNaN(s.spread) && s.spread >= 0 && KNOWN_PAIRS.some(p => s.symbol.startsWith(p)))
+    .sort((a, b) => a.spread - b.spread)
+    .slice(0, count)
+    .map(s => s.symbol);
+}
+
 // Local session fallback (used when MT5 server /session/status is unavailable)
 function validTz(tz) {
   try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; }
@@ -285,28 +301,40 @@ Deno.serve(async (req) => {
 
         if (inStartWindow && !sessionInfo?.trading_blocked) {
           const symbol = config.active_pair || "XAUUSD";
+          const startBody = {
+            strategy: config.adaptive_enabled ? "Auto (AI Select)" : (config.adaptive_active_strategy || "Momentum Scalping"),
+            symbol,
+            trading_mode: config.trading_mode || "Balanced",
+            bot_mentality: config.bot_mentality || "Premium",
+            lot_size: config.lot_size || 0.01,
+            risk_percentage: config.risk_percentage || 1,
+            stop_loss: config.dynamic_stop_loss ? 0 : (config.stop_loss || 50),
+            take_profit: config.take_profit || 100,
+            max_concurrent_trades: config.max_concurrent_trades || 2,
+            trade_direction: config.trade_direction || "both",
+            daily_loss_limit: config.daily_loss_limit || 50,
+            stop_after_losses: config.stop_after_losses || 2,
+            lot_multiplier: config.lot_multiplier || 1,
+          };
+
+          // Multi-pair: auto-select best pairs by spread and pass symbols array
+          if (config.multi_pair_enabled) {
+            const pairs = await selectPairsBySpread(authHeaders, config.multi_pair_count ?? 3);
+            if (pairs.length > 0) {
+              startBody.symbols = pairs;
+              startBody.symbol = pairs[0];
+              actions.push(`MULTI-PAIR: Selected ${pairs.join(", ")}`);
+            }
+          }
+
           const startRes = await fetch(`${BASE}/robot/start`, {
             method: "POST",
             headers: authHeaders,
-            body: JSON.stringify({
-              strategy: config.adaptive_enabled ? "Auto (AI Select)" : (config.adaptive_active_strategy || "Momentum Scalping"),
-              symbol,
-              trading_mode: config.trading_mode || "Balanced",
-              bot_mentality: config.bot_mentality || "Premium",
-              lot_size: config.lot_size || 0.01,
-              risk_percentage: config.risk_percentage || 1,
-              stop_loss: config.dynamic_stop_loss ? 0 : (config.stop_loss || 50),
-              take_profit: config.take_profit || 100,
-              max_concurrent_trades: config.max_concurrent_trades || 2,
-              trade_direction: config.trade_direction || "both",
-              daily_loss_limit: config.daily_loss_limit || 50,
-              stop_after_losses: config.stop_after_losses || 2,
-              lot_multiplier: config.lot_multiplier || 1,
-            }),
+            body: JSON.stringify(startBody),
           });
           const startJson = await startRes.json().catch(() => ({}));
           if (startJson?.success === true) {
-            actions.push(`AUTO-START: Robot launched at ${startStr} (NY) on ${symbol}`);
+            actions.push(`AUTO-START: Robot launched at ${startStr} (NY) on ${startBody.symbols ? startBody.symbols.join(",") : symbol}`);
           } else {
             actions.push(`AUTO-START FAILED: ${startJson?.message ?? startJson?.error ?? `HTTP ${startRes.status}`}`);
           }
@@ -319,29 +347,40 @@ Deno.serve(async (req) => {
       if (config.hft_mode_enabled && !robotRunning) {
         const symbol = config.active_pair || "XAUUSD";
         const hftLot = config.hft_current_lot ?? config.hft_base_lot ?? 0.01;
+        const hftBody = {
+          strategy: "HFT Scalper",
+          symbol,
+          trading_mode: "Aggressive",
+          lot_size: hftLot,
+          hft_mode_enabled: true,
+          trade_direction: "both",
+          max_concurrent_trades: 10,
+          risk_percentage: 5,
+          stop_loss: 0,
+          take_profit: 0,
+          daily_loss_limit: 0,
+          stop_after_losses: 999,
+          max_spread_pips: 100,
+          session_cooldown_minutes: 0,
+        };
+
+        // Multi-pair in HFT mode: scalp across multiple pairs simultaneously
+        if (config.multi_pair_enabled) {
+          const pairs = await selectPairsBySpread(authHeaders, config.multi_pair_count ?? 3);
+          if (pairs.length > 0) {
+            hftBody.symbols = pairs;
+            hftBody.symbol = pairs[0];
+          }
+        }
+
         const startRes = await fetch(`${BASE}/robot/start`, {
           method: "POST",
           headers: authHeaders,
-          body: JSON.stringify({
-            strategy: "HFT Scalper",
-            symbol,
-            trading_mode: "Aggressive",
-            lot_size: hftLot,
-            hft_mode_enabled: true,
-            trade_direction: "both",
-            max_concurrent_trades: 10,
-            risk_percentage: 5,
-            stop_loss: 0,
-            take_profit: 0,
-            daily_loss_limit: 0,
-            stop_after_losses: 999,
-            max_spread_pips: 100,
-            session_cooldown_minutes: 0,
-          }),
+          body: JSON.stringify(hftBody),
         });
         const startJson = await startRes.json().catch(() => ({}));
         if (startJson?.success === true) {
-          actions.push(`DANGER MODE AUTO-START: HFT launched on ${symbol} at ${hftLot} lot — all limits bypassed`);
+          actions.push(`DANGER MODE AUTO-START: HFT launched on ${hftBody.symbols ? hftBody.symbols.join(",") : symbol} at ${hftLot} lot — all limits bypassed`);
         } else {
           actions.push(`DANGER MODE START FAILED: ${startJson?.message ?? startJson?.error ?? `HTTP ${startRes.status}`}`);
         }
