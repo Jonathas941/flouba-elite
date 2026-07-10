@@ -101,13 +101,17 @@ Deno.serve(async (req) => {
 
     if (params.symbol && typeof params.symbol === "string") {
       const { base, suffix } = stripSuffix(params.symbol);
+      if (suffix) {
+        params.broker_symbol = params.symbol; // full broker symbol (e.g. XAUUSDm) for EA trade orders
+        params.symbol_suffix = suffix;
+      }
       params.symbol = base;
-      if (suffix) params.symbol_suffix = suffix;
     }
 
     // Multi-pair: strip suffixes from the symbols array and pass through to the EA
     if (Array.isArray(params.symbols)) {
       let commonSuffix = "";
+      params.broker_symbols = params.symbols.filter((s) => typeof s === "string");
       params.symbols = params.symbols.map((sym) => {
         const { base, suffix } = stripSuffix(sym);
         if (suffix && !commonSuffix) commonSuffix = suffix;
