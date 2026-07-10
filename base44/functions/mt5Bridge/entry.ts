@@ -88,15 +88,32 @@ Deno.serve(async (req) => {
     // the suffix as a separate `symbol_suffix` field. The bridge passes this
     // field through to the EA in the robot config and trade commands, so the EA
     // can map the base symbol back to the broker's actual instrument name.
-    if (params.symbol && typeof params.symbol === "string") {
-      const knownBases = ["XAUUSD","XAUEUR","XAUUSD","EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","NAS100","US30","US500","US2000","UK100","GER40","GER30","FRA40","JPN225","AUS200","HK50","CHINA50","SWI20","USOIL","UKOIL","NATGAS","BTCUSD","ETHUSD","LTCUSD","XRPUSD","BCHUSD","ADAUSD","DOTUSD","SOLUSD","DOGUSD","BNBUSD"];
-      for (const base of knownBases) {
-        if (params.symbol.startsWith(base) && params.symbol.length > base.length) {
-          params.symbol_suffix = params.symbol.slice(base.length);
-          params.symbol = base;
-          break;
+    const KNOWN_BASES = ["XAUUSD","XAUEUR","EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","NAS100","US30","US500","US2000","UK100","GER40","GER30","FRA40","JPN225","AUS200","HK50","CHINA50","SWI20","USOIL","UKOIL","NATGAS","BTCUSD","ETHUSD","LTCUSD","XRPUSD","BCHUSD","ADAUSD","DOTUSD","SOLUSD","DOGUSD","BNBUSD"];
+    function stripSuffix(sym) {
+      if (typeof sym !== "string") return { base: sym, suffix: "" };
+      for (const base of KNOWN_BASES) {
+        if (sym.startsWith(base) && sym.length > base.length) {
+          return { base, suffix: sym.slice(base.length) };
         }
       }
+      return { base: sym, suffix: "" };
+    }
+
+    if (params.symbol && typeof params.symbol === "string") {
+      const { base, suffix } = stripSuffix(params.symbol);
+      params.symbol = base;
+      if (suffix) params.symbol_suffix = suffix;
+    }
+
+    // Multi-pair: strip suffixes from the symbols array and pass through to the EA
+    if (Array.isArray(params.symbols)) {
+      let commonSuffix = "";
+      params.symbols = params.symbols.map((sym) => {
+        const { base, suffix } = stripSuffix(sym);
+        if (suffix && !commonSuffix) commonSuffix = suffix;
+        return base;
+      });
+      if (commonSuffix && !params.symbol_suffix) params.symbol_suffix = commonSuffix;
     }
 
     // ── For "connect": inject the user's stored MT5 credentials into the body ──

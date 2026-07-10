@@ -191,18 +191,38 @@ export default function Home() {
     }
     const launchForm = { ...form, lot_multiplier: form.lot_multiplier ?? 1 };
     const tf = getStrategyTimeframes(strategy);
-    const launchFormWithTF = {
+    let launchFormWithTF = {
       ...launchForm, strategy,
       strategy_timeframe: tf.main,
       strategy_htf_timeframe: tf.htf || null,
       strategy_confirm_timeframe: tf.confirm || null,
       strategy_entry_timeframe: tf.entry || null,
     };
+
+    // ── Multi-Pair Auto-Select: AI scans all pairs and picks the best N ──
+    if (form.multi_pair_enabled) {
+      try {
+        toast({ title: "AI Selecting Pairs…", description: `Scanning market for top ${form.multi_pair_count} pairs.`, duration: 4000 });
+        const mpRes = await base44.functions.invoke("multiPairSelector", {});
+        const mp = mpRes?.data;
+        if (mp?.ok && mp.pairs?.length > 0) {
+          launchFormWithTF = { ...launchFormWithTF, symbols: mp.pairs, symbol: mp.pairs[0] };
+          toast({ title: "Multi-Pair Selected", description: `${mp.pairs.join(", ")}${mp.reasoning ? ` — ${mp.reasoning.slice(0, 80)}` : ""}`, duration: 5000 });
+        } else {
+          toast({ title: "Multi-Pair Unavailable", description: "Could not auto-select pairs. Using default symbol.", variant: "destructive", duration: 4000 });
+        }
+      } catch {
+        toast({ title: "Multi-Pair Selection Failed", description: "Using default symbol.", variant: "destructive", duration: 3000 });
+      }
+    }
+
     const res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
     if (res?.ok && res?.data?.success === true) {
-      setActivePair(form.symbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
-      toast({ title: "Robot Started", description: `${strategy} active on ${form.symbol}`, duration: 3000 });
-      logNotification({ type: "bot_action", title: "Robot Started", message: `${strategy} engine launched on ${form.symbol}.`, category: "success", meta: { strategy, symbol: form.symbol } });
+      const activeSymbol = launchFormWithTF.symbol || form.symbol;
+      const pairsLabel = launchFormWithTF.symbols?.length ? launchFormWithTF.symbols.join(", ") : activeSymbol;
+      setActivePair(activeSymbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
+      toast({ title: "Robot Started", description: `${strategy} active on ${pairsLabel}`, duration: 3000 });
+      logNotification({ type: "bot_action", title: "Robot Started", message: `${strategy} engine launched on ${pairsLabel}.`, category: "success", meta: { strategy, symbol: activeSymbol, symbols: launchFormWithTF.symbols || undefined } });
       setUnreadCount((c) => c + 1);
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";

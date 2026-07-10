@@ -158,9 +158,23 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <CollapsibleSection title="Pair & Strategy" defaultOpen={true}>
                 <div className="space-y-2.5">
-                  <Field label="Symbol">
-                    <SelectInput value={form.symbol} onChange={set("symbol")} options={PAIRS} />
+                  <Field label="Multi-Pair Auto-Select">
+                    <Toggle value={form.multi_pair_enabled} onChange={set("multi_pair_enabled")} />
                   </Field>
+                  {form.multi_pair_enabled ? (
+                    <>
+                      <Field label="Number of Pairs">
+                        <NumberInput value={form.multi_pair_count} onChange={set("multi_pair_count")} min={2} max={8} />
+                      </Field>
+                      <p className="text-[9px] text-white/25 leading-relaxed">
+                        AI scans all available pairs and auto-selects the best {form.multi_pair_count} for concurrent multi-pair trading.
+                      </p>
+                    </>
+                  ) : (
+                    <Field label="Symbol">
+                      <SelectInput value={form.symbol} onChange={set("symbol")} options={PAIRS} />
+                    </Field>
+                  )}
                   <Field label="Strategy">
                     <SelectInput value={form.strategy} onChange={set("strategy")} options={STRATEGIES} />
                   </Field>

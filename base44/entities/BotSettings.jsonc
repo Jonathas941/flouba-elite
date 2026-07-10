@@ -1443,6 +1443,16 @@
       "type": "number",
       "default": 0.01,
       "description": "Starting lot size for HFT mode (reset target after a loss)."
+    },
+    "multi_pair_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Multi-Pair Auto-Select \u2014 when enabled, AI scans all available pairs and auto-selects the best N for concurrent trading."
+    },
+    "multi_pair_count": {
+      "type": "number",
+      "default": 3,
+      "description": "Number of pairs the AI should auto-select for multi-pair concurrent trading."
     }
   },
   "required": [],

@@ -43,6 +43,9 @@ export const DEFAULT = {
   trading_mode: "Balanced",
   bot_mentality: "Premium",
   trade_direction: "both",
+  // Multi-Pair Auto-Select
+  multi_pair_enabled: false,
+  multi_pair_count: 3,
   // Lot & Risk
   lot_size: 0.03,
   max_concurrent_trades: 2,
