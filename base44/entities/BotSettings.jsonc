@@ -1453,6 +1453,21 @@
       "type": "number",
       "default": 3,
       "description": "Number of pairs the AI should auto-select for multi-pair concurrent trading."
+    },
+    "trailing_tp_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Trailing TP Monitor \u2014 when enabled, the bot trails the take profit ahead of price once profit exceeds the trigger threshold."
+    },
+    "trailing_trigger_usd": {
+      "type": "number",
+      "default": 2.0,
+      "description": "Trailing TP Monitor \u2014 profit in USD required before trailing begins (price must move this far beyond entry)."
+    },
+    "trailing_tp_distance_usd": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Trailing TP Monitor \u2014 distance in USD to set the new TP ahead of the current price."
     }
   },
   "required": [],
