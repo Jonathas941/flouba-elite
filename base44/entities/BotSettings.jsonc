@@ -1468,6 +1468,46 @@
       "type": "number",
       "default": 1.5,
       "description": "Trailing TP Monitor \u2014 distance in USD to set the new TP ahead of the current price."
+    },
+    "pyramiding_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Multi-Level Pyramiding \u2014 when enabled, the bot scales into the trend by adding positions every pyramiding_step_usd of favorable price movement, up to pyramiding_max_layers."
+    },
+    "pyramiding_step_usd": {
+      "type": "number",
+      "default": 2.0,
+      "description": "Multi-Level Pyramiding \u2014 distance in USD the price must move favorably from the last entry before the next scale-in position is opened."
+    },
+    "pyramiding_max_layers": {
+      "type": "number",
+      "default": 5,
+      "description": "Multi-Level Pyramiding \u2014 maximum number of layered positions (including the initial entry) allowed in a single pyramiding sequence."
+    },
+    "pyramiding_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Multi-Level Pyramiding \u2014 lot size for each scale-in position."
+    },
+    "pyramiding_require_trend": {
+      "type": "boolean",
+      "default": true,
+      "description": "Multi-Level Pyramiding \u2014 require HTF trend confirmation to remain valid before opening each scale-in."
+    },
+    "pyramiding_trend_timeframe": {
+      "type": "string",
+      "enum": [
+        "M15",
+        "H1",
+        "H4"
+      ],
+      "default": "H1",
+      "description": "Multi-Level Pyramiding \u2014 timeframe used for HTF trend confirmation."
+    },
+    "pyramiding_trend_ema_period": {
+      "type": "number",
+      "default": 200,
+      "description": "Multi-Level Pyramiding \u2014 EMA period on the HTF timeframe used to confirm trend direction."
     }
   },
   "required": [],

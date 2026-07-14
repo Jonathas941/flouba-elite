@@ -315,6 +315,17 @@ export const DEFAULT = {
   gdb_equity_stop_pct: 3,
   gdb_max_consecutive_losses: 2,
   gdb_cooldown_hours: 8,
+  // Multi-Level Pyramiding & Trailing TP
+  pyramiding_enabled: false,
+  pyramiding_step_usd: 2.0,
+  pyramiding_max_layers: 5,
+  pyramiding_lot_size: 0.01,
+  pyramiding_require_trend: true,
+  pyramiding_trend_timeframe: "H1",
+  pyramiding_trend_ema_period: 200,
+  trailing_tp_enabled: true,
+  trailing_trigger_usd: 2.0,
+  trailing_tp_distance_usd: 1.5,
 };
 
 // Keys that live only in the form UI — never loaded from or saved to BotSettings.

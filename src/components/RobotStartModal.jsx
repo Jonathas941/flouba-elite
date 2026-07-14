@@ -16,6 +16,7 @@ import MsBosRetestSettings from "@/components/robotstart/MsBosRetestSettings";
 import OrderflowOpeningRangeSettings from "@/components/robotstart/OrderflowOpeningRangeSettings";
 import GoldMorningRangeSettings from "@/components/robotstart/GoldMorningRangeSettings";
 import GoldDailyBreakoutSettings from "@/components/robotstart/GoldDailyBreakoutSettings";
+import PyramidingSettings from "@/components/robotstart/PyramidingSettings";
 import CollapsibleSection from "@/components/robotstart/CollapsibleSection";
 import { Field, NumberInput, SelectInput, Toggle } from "@/components/robotstart/FormControls";
 import {
@@ -243,6 +244,17 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     {dynamicSlPoints ? `SL ≈ ${dynamicSlPoints} pips (live ATR).` : "Fetching live ATR…"}
                   </p>
                 )}
+              </CollapsibleSection>
+
+              <CollapsibleSection title="📈 Pyramiding & Trailing TP" defaultOpen={false}>
+                <PyramidingSettings
+                  form={form}
+                  set={set}
+                  Field={Field}
+                  NumberInput={NumberInput}
+                  SelectInput={SelectInput}
+                  Toggle={Toggle}
+                />
               </CollapsibleSection>
 
               <CollapsibleSection title="Daily Limits" defaultOpen={false}>
