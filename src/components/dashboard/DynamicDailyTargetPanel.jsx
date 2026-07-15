@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Target, Shield, TrendingUp, TrendingDown, Lock, Edit3, Check, Power } from "lucide-react";
+import { Target, Shield, TrendingUp, TrendingDown, Lock, Edit3, Check, Power, RotateCcw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -136,6 +136,18 @@ export default function DynamicDailyTargetPanel() {
   };
 
   const set = (key) => (val) => setEditForm((f) => ({ ...f, [key]: val }));
+
+  const handleReset = async () => {
+    try {
+      const res = await base44.functions.invoke("dynamicDailyTargetEngine", { action: "reset" });
+      if (res?.data?.ok) {
+        setStatus(res.data);
+        toast({ title: "Daily Limits Reset", description: "Realized P&L, trades, and losses cleared.", duration: 3000 });
+      }
+    } catch (e) {
+      toast({ title: "Reset Failed", description: e.message, variant: "destructive", duration: 3000 });
+    }
+  };
 
   if (loading) {
     return (
@@ -307,9 +319,14 @@ export default function DynamicDailyTargetPanel() {
 
           {/* Reset info */}
           <div className="flex items-center justify-between text-[8px] font-mono text-white/25">
-            <span>RESET: NY TRADING DAY 08:00 ET</span>
+            <span>RESET: NY 08:00 ET</span>
             <span>NY DATE: {status?.ny_date || "--"}</span>
           </div>
+          <button onClick={handleReset}
+            className="w-full h-8 hud-clip-sm flex items-center justify-center gap-1.5 text-[9px] font-mono font-bold tracking-wider transition-all active:scale-[0.98]"
+            style={{ background: "rgba(255,49,49,0.06)", border: "1px solid rgba(255,49,49,0.25)", color: "#FF3131" }}>
+            <RotateCcw className="w-3 h-3" /> RESET DAILY LIMITS
+          </button>
         </div>
       ) : (
         <div className="px-4 py-4 text-center">

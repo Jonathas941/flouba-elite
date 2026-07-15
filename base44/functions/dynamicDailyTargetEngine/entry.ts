@@ -281,6 +281,22 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Handle manual reset of daily limits
+      if (body.action === "reset") {
+        ddtRecords = await base44.entities.DynamicDailyTargetSettings.list();
+        const ddt = ddtRecords[0];
+        if (ddt) {
+          await base44.entities.DynamicDailyTargetSettings.update(ddt.id, {
+            current_tier: "pre_target",
+            realized_today: 0,
+            trades_today: 0,
+            consecutive_losses: 0,
+            lock_message: null,
+            last_reset_date: getEtDateStr(),
+          });
+        }
+      }
+
       // Evaluate for this user
       const allUsers = await base44.asServiceRole.entities.User.list();
       const userMap = new Map(allUsers.map((u) => [u.id, u]));
