@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import GlassCard from "@/components/GlassCard";
 import { ToggleRow, SegmentRow } from "@/components/settings/SettingRow";
@@ -8,15 +8,30 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Save } from "lucide-react";
 import MobileHeader from "@/components/MobileHeader";
+import AutoStartButton from "@/components/dashboard/AutoStartButton";
+import HftModeButton from "@/components/dashboard/HftModeButton";
+import SignalAssistantPanel from "@/components/dashboard/SignalAssistantPanel";
+import DynamicDailyTargetPanel from "@/components/dashboard/DynamicDailyTargetPanel";
+import EmaIndicatorPanel from "@/components/dashboard/EmaIndicatorPanel";
+import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
+import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
+import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
+import CooldownBanner from "@/components/dashboard/CooldownBanner";
+import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
 
 export default function Settings() {
   const [s, setS] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const [botSettings, setBotSettings] = useState(null);
   const { toast } = useToast();
 
   useEffect(() => {
     (async () => {
       const list = await base44.entities.BotSettings.list();
-      setS(list[0] || (await base44.entities.BotSettings.create({})));
+      const rec = list[0] || (await base44.entities.BotSettings.create({}));
+      setS(rec);
+      setBotSettings(rec);
+      setConnected(rec?.mt5_account != null);
     })();
   }, []);
 
@@ -26,6 +41,11 @@ export default function Settings() {
     await base44.entities.BotSettings.update(s.id, s);
     toast({ title: "Settings saved", description: "Your bot configuration has been updated." });
   };
+
+  const reload = useCallback(async () => {
+    const list = await base44.entities.BotSettings.list();
+    if (list?.length) { setS(list[0]); setBotSettings(list[0]); }
+  }, []);
 
   if (!s) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" /></div>;
 
@@ -111,6 +131,40 @@ export default function Settings() {
           <ToggleRow label="London Session" checked={s.london_session} onChange={(v) => set("london_session", v)} />
           <ToggleRow label="New York Session" checked={s.new_york_session} onChange={(v) => set("new_york_session", v)} />
         </GlassCard>
+
+        {/* ── Advanced Panels (moved from dashboard) ── */}
+
+        {/* Account Switcher */}
+        <AccountSwitcher botSettings={botSettings} onSwitched={reload} />
+
+        {/* Auto-Start Schedule */}
+        <AutoStartButton settings={botSettings} onUpdate={(ns) => { setBotSettings(ns); setS(ns); }} />
+
+        {/* HFT / Danger Mode */}
+        <HftModeButton settings={botSettings} onUpdate={(ns) => setBotSettings(ns)} onAutoStart={async () => {
+          toast({ title: "Use dashboard", description: "Start HFT mode from the dashboard.", duration: 3000 });
+        }} />
+
+        {/* Cooldown Banner */}
+        <CooldownBanner settings={botSettings} />
+
+        {/* EMA Indicator */}
+        <EmaIndicatorPanel />
+
+        {/* Signal Assistant */}
+        <SignalAssistantPanel connected={connected} />
+
+        {/* Dynamic Daily Target */}
+        <DynamicDailyTargetPanel />
+
+        {/* Strategy Control */}
+        <StrategyControlCard />
+
+        {/* Strategy Timeframe Engine */}
+        <StrategyTimeframePanel />
+
+        {/* Adaptive Strategy Manager */}
+        <AdaptiveStrategyPanel connected={connected} />
 
         <Button onClick={save} className="w-full h-12 py-3 rounded-2xl bg-red-600 hover:bg-red-500 neon-red font-heading tracking-widest mb-24">
           <Save className="w-4 h-4 mr-2" /> SAVE SETTINGS

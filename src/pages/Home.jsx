@@ -7,18 +7,8 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import RobotStartModal from "@/components/RobotStartModal";
-import StrategyControlCard from "@/components/dashboard/StrategyControlCard";
-import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePanel";
-import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
-import CooldownBanner from "@/components/dashboard/CooldownBanner";
-import AutoStartButton from "@/components/dashboard/AutoStartButton";
-import HftModeButton from "@/components/dashboard/HftModeButton";
 import HolographicHero from "@/components/dashboard/hud/HolographicHero";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
-import DynamicDailyTargetPanel from "@/components/dashboard/DynamicDailyTargetPanel";
-import SignalAssistantPanel from "@/components/dashboard/SignalAssistantPanel";
-import EmaIndicatorPanel from "@/components/dashboard/EmaIndicatorPanel";
-import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
 const PAIR_META = {
@@ -385,21 +375,6 @@ export default function Home() {
           <span>TERMINATE</span>
         </motion.button>
 
-        {/* AUTO-START — scheduled daily robot launch */}
-        <AutoStartButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} />
-
-        {/* HFT MODE — bypasses all rules, scalps any profit, compounds lots on wins */}
-        <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} onAutoStart={handleDangerAutoStart} />
-
-        {/* SIGNAL ASSISTANT — professional signal display with 3 execution modes */}
-        <SignalAssistantPanel connected={connected} />
-
-        {/* DYNAMIC DAILY TARGET — tiered profit targets with progressive risk reduction */}
-        <DynamicDailyTargetPanel />
-
-        {/* ACCOUNT SWITCHER — toggle between linked MT5 accounts */}
-        <AccountSwitcher botSettings={botSettings} onSwitched={loadAll} />
-
         {/* ACCOUNT OVERVIEW */}
         <HudPanel label="Account Overview">
           <div className="grid grid-cols-3 divide-x divide-[#00FF41]/10">
@@ -457,21 +432,6 @@ export default function Home() {
             </div>
           </div>
         </HudPanel>
-
-        {/* EMA 20 & 200 — live trend engine */}
-        <EmaIndicatorPanel />
-
-        {/* Cooldown countdown */}
-        <CooldownBanner settings={botSettings} />
-
-        {/* Strategy Control */}
-        <StrategyControlCard />
-
-        {/* Strategy Timeframe Engine */}
-        <StrategyTimeframePanel />
-
-        {/* Adaptive Strategy Manager */}
-        <AdaptiveStrategyPanel connected={connected} />
 
         {/* LSR-3R Scanner Module */}
         <button onClick={() => navigate("/lsr3r")}
