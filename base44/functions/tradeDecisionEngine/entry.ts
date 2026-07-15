@@ -81,30 +81,83 @@ function checkStructure(ind, regime, dir) {
 }
 
 // ── Pillar 2: Trend Alignment ─────────────────────────────────────────────
+// BUY: Price above EMA 20 AND EMA 50, EMA 20 above EMA 50
+// SELL: Price below EMA 20 AND EMA 50, EMA 20 below EMA 50
 function checkTrend(ind, price, cfg) {
-  const ema20 = num(ind?.ema_20 ?? ind?.ema20);
-  const ema50 = num(ind?.ema_50 ?? ind?.ema50);
+  const scalping = cfg.scalping_mode_enabled === true;
+  // Scalping mode: EMA 9 + EMA 20 (fast stack)
+  const emaFast = scalping
+    ? num(ind?.ema_9 ?? ind?.ema_5 ?? ind?.ema_6)
+    : num(ind?.ema_20 ?? ind?.ema20);
+  const emaSlow = scalping
+    ? num(ind?.ema_20 ?? ind?.ema20)
+    : num(ind?.ema_50 ?? ind?.ema50);
   const ema200 = num(ind?.ema_200 ?? ind?.ema200);
+  const vwap = scalping ? num(ind?.vwap) : null;
   const slope = num(ind?.ema_slope ?? ind?.slope);
-  const period = cfg.trend_filter_ema_period ?? 200;
-  if (ema20 == null || ema50 == null) {
-    return { pass: false, score: 20, reason: "Trend data unavailable — cannot confirm direction.", direction: null };
+
+  if (emaFast == null || emaSlow == null) {
+    return { pass: false, score: 20, reason: "Trend data unavailable — cannot confirm direction.", direction: null, emaFast, emaSlow };
   }
-  const bull = ema20 > ema50 && (ema200 == null || ema20 > ema200) && (slope == null || slope > 0);
-  const bear = ema20 < ema50 && (ema200 == null || ema20 < ema200) && (slope == null || slope < 0);
+
+  // Price must be above/below BOTH EMAs
+  const priceAbove = price != null && price > emaFast && price > emaSlow;
+  const priceBelow = price != null && price < emaFast && price < emaSlow;
+
+  const bull = emaFast > emaSlow && priceAbove && (ema200 == null || emaFast > ema200) && (slope == null || slope > 0) && (vwap == null || price > vwap);
+  const bear = emaFast < emaSlow && priceBelow && (ema200 == null || emaFast < ema200) && (slope == null || slope < 0) && (vwap == null || price < vwap);
+
   if (bull) {
     let s = 80;
-    if (ema200 != null && ema20 > ema200) s += 10;
+    if (ema200 != null && emaFast > ema200) s += 10;
     if (slope != null && slope > 0) s += 5;
-    return { pass: true, score: clamp(s, 0, 100), reason: "EMA stack bullish (20 > 50 > 200) with positive slope.", direction: "BUY" };
+    if (vwap != null && price > vwap) s += 5;
+    const label = scalping ? "EMA 9 > 20, price above both, VWAP confirms" : "Price above EMA 20 & 50, EMA 20 > 50";
+    return { pass: true, score: clamp(s, 0, 100), reason: `Bullish trend — ${label}.`, direction: "BUY", emaFast, emaSlow };
   }
   if (bear) {
     let s = 80;
-    if (ema200 != null && ema20 < ema200) s += 10;
+    if (ema200 != null && emaFast < ema200) s += 10;
     if (slope != null && slope < 0) s += 5;
-    return { pass: true, score: clamp(s, 0, 100), reason: "EMA stack bearish (20 < 50 < 200) with negative slope.", direction: "SELL" };
+    if (vwap != null && price < vwap) s += 5;
+    const label = scalping ? "EMA 9 < 20, price below both, VWAP confirms" : "Price below EMA 20 & 50, EMA 20 < 50";
+    return { pass: true, score: clamp(s, 0, 100), reason: `Bearish trend — ${label}.`, direction: "SELL", emaFast, emaSlow };
   }
-  return { pass: false, score: 30, reason: "EMAs entangled — no sustained trend alignment.", direction: null };
+  const reason = emaFast === emaSlow
+    ? "EMAs flat — no trend direction."
+    : (emaFast > emaSlow && !priceAbove)
+      ? "EMA stack bullish but price not above both EMAs — waiting for price to reclaim."
+      : (emaFast < emaSlow && !priceBelow)
+        ? "EMA stack bearish but price not below both EMAs — waiting for price to break down."
+        : "EMAs entangled — no sustained trend alignment.";
+  return { pass: false, score: 30, reason, direction: null, emaFast, emaSlow };
+}
+
+// ── Pillar 2b: Pullback to EMA 20 / Support / Resistance ──────────────────
+// BUY: Price pulls back near EMA 20 (support)
+// SELL: Price pulls back near EMA 20 (resistance)
+function checkPullback(ind, price, direction, cfg) {
+  const scalping = cfg.scalping_mode_enabled === true;
+  const emaRef = scalping
+    ? num(ind?.ema_20 ?? ind?.ema20)
+    : num(ind?.ema_20 ?? ind?.ema20);
+  const atr = num(ind?.atr_14 ?? ind?.atr14);
+  if (emaRef == null || price == null) {
+    return { pass: false, score: 30, reason: "Pullback: EMA 20 or price unavailable — cannot measure proximity." };
+  }
+  const maxDistMult = cfg.trend_pullback_atr_mult ?? 0.5;
+  // If ATR unavailable, use 0.1% of price as fallback distance
+  const maxDist = atr != null ? atr * maxDistMult : price * 0.001;
+  const distance = Math.abs(price - emaRef);
+  if (distance <= maxDist) {
+    return { pass: true, score: 85, reason: `Pullback to EMA 20 (${distance.toFixed(5)} ≤ ${maxDist.toFixed(5)} ATR×${maxDistMult}) — ${direction === "BUY" ? "support" : "resistance"} entry zone.` };
+  }
+  // Price beyond EMA in trend direction = extended (chasing), not a pullback
+  const extended = direction === "BUY" ? price > emaRef + maxDist : price < emaRef - maxDist;
+  if (extended) {
+    return { pass: false, score: 40, reason: `Price extended ${(distance / (atr || 1)).toFixed(1)}× ATR from EMA 20 — waiting for pullback to ${direction === "BUY" ? "support" : "resistance"}.` };
+  }
+  return { pass: false, score: 55, reason: `Price ${distance.toFixed(5)} from EMA 20 — not yet at pullback zone.` };
 }
 
 // ── Pillar 3: Liquidity ───────────────────────────────────────────────────
@@ -120,30 +173,63 @@ function checkLiquidity(ind, regime) {
   return { pass: false, score: 35, reason: "No liquidity sweep detected — waiting for stop hunt before entry." };
 }
 
-// ── Pillar 4: Momentum ────────────────────────────────────────────────────
-function checkMomentum(ind, cfg) {
+// ── Pillar 4: Momentum (direction-aware) ─────────────────────────────────
+// BUY requires: ADX ≥ threshold, RSI between 50 and 70
+// SELL requires: ADX ≥ threshold, RSI between 30 and 50
+function checkMomentum(ind, direction, cfg) {
   const adx = num(ind?.adx);
-  const rsi = num(ind?.rsi ?? ind?.rsi_14);
+  const rsi = num(ind?.rsi ?? ind?.rsi_14 ?? (cfg.scalping_mode_enabled ? ind?.rsi_7 : ind?.rsi_14));
   const macd = num(ind?.macd ?? ind?.macd_histogram);
-  const threshold = cfg.adaptive_adx_threshold ?? 25;
-  if (adx == null) {
-    // If ADX unavailable, use RSI + MACD as fallback
-    if (rsi != null && rsi > 40 && rsi < 65) return { pass: true, score: 60, reason: "RSI in healthy momentum zone (no exhaustion)." };
-    if (rsi != null && rsi > 35 && rsi < 70) return { pass: true, score: 50, reason: "RSI acceptable — momentum present." };
-    return { pass: false, score: 25, reason: "Momentum data unavailable — cannot confirm strength." };
-  }
-  if (adx < threshold) {
+  const threshold = cfg.trend_adx_threshold ?? cfg.adaptive_adx_threshold ?? 25;
+  const buyLow = cfg.trend_rsi_buy_low ?? 50;
+  const buyHigh = cfg.trend_rsi_buy_high ?? 70;
+  const sellLow = cfg.trend_rsi_sell_low ?? 30;
+  const sellHigh = cfg.trend_rsi_sell_high ?? 50;
+
+  // ADX gate — trend must be strong enough
+  if (adx != null && adx < threshold) {
     return { pass: false, score: 30, reason: `ADX ${adx.toFixed(1)} below ${threshold} — trend too weak. No trade.` };
   }
-  let s = 60 + clamp((adx - threshold) * 2, 0, 30);
-  // Penalize if RSI is extreme (overbought/oversold = exhaustion risk)
+
+  let s = adx != null ? 60 + clamp((adx - threshold) * 2, 0, 30) : 55;
+  let rsiOk = true;
+  let rsiReason = "";
+
   if (rsi != null) {
-    if (rsi > 75) { s -= 20; return { pass: s >= 50, score: s, reason: `ADX strong (${adx.toFixed(0)}) but RSI ${rsi.toFixed(0)} overbought — exhaustion risk. Waiting.` }; }
-    if (rsi < 25) { s -= 20; return { pass: s >= 50, score: s, reason: `ADX strong (${adx.toFixed(0)}) but RSI ${rsi.toFixed(0)} oversold — exhaustion risk. Waiting.` }; }
-    if (rsi >= 40 && rsi <= 65) s += 10;
+    if (direction === "BUY") {
+      rsiOk = rsi >= buyLow && rsi <= buyHigh;
+      if (!rsiOk) {
+        if (rsi > buyHigh) { rsiReason = `RSI ${rsi.toFixed(0)} > ${buyHigh} overbought — chasing. Waiting for pullback.`; s -= 25; }
+        else { rsiReason = `RSI ${rsi.toFixed(0)} < ${buyLow} — momentum too weak for BUY. Waiting.`; s -= 15; }
+      } else {
+        rsiReason = `RSI ${rsi.toFixed(0)} in BUY zone (${buyLow}-${buyHigh}).`; s += 10;
+      }
+    } else if (direction === "SELL") {
+      rsiOk = rsi >= sellLow && rsi <= sellHigh;
+      if (!rsiOk) {
+        if (rsi < sellLow) { rsiReason = `RSI ${rsi.toFixed(0)} < ${sellLow} oversold — chasing. Waiting for pullback.`; s -= 25; }
+        else { rsiReason = `RSI ${rsi.toFixed(0)} > ${sellHigh} — momentum too weak for SELL. Waiting.`; s -= 15; }
+      } else {
+        rsiReason = `RSI ${rsi.toFixed(0)} in SELL zone (${sellLow}-${sellHigh}).`; s += 10;
+      }
+    } else {
+      // No direction yet — use neutral check
+      if (rsi > 75 || rsi < 25) { rsiOk = false; rsiReason = `RSI ${rsi.toFixed(0)} extreme — exhaustion risk.`; s -= 20; }
+      else rsiReason = `RSI ${rsi.toFixed(0)} neutral.`;
+    }
   }
-  if (macd != null && macd > 0) s += 5;
-  return { pass: s >= 55, score: clamp(s, 0, 100), reason: `ADX ${adx.toFixed(0)} ≥ ${threshold} — momentum confirmed.` };
+
+  if (macd != null) {
+    const macdBull = macd > 0;
+    if ((direction === "BUY" && macdBull) || (direction === "SELL" && !macdBull)) s += 5;
+  }
+
+  const adxTxt = adx != null ? `ADX ${adx.toFixed(0)} ≥ ${threshold}` : "ADX n/a";
+  const pass = s >= 55 && rsiOk;
+  const reason = rsiOk
+    ? `${adxTxt} — ${rsiReason} Momentum confirmed.`
+    : `${adxTxt} — ${rsiReason}`;
+  return { pass, score: clamp(s, 0, 100), reason };
 }
 
 // ── Pillar 5: Volatility ──────────────────────────────────────────────────
@@ -594,11 +680,13 @@ Deno.serve(async (req) => {
       else if (sweep && atrOk) { regime = "Liquidity Sweep"; regimeDir = ind?.sweep_dir || "Neutral"; }
     }
 
-    // ── Evaluate 8 pillars ──
+    // ── Evaluate pillars ──
     const p1Structure = checkStructure(ind, regime, regimeDir);
     const p2Trend = checkTrend(ind, price, cfg);
+    const trendDir = p2Trend.direction;
+    const p2bPullback = checkPullback(ind, price, trendDir, cfg);
     const p3Liquidity = checkLiquidity(ind, regime);
-    const p4Momentum = checkMomentum(ind, cfg);
+    const p4Momentum = checkMomentum(ind, trendDir, cfg);
     const p5Volatility = checkVolatility(ind, price, cfg);
 
     // Preliminary SL for spread check
@@ -621,19 +709,20 @@ Deno.serve(async (req) => {
     const pillars = [
       { key: "structure", label: "Market Structure", ...p1Structure, icon: "🏗️" },
       { key: "trend", label: "Trend Alignment", ...p2Trend, icon: "📈" },
+      { key: "pullback", label: "Pullback to EMA 20", ...p2bPullback, icon: "🎯" },
       { key: "liquidity", label: "Liquidity", ...p3Liquidity, icon: "💧" },
-      { key: "momentum", label: "Momentum", ...p4Momentum, icon: "⚡" },
-      { key: "volatility", label: "Volatility", ...p5Volatility, icon: "🌊" },
+      { key: "momentum", label: "Momentum (ADX/RSI)", ...p4Momentum, icon: "⚡" },
+      { key: "volatility", label: "Volatility (ATR)", ...p5Volatility, icon: "🌊" },
       { key: "spread", label: "Spread / Cost", ...p6Spread, icon: "💸" },
       { key: "risk", label: "Capital Protection", pass: p7Risk.pass, score: p7Risk.score, reason: p7Risk.reasons.join(" "), icon: "🛡️", block: p7Risk.block },
       { key: "session", label: "Session", ...p8Session, icon: "🕐" },
     ];
 
     // ── Confluence score ──
-    // Hard pillars (must pass): risk, session, spread
-    // Technical pillars (contribute to score): structure, trend, liquidity, momentum, volatility
-    const hardPass = p7Risk.pass && p8Session.pass && p6Spread.pass;
-    const techPillars = [p1Structure, p2Trend, p3Liquidity, p4Momentum, p5Volatility];
+    // Hard pillars (must pass): risk, session, spread, trend direction
+    // Technical pillars (contribute to score): structure, trend, pullback, liquidity, momentum, volatility
+    const hardPass = p7Risk.pass && p8Session.pass && p6Spread.pass && p2Trend.pass;
+    const techPillars = [p1Structure, p2Trend, p2bPullback, p3Liquidity, p4Momentum, p5Volatility];
     const techScore = Math.round(techPillars.reduce((s, p) => s + p.score, 0) / techPillars.length);
     const overallScore = hardPass ? Math.round((hardPass ? 0.3 : 0) * 100 + techScore * 0.7) : Math.round(techScore * 0.3);
 
@@ -647,9 +736,15 @@ Deno.serve(async (req) => {
 
     if (!hardPass) {
       // Find the first failed hard pillar
-      const failedHard = pillars.find((p) => p.key === "risk" && !p.pass) || pillars.find((p) => p.key === "session" && !p.pass) || pillars.find((p) => p.key === "spread" && !p.pass);
+      const failedHard = pillars.find((p) => p.key === "risk" && !p.pass) || pillars.find((p) => p.key === "session" && !p.pass) || pillars.find((p) => p.key === "spread" && !p.pass) || pillars.find((p) => p.key === "trend" && !p.pass);
       decision = "NO_TRADE";
       reason = failedHard?.reason || "Capital protection or session gate blocked entry.";
+    } else if (!p4Momentum.pass) {
+      decision = "NO_TRADE";
+      reason = p4Momentum.reason;
+    } else if (!p2bPullback.pass) {
+      decision = "NO_TRADE";
+      reason = `No trade — ${p2bPullback.reason}`;
     } else if (techScore < minConfluence) {
       decision = "NO_TRADE";
       reason = `Confluence score ${techScore}/${100} below minimum ${minConfluence} — not enough technical agreement. Waiting for higher-quality setup.`;
@@ -674,7 +769,8 @@ Deno.serve(async (req) => {
       });
       if (tradeParams) {
         decision = "TRADE";
-        reason = `All 8 pillars aligned — ${direction} signal on ${cfg.active_pair}. Confluence ${techScore}/100. AI SL ${aiSlTp.sl_mult}x ATR, TP 1:${aiSlTp.rr} RR${aiSlTp.reasoning ? ` (${aiSlTp.reasoning.slice(0, 80)})` : ""}. Lot ${tradeParams.lot_size}.`;
+        const scalpNote = cfg.scalping_mode_enabled ? " [SCALP: EMA9/20+VWAP+RSI7] " : " ";
+        reason = `All pillars aligned${scalpNote}— ${direction} on ${cfg.active_pair}. ADX ${adx?.toFixed(0) ?? "n/a"}≥${cfg.trend_adx_threshold ?? 25}, RSI ${rsi?.toFixed(0) ?? "n/a"}, pullback to EMA 20 confirmed. Confluence ${techScore}/100. AI SL ${aiSlTp.sl_mult}x ATR, TP 1:${aiSlTp.rr} RR. Lot ${tradeParams.lot_size}.`;
       } else {
         decision = "NO_TRADE";
         reason = "Could not compute trade parameters — insufficient data for SL/TP/lot.";
