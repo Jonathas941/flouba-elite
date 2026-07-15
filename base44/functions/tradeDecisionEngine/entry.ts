@@ -173,63 +173,55 @@ function checkLiquidity(ind, regime) {
   return { pass: false, score: 35, reason: "No liquidity sweep detected — waiting for stop hunt before entry." };
 }
 
-// ── Pillar 4: Momentum (direction-aware) ─────────────────────────────────
-// BUY requires: ADX ≥ threshold, RSI between 50 and 70
-// SELL requires: ADX ≥ threshold, RSI between 30 and 50
-function checkMomentum(ind, direction, cfg) {
+// ── Pillar 4a: ADX Trend Strength (15 pts) ────────────────────────────────
+// ADX ≥ 25 = strong trend (full points); 20-25 = moderate; < 20 = no trade
+function checkAdxStrength(ind, cfg) {
   const adx = num(ind?.adx);
+  const threshold = cfg.trend_adx_threshold ?? 25;
+  if (adx == null) {
+    return { pass: true, score: 50, reason: "ADX unavailable — scoring at neutral strength." };
+  }
+  if (adx < 20) {
+    return { pass: false, score: 15, reason: `ADX ${adx.toFixed(1)} < 20 — trend too weak. Professional traders wait for strength.` };
+  }
+  // Score scales: 20→40, 25→75, 30→95, 35+→100
+  let s;
+  if (adx >= 35) s = 100;
+  else if (adx >= 30) s = 95;
+  else if (adx >= threshold) s = 75 + clamp((adx - threshold) * 4, 0, 20);
+  else s = 40 + clamp((adx - 20) * 7, 0, 35);
+  const pass = adx >= threshold;
+  return { pass, score: Math.round(s), reason: `ADX ${adx.toFixed(0)} ${pass ? "≥" : "<"} ${threshold} — ${pass ? "trend strength confirmed." : "trend forming, not yet strong enough."}` };
+}
+
+// ── Pillar 4b: RSI Momentum (10 pts, direction-aware) ────────────────────
+// BUY: RSI 50-70 (momentum up, not overbought)
+// SELL: RSI 30-50 (momentum down, not oversold)
+function checkRsiMomentum(ind, direction, cfg) {
   const rsi = num(ind?.rsi ?? ind?.rsi_14 ?? (cfg.scalping_mode_enabled ? ind?.rsi_7 : ind?.rsi_14));
-  const macd = num(ind?.macd ?? ind?.macd_histogram);
-  const threshold = cfg.trend_adx_threshold ?? cfg.adaptive_adx_threshold ?? 25;
+  if (rsi == null) {
+    return { pass: true, score: 50, reason: "RSI unavailable — neutral momentum score." };
+  }
   const buyLow = cfg.trend_rsi_buy_low ?? 50;
   const buyHigh = cfg.trend_rsi_buy_high ?? 70;
   const sellLow = cfg.trend_rsi_sell_low ?? 30;
   const sellHigh = cfg.trend_rsi_sell_high ?? 50;
 
-  // ADX gate — trend must be strong enough
-  if (adx != null && adx < threshold) {
-    return { pass: false, score: 30, reason: `ADX ${adx.toFixed(1)} below ${threshold} — trend too weak. No trade.` };
+  if (direction === "BUY") {
+    if (rsi > buyHigh) return { pass: false, score: 20, reason: `RSI ${rsi.toFixed(0)} > ${buyHigh} overbought — chasing entry. Professional waits for pullback.` };
+    if (rsi < buyLow) return { pass: false, score: 35, reason: `RSI ${rsi.toFixed(0)} < ${buyLow} — momentum too weak for BUY.` };
+    let s = 70 + clamp((rsi - buyLow) * 1.5, 0, 30); // 50→70, 70→100
+    return { pass: true, score: Math.round(s), reason: `RSI ${rsi.toFixed(0)} in BUY momentum zone (${buyLow}-${buyHigh}).` };
   }
-
-  let s = adx != null ? 60 + clamp((adx - threshold) * 2, 0, 30) : 55;
-  let rsiOk = true;
-  let rsiReason = "";
-
-  if (rsi != null) {
-    if (direction === "BUY") {
-      rsiOk = rsi >= buyLow && rsi <= buyHigh;
-      if (!rsiOk) {
-        if (rsi > buyHigh) { rsiReason = `RSI ${rsi.toFixed(0)} > ${buyHigh} overbought — chasing. Waiting for pullback.`; s -= 25; }
-        else { rsiReason = `RSI ${rsi.toFixed(0)} < ${buyLow} — momentum too weak for BUY. Waiting.`; s -= 15; }
-      } else {
-        rsiReason = `RSI ${rsi.toFixed(0)} in BUY zone (${buyLow}-${buyHigh}).`; s += 10;
-      }
-    } else if (direction === "SELL") {
-      rsiOk = rsi >= sellLow && rsi <= sellHigh;
-      if (!rsiOk) {
-        if (rsi < sellLow) { rsiReason = `RSI ${rsi.toFixed(0)} < ${sellLow} oversold — chasing. Waiting for pullback.`; s -= 25; }
-        else { rsiReason = `RSI ${rsi.toFixed(0)} > ${sellHigh} — momentum too weak for SELL. Waiting.`; s -= 15; }
-      } else {
-        rsiReason = `RSI ${rsi.toFixed(0)} in SELL zone (${sellLow}-${sellHigh}).`; s += 10;
-      }
-    } else {
-      // No direction yet — use neutral check
-      if (rsi > 75 || rsi < 25) { rsiOk = false; rsiReason = `RSI ${rsi.toFixed(0)} extreme — exhaustion risk.`; s -= 20; }
-      else rsiReason = `RSI ${rsi.toFixed(0)} neutral.`;
-    }
+  if (direction === "SELL") {
+    if (rsi < sellLow) return { pass: false, score: 20, reason: `RSI ${rsi.toFixed(0)} < ${sellLow} oversold — chasing entry. Professional waits for pullback.` };
+    if (rsi > sellHigh) return { pass: false, score: 35, reason: `RSI ${rsi.toFixed(0)} > ${sellHigh} — momentum too weak for SELL.` };
+    let s = 70 + clamp((sellHigh - rsi) * 1.5, 0, 30); // 50→70, 30→100
+    return { pass: true, score: Math.round(s), reason: `RSI ${rsi.toFixed(0)} in SELL momentum zone (${sellLow}-${sellHigh}).` };
   }
-
-  if (macd != null) {
-    const macdBull = macd > 0;
-    if ((direction === "BUY" && macdBull) || (direction === "SELL" && !macdBull)) s += 5;
-  }
-
-  const adxTxt = adx != null ? `ADX ${adx.toFixed(0)} ≥ ${threshold}` : "ADX n/a";
-  const pass = s >= 55 && rsiOk;
-  const reason = rsiOk
-    ? `${adxTxt} — ${rsiReason} Momentum confirmed.`
-    : `${adxTxt} — ${rsiReason}`;
-  return { pass, score: clamp(s, 0, 100), reason };
+  // No direction
+  if (rsi > 75 || rsi < 25) return { pass: false, score: 25, reason: `RSI ${rsi.toFixed(0)} extreme — exhaustion risk.` };
+  return { pass: true, score: 50, reason: `RSI ${rsi.toFixed(0)} neutral.` };
 }
 
 // ── Pillar 5: Volatility ──────────────────────────────────────────────────
@@ -362,6 +354,29 @@ function checkSession(cfg) {
   else if (sess.quality === "medium") s = 75;
   else if (sess.quality === "low") s = 50;
   return { pass: true, score: s, reason: `${sess.name} session active — prime trading window.`, sess };
+}
+
+// ── Pillar 9: News Safety (5 pts) ─────────────────────────────────────────
+// Blocks trading near high-impact news. When news data unavailable, neutral.
+function checkNewsSafety(ind, cfg) {
+  // If user disabled news filter, always pass (but lower score)
+  if (cfg.news_filter === false) {
+    return { pass: true, score: 70, reason: "News filter disabled — accepting event risk." };
+  }
+  const newsFlag = ind?.high_impact_news ?? ind?.news_high_impact;
+  const newsMins = num(ind?.news_minutes_until ?? ind?.minutes_to_news);
+  const newsBuffer = num(ind?.news_buffer_minutes) ?? (cfg.liq_news_buffer_minutes ?? 10);
+
+  if (newsFlag === true) {
+    return { pass: false, score: 0, reason: `High-impact news detected — professional traders stand aside. No entry.` };
+  }
+  if (newsMins != null && newsMins >= 0 && newsMins < newsBuffer) {
+    return { pass: false, score: 10, reason: `High-impact news in ${Math.round(newsMins)} min (< ${newsBuffer} buffer) — waiting for news to pass.` };
+  }
+  if (newsMins != null && newsMins >= newsBuffer && newsMins < newsBuffer * 3) {
+    return { pass: true, score: 60, reason: `News in ${Math.round(newsMins)} min — outside danger zone but caution.` };
+  }
+  return { pass: true, score: 90, reason: "No high-impact news — safe to trade." };
 }
 
 // ── AI Dynamic SL/TP Engine ───────────────────────────────────────────────
@@ -660,6 +675,7 @@ Deno.serve(async (req) => {
     const ema200 = num(ind?.ema_200 ?? ind?.ema200);
     const atr = num(ind?.atr_14 ?? ind?.atr14);
     const adx = num(ind?.adx);
+    const rsi = num(ind?.rsi ?? ind?.rsi_14);
     const slope = num(ind?.ema_slope ?? ind?.slope);
     const sweep = ind?.liquidity_sweep === true || ind?.sweep === true;
     const maxSpread = cfg.swing_max_spread_points ?? 30;
@@ -686,7 +702,8 @@ Deno.serve(async (req) => {
     const trendDir = p2Trend.direction;
     const p2bPullback = checkPullback(ind, price, trendDir, cfg);
     const p3Liquidity = checkLiquidity(ind, regime);
-    const p4Momentum = checkMomentum(ind, trendDir, cfg);
+    const p4aAdx = checkAdxStrength(ind, cfg);
+    const p4bRsi = checkRsiMomentum(ind, trendDir, cfg);
     const p5Volatility = checkVolatility(ind, price, cfg);
 
     // Preliminary SL for spread check
@@ -705,49 +722,88 @@ Deno.serve(async (req) => {
     });
 
     const p8Session = checkSession(cfg);
+    const p9News = checkNewsSafety(ind, cfg);
 
     const pillars = [
-      { key: "structure", label: "Market Structure", ...p1Structure, icon: "🏗️" },
-      { key: "trend", label: "Trend Alignment", ...p2Trend, icon: "📈" },
-      { key: "pullback", label: "Pullback to EMA 20", ...p2bPullback, icon: "🎯" },
-      { key: "liquidity", label: "Liquidity", ...p3Liquidity, icon: "💧" },
-      { key: "momentum", label: "Momentum (ADX/RSI)", ...p4Momentum, icon: "⚡" },
-      { key: "volatility", label: "Volatility (ATR)", ...p5Volatility, icon: "🌊" },
-      { key: "spread", label: "Spread / Cost", ...p6Spread, icon: "💸" },
-      { key: "risk", label: "Capital Protection", pass: p7Risk.pass, score: p7Risk.score, reason: p7Risk.reasons.join(" "), icon: "🛡️", block: p7Risk.block },
-      { key: "session", label: "Session", ...p8Session, icon: "🕐" },
+      { key: "trend", label: "Trend Direction (20)", ...p2Trend, icon: "📈", weight: 20 },
+      { key: "structure", label: "Market Structure (20)", ...p1Structure, icon: "🏗️", weight: 20 },
+      { key: "adx", label: "ADX Trend Strength (15)", ...p4aAdx, icon: "💪", weight: 15 },
+      { key: "rsi", label: "RSI Momentum (10)", ...p4bRsi, icon: "⚡", weight: 10 },
+      { key: "volatility", label: "ATR Volatility (10)", ...p5Volatility, icon: "🌊", weight: 10 },
+      { key: "zone", label: "S/R & Liquidity Zone (10)", ...p2bPullback, icon: "🎯", weight: 10 },
+      { key: "spread", label: "Spread Filter (5)", ...p6Spread, icon: "💸", weight: 5 },
+      { key: "session", label: "Session Filter (5)", ...p8Session, icon: "🕐", weight: 5 },
+      { key: "news", label: "News Safety (5)", ...p9News, icon: "📰", weight: 5 },
+      { key: "risk", label: "Capital Protection (Gate)", pass: p7Risk.pass, score: p7Risk.score, reason: p7Risk.reasons.join(" "), icon: "🛡️", block: p7Risk.block, weight: 0 },
     ];
 
-    // ── Confluence score ──
-    // Hard pillars (must pass): risk, session, spread, trend direction
-    // Technical pillars (contribute to score): structure, trend, pullback, liquidity, momentum, volatility
-    const hardPass = p7Risk.pass && p8Session.pass && p6Spread.pass && p2Trend.pass;
-    const techPillars = [p1Structure, p2Trend, p2bPullback, p3Liquidity, p4Momentum, p5Volatility];
-    const techScore = Math.round(techPillars.reduce((s, p) => s + p.score, 0) / techPillars.length);
-    const overallScore = hardPass ? Math.round((hardPass ? 0.3 : 0) * 100 + techScore * 0.7) : Math.round(techScore * 0.3);
+    // ── Professional Trade Quality Score (0-100, weighted) ──
+    // Trend 20 + Structure 20 + ADX 15 + RSI 10 + ATR 10 + S/R-Liquidity 10 + Spread 5 + Session 5 + News 5 = 100
+    const weightedEntries = [
+      { w: 20, s: p2Trend.score, pass: p2Trend.pass, key: "trend" },
+      { w: 20, s: p1Structure.score, pass: p1Structure.pass, key: "structure" },
+      { w: 15, s: p4aAdx.score, pass: p4aAdx.pass, key: "adx" },
+      { w: 10, s: p4bRsi.score, pass: p4bRsi.pass, key: "rsi" },
+      { w: 10, s: p5Volatility.score, pass: p5Volatility.pass, key: "volatility" },
+      { w: 10, s: p2bPullback.score, pass: p2bPullback.pass, key: "zone" },
+      { w: 5, s: p6Spread.score, pass: p6Spread.pass, key: "spread" },
+      { w: 5, s: p8Session.score, pass: p8Session.pass, key: "session" },
+      { w: 5, s: p9News.score, pass: p9News.pass, key: "news" },
+    ];
+    const qualityScore = Math.round(weightedEntries.reduce((sum, e) => sum + (e.s / 100) * e.w, 0));
 
-    // ── Final decision ──
-    const minConfluence = cfg.adaptive_min_score ?? 70;
+    // ── Strategy mode thresholds ──
+    // Conservative 85+, Balanced 75+, Aggressive 70+
+    const mode = cfg.trading_mode || "Balanced";
+    let minScore;
+    let modeRiskPct;
+    let modeAdxMin;
+    if (mode === "Conservative") {
+      minScore = cfg.min_score_conservative ?? 85;
+      modeRiskPct = cfg.risk_pct_conservative ?? 0.5;
+      modeAdxMin = cfg.conservative_adx_min ?? 25;
+    } else if (mode === "Aggressive") {
+      minScore = cfg.min_score_aggressive ?? 70;
+      modeRiskPct = cfg.risk_pct_aggressive ?? 2;
+      modeAdxMin = cfg.aggressive_adx_min ?? 20;
+    } else {
+      minScore = cfg.min_score_balanced ?? 75;
+      modeRiskPct = cfg.risk_pct_balanced ?? 1;
+      modeAdxMin = cfg.balanced_adx_min ?? 25;
+    }
+
+    // Conservative mode requires stronger ADX (choppy market rejection)
+    const modeAdxPass = p4aAdx.score >= 0 || (num(ind?.adx) == null) ? true : (num(ind?.adx) ?? 0) >= modeAdxMin;
+
+    // ── Hard gates: must ALL pass to even consider a trade ──
+    const hardPass = p7Risk.pass && p8Session.pass && p6Spread.pass && p9News.pass && p2Trend.pass;
+
     const direction = p2Trend.direction || (regimeDir === "Bullish" ? "BUY" : regimeDir === "Bearish" ? "SELL" : null);
 
     let decision = "NO_TRADE";
     let reason = "";
     let tradeParams = null;
 
+    // Find first failed gate for a clear rejection reason
     if (!hardPass) {
-      // Find the first failed hard pillar
-      const failedHard = pillars.find((p) => p.key === "risk" && !p.pass) || pillars.find((p) => p.key === "session" && !p.pass) || pillars.find((p) => p.key === "spread" && !p.pass) || pillars.find((p) => p.key === "trend" && !p.pass);
+      const failedGate = pillars.find((p) => !p.pass && ["risk", "session", "spread", "news", "trend"].includes(p.key));
       decision = "NO_TRADE";
-      reason = failedHard?.reason || "Capital protection or session gate blocked entry.";
-    } else if (!p4Momentum.pass) {
+      reason = failedGate?.reason || "A hard gate (capital protection / session / spread / news / trend) blocked entry.";
+    } else if (!p4aAdx.pass) {
       decision = "NO_TRADE";
-      reason = p4Momentum.reason;
+      reason = p4aAdx.reason;
+    } else if (!p4bRsi.pass) {
+      decision = "NO_TRADE";
+      reason = p4bRsi.reason;
     } else if (!p2bPullback.pass) {
       decision = "NO_TRADE";
       reason = `No trade — ${p2bPullback.reason}`;
-    } else if (techScore < minConfluence) {
+    } else if (mode === "Conservative" && !p1Structure.pass) {
       decision = "NO_TRADE";
-      reason = `Confluence score ${techScore}/${100} below minimum ${minConfluence} — not enough technical agreement. Waiting for higher-quality setup.`;
+      reason = `Conservative mode requires confirmed market structure — ${p1Structure.reason}`;
+    } else if (qualityScore < minScore) {
+      decision = "NO_TRADE";
+      reason = `Trade Quality Score ${qualityScore}/100 below ${mode} minimum ${minScore}. Professional discipline: waiting for a higher-quality setup.`;
     } else if (!direction) {
       decision = "NO_TRADE";
       reason = "Trend direction unclear — no confident BUY or SELL signal. Staying flat.";
@@ -755,22 +811,22 @@ Deno.serve(async (req) => {
       // All gates pass — ask AI for dynamic SL/TP based on live market structure
       const aiSlTp = await getAiSlTp(ind, regime, regimeDir, cfg);
 
-      // Compute trade parameters with AI-suggested SL multiplier & RR ratio
+      // Compute trade parameters with mode-adjusted risk % and AI SL/TP
       tradeParams = computeTradeParams({
         direction,
         price,
         atr,
         spread,
         balance,
-        cfg,
+        cfg: { ...cfg, risk_percentage: modeRiskPct },
         symbol: cfg.active_pair || "XAUUSD",
         aiSlMult: aiSlTp.sl_mult,
         aiRr: aiSlTp.rr,
       });
       if (tradeParams) {
         decision = "TRADE";
-        const scalpNote = cfg.scalping_mode_enabled ? " [SCALP: EMA9/20+VWAP+RSI7] " : " ";
-        reason = `All pillars aligned${scalpNote}— ${direction} on ${cfg.active_pair}. ADX ${adx?.toFixed(0) ?? "n/a"}≥${cfg.trend_adx_threshold ?? 25}, RSI ${rsi?.toFixed(0) ?? "n/a"}, pullback to EMA 20 confirmed. Confluence ${techScore}/100. AI SL ${aiSlTp.sl_mult}x ATR, TP 1:${aiSlTp.rr} RR. Lot ${tradeParams.lot_size}.`;
+        const scalpNote = cfg.scalping_mode_enabled ? " [SCALP] " : " ";
+        reason = `Quality ${qualityScore}/100 ≥ ${minScore} (${mode})${scalpNote}— ${direction} ${cfg.active_pair}. ADX ${adx?.toFixed(0) ?? "n/a"}, RSI ${rsi?.toFixed(0) ?? "n/a"}, pullback to EMA 20. SL ${aiSlTp.sl_mult}×ATR, TP 1:${aiSlTp.rr} RR, risk ${modeRiskPct}%. Lot ${tradeParams.lot_size}.`;
       } else {
         decision = "NO_TRADE";
         reason = "Could not compute trade parameters — insufficient data for SL/TP/lot.";
@@ -853,7 +909,7 @@ Deno.serve(async (req) => {
       no_grid_after_loss: consecLosses < (cfg.stop_after_losses ?? 2), // No new positions during cooldown
       no_revenge: consecLosses < (cfg.stop_after_losses ?? 2),         // Mandatory cooldown enforced
       no_overtrading: tradesToday < (cfg.swing_max_trades_per_day ?? cfg.max_daily_trades ?? 3),
-      no_random_entries: decision === "TRADE" ? techScore >= minConfluence : true,
+      no_random_entries: decision === "TRADE" ? qualityScore >= minScore : true,
     };
 
     return Response.json({
@@ -861,13 +917,19 @@ Deno.serve(async (req) => {
       connected: true,
       decision,
       reason,
-      score: techScore,
-      min_score: minConfluence,
+      score: qualityScore,
+      min_score: minScore,
+      trading_mode: mode,
       regime,
       regime_dir: regimeDir,
       direction,
       pillars,
       trade: tradeParams,
+      indicators: {
+        ema_20: ema20, ema_50: ema50, ema_200: ema200,
+        adx: adx, rsi: rsi, atr: atr, spread: spread,
+        ema_direction: trendDir,
+      },
       account: {
         balance: Math.round(balance * 100) / 100,
         equity: Math.round(equity * 100) / 100,
@@ -878,7 +940,11 @@ Deno.serve(async (req) => {
         trades_today: tradesToday,
         open_positions: positions.length,
         max_concurrent: cfg.max_concurrent_trades ?? 2,
+        daily_loss_limit: cfg.swing_max_daily_loss_pct ?? 40,
+        daily_profit_target: cfg.daily_profit_target_amount ?? 200,
       },
+      session: p8Session.sess,
+      news_safe: p9News.pass,
       safety,
       recovery: recoveryAction,
       robot_running: robotRunning,
