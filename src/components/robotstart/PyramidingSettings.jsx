@@ -41,6 +41,19 @@ export default function PyramidingSettings({ form, set, Field, NumberInput, Sele
           <Field label="Trailing Distance ($)">
             <NumberInput value={form.trailing_tp_distance_usd} onChange={set("trailing_tp_distance_usd")} min={0.1} step={0.1} />
           </Field>
+          <Field label="Progressive Tightening">
+            <Toggle value={form.trailing_tp_tighten_enabled} onChange={set("trailing_tp_tighten_enabled")} />
+          </Field>
+          {form.trailing_tp_tighten_enabled && (
+            <>
+              <Field label="Min Trailing Distance ($)">
+                <NumberInput value={form.trailing_tp_min_distance_usd} onChange={set("trailing_tp_min_distance_usd")} min={0.1} step={0.1} />
+              </Field>
+              <p className="text-[9px] text-white/25 leading-relaxed">
+                Distance shrinks from ${form.trailing_tp_distance_usd} to ${form.trailing_tp_min_distance_usd} as profit grows — locks in more of the trend.
+              </p>
+            </>
+          )}
         </>
       )}
       <p className="text-[9px] text-white/25 leading-relaxed">

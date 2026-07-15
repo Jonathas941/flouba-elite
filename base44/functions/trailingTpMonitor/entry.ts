@@ -278,10 +278,23 @@ Deno.serve(async (req) => {
         const floatingPnl = totalFloating !== 0 ? totalFloating : (equity - balance);
 
         if (floatingPnl >= triggerUsd) {
+          // ── PROGRESSIVE TIGHTENING: trail closer as profit grows to capture more ──
+          // Distance shrinks from tpDistance (at trigger) down to minDistance as
+          // profit doubles beyond the trigger, locking in more of the trend.
+          let effectiveDistance = tpDistance;
+          const tightenEnabled = config.trailing_tp_tighten_enabled !== false;
+          if (tightenEnabled) {
+            const minDistance = config.trailing_tp_min_distance_usd ?? 0.3;
+            const profitBeyondTrigger = floatingPnl - triggerUsd;
+            const tightenRange = triggerUsd * 2; // fully tight at 3× trigger profit
+            const tightenPct = Math.min(1, Math.max(0, profitBeyondTrigger / tightenRange));
+            effectiveDistance = tpDistance - (tpDistance - minDistance) * tightenPct;
+          }
+
           // ── DYNAMIC MODE: trail TP ahead of current price ──
           const newGlobalTP = isBuy
-            ? Math.round((currentPrice + tpDistance) * 100) / 100
-            : Math.round((currentPrice - tpDistance) * 100) / 100;
+            ? Math.round((currentPrice + effectiveDistance) * 100) / 100
+            : Math.round((currentPrice - effectiveDistance) * 100) / 100;
 
           // Find positions whose current TP is worse than the new global TP
           const positionsToModify = activePositions.filter(p => {
@@ -324,11 +337,13 @@ Deno.serve(async (req) => {
               trigger: triggerUsd,
               current_price: currentPrice,
               new_global_tp: newGlobalTP,
-              tp_distance: tpDistance,
+              tp_distance: effectiveDistance,
+              tp_distance_base: tpDistance,
+              tighten_enabled: tightenEnabled,
               positions_modified: modifications.length,
               modifications,
             };
-            actions.push(`TRAILING TP (DYNAMIC): set global TP=${newGlobalTP} on ${modifications.length} positions (floating P/L $${Math.round(floatingPnl * 100) / 100})`);
+            actions.push(`TRAILING TP (DYNAMIC): set global TP=${newGlobalTP} on ${modifications.length} positions (floating P/L $${Math.round(floatingPnl * 100) / 100}, distance $${Math.round(effectiveDistance * 100) / 100})`);
           } else {
             actions.push(`TRAILING TP (DYNAMIC): all positions already at or beyond TP=${newGlobalTP}`);
           }

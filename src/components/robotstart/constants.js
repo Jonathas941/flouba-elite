@@ -326,6 +326,8 @@ export const DEFAULT = {
   trailing_tp_enabled: true,
   trailing_trigger_usd: 2.0,
   trailing_tp_distance_usd: 1.5,
+  trailing_tp_tighten_enabled: true,
+  trailing_tp_min_distance_usd: 0.3,
   // Win Compounding — multiply lot on every confirmed win
   win_compounding_enabled: false,
   win_compounding_multiplier: 1.5,

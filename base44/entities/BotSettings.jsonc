@@ -1469,6 +1469,16 @@
       "default": 1.5,
       "description": "Trailing TP Monitor \u2014 distance in USD to set the new TP ahead of the current price."
     },
+    "trailing_tp_tighten_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Trailing TP Monitor \u2014 when enabled, the trailing distance progressively tightens as profit grows, capturing more of the trend."
+    },
+    "trailing_tp_min_distance_usd": {
+      "type": "number",
+      "default": 0.3,
+      "description": "Trailing TP Monitor \u2014 the tightest (minimum) trailing distance reached at peak profit."
+    },
     "pyramiding_enabled": {
       "type": "boolean",
       "default": false,
