@@ -17,6 +17,7 @@ import OrderflowOpeningRangeSettings from "@/components/robotstart/OrderflowOpen
 import GoldMorningRangeSettings from "@/components/robotstart/GoldMorningRangeSettings";
 import GoldDailyBreakoutSettings from "@/components/robotstart/GoldDailyBreakoutSettings";
 import PyramidingSettings from "@/components/robotstart/PyramidingSettings";
+import WinCompoundingSettings from "@/components/robotstart/WinCompoundingSettings";
 import CollapsibleSection from "@/components/robotstart/CollapsibleSection";
 import { Field, NumberInput, SelectInput, Toggle } from "@/components/robotstart/FormControls";
 import {
@@ -103,11 +104,6 @@ export default function RobotStartModal({ open, onClose, onStart }) {
     setError(null);
     try {
       // If dynamic (ATR-based) SL is on, resolve the fixed pip value to send to the robot now
-      const finalForm = {
-        ...form,
-        ...(form.dynamic_stop_loss && dynamicSlPoints ? { stop_loss: dynamicSlPoints } : {}),
-      };
-
       // Persist common settings back to BotSettings
       const records = await base44.entities.BotSettings.list();
       const patch = buildPatch(form);
@@ -116,6 +112,18 @@ export default function RobotStartModal({ open, onClose, onStart }) {
       } else {
         await base44.entities.BotSettings.create(patch);
       }
+
+      // If win compounding is enabled, use the tracked compounded lot from BotSettings
+      const compoundedLot = form.win_compounding_enabled && records?.[0]?.win_compounding_current_lot
+        ? records[0].win_compounding_current_lot
+        : null;
+
+      const finalForm = {
+        ...form,
+        ...(form.dynamic_stop_loss && dynamicSlPoints ? { stop_loss: dynamicSlPoints } : {}),
+        ...(compoundedLot ? { lot_size: compoundedLot } : {}),
+      };
+
       setSaving(false);
       await onStart(finalForm);
     } catch (e) {
@@ -253,6 +261,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   Field={Field}
                   NumberInput={NumberInput}
                   SelectInput={SelectInput}
+                  Toggle={Toggle}
+                />
+              </CollapsibleSection>
+
+              <CollapsibleSection title="🚀 Win Compounding" defaultOpen={false}>
+                <WinCompoundingSettings
+                  form={form}
+                  set={set}
+                  Field={Field}
+                  NumberInput={NumberInput}
                   Toggle={Toggle}
                 />
               </CollapsibleSection>

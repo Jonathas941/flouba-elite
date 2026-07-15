@@ -306,7 +306,9 @@ Deno.serve(async (req) => {
             symbol,
             trading_mode: config.trading_mode || "Balanced",
             bot_mentality: config.bot_mentality || "Premium",
-            lot_size: config.lot_size || 0.01,
+            lot_size: config.win_compounding_enabled
+              ? (config.win_compounding_current_lot || config.win_compounding_base_lot || config.lot_size || 0.01)
+              : (config.lot_size || 0.01),
             risk_percentage: config.risk_percentage || 1,
             stop_loss: config.dynamic_stop_loss ? 0 : (config.stop_loss || 50),
             take_profit: config.take_profit || 100,

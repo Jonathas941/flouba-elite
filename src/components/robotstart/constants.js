@@ -326,6 +326,12 @@ export const DEFAULT = {
   trailing_tp_enabled: true,
   trailing_trigger_usd: 2.0,
   trailing_tp_distance_usd: 1.5,
+  // Win Compounding — multiply lot on every confirmed win
+  win_compounding_enabled: false,
+  win_compounding_multiplier: 1.5,
+  win_compounding_base_lot: 0.01,
+  win_compounding_max_lot: 0.5,
+  win_compounding_reset_on_loss: true,
 };
 
 // Keys that live only in the form UI — never loaded from or saved to BotSettings.

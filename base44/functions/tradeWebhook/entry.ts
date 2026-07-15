@@ -118,6 +118,38 @@ Deno.serve(async (req) => {
     if (newTrades.length) {
       await base44.asServiceRole.entities.Trade.bulkCreate(newTrades);
       created = newTrades.length;
+
+      // ── Win Compounding: escalate lot on each confirmed win, reset on loss ──
+      const botSettings = await base44.asServiceRole.entities.BotSettings.filter(
+        { created_by_id: user.id }, "-created_date", 1
+      ).catch(() => []);
+      const cfg = botSettings[0];
+      if (cfg?.win_compounding_enabled) {
+        const multiplier = cfg.win_compounding_multiplier ?? 1.5;
+        const baseLot = cfg.win_compounding_base_lot ?? 0.01;
+        const maxLot = cfg.win_compounding_max_lot ?? 0.5;
+        const resetOnLoss = cfg.win_compounding_reset_on_loss !== false;
+        let currentLot = cfg.win_compounding_current_lot ?? baseLot;
+        let consecutiveWins = cfg.win_compounding_consecutive_wins ?? 0;
+
+        for (const t of newTrades) {
+          const profit = Number(t.profit ?? 0);
+          if (profit > 0) {
+            // Confirmed win — multiply the lot for the next trade
+            consecutiveWins += 1;
+            currentLot = Math.min(currentLot * multiplier, maxLot);
+          } else if (profit < 0 && resetOnLoss) {
+            // Loss — reset to base lot
+            consecutiveWins = 0;
+            currentLot = baseLot;
+          }
+        }
+
+        await base44.asServiceRole.entities.BotSettings.update(cfg.id, {
+          win_compounding_current_lot: Math.round(currentLot * 10000) / 10000,
+          win_compounding_consecutive_wins: consecutiveWins,
+        }).catch(() => {});
+      }
     }
 
     return Response.json({

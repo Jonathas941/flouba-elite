@@ -1508,6 +1508,41 @@
       "type": "number",
       "default": 200,
       "description": "Multi-Level Pyramiding \u2014 EMA period on the HTF timeframe used to confirm trend direction."
+    },
+    "win_compounding_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Win Compounding \u2014 when enabled, every confirmed winning trade multiplies the lot size for the next trade to grow the account. Resets to base lot on any loss."
+    },
+    "win_compounding_multiplier": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Win Compounding \u2014 lot multiplier applied after each confirmed winning trade."
+    },
+    "win_compounding_base_lot": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Win Compounding \u2014 starting/reset lot size."
+    },
+    "win_compounding_current_lot": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Win Compounding \u2014 current compounded lot size (escalates after each win, resets on loss)."
+    },
+    "win_compounding_consecutive_wins": {
+      "type": "number",
+      "default": 0,
+      "description": "Win Compounding \u2014 current streak of consecutive winning trades."
+    },
+    "win_compounding_max_lot": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Win Compounding \u2014 hard cap on the compounded lot size, never exceeded."
+    },
+    "win_compounding_reset_on_loss": {
+      "type": "boolean",
+      "default": true,
+      "description": "Win Compounding \u2014 reset the lot to base on any losing trade."
     }
   },
   "required": [],
