@@ -398,11 +398,24 @@ Deno.serve(async (req) => {
 
     const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
     const base44 = createClientFromRequest(headersReq);
-    const user = await base44.auth.me();
+    // Support target_user_id for cron/admin invocation (auto-execute mode)
+    let userId = body.target_user_id || null;
+    let user = null;
+
+    if (userId) {
+      const cronSecret = Deno.env.get("CRON_SECRET");
+      const hasCron = cronSecret && (req.headers.get("X-Cron-Secret") === cronSecret || body.cron_secret === cronSecret);
+      const isAuth = await base44.auth.isAuthenticated().catch(() => false);
+      if (!hasCron && !isAuth) return Response.json({ error: "Unauthorized" }, { status: 401 });
+      user = await base44.asServiceRole.entities.User.get(userId).catch(() => null);
+    } else {
+      user = await base44.auth.me();
+      if (user) userId = user.id;
+    }
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Load user's BotSettings
-    const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id }, "-created_date", 1);
+    // Load user's BotSettings (service role works for both user and cron modes)
+    const settings = await base44.asServiceRole.entities.BotSettings.filter({ created_by_id: userId }, "-created_date", 1);
     const cfg = settings?.[0];
     if (!cfg?.mt5_account) {
       return Response.json({
@@ -435,7 +448,7 @@ Deno.serve(async (req) => {
         const updateData = { mt5_api_key: apiKey };
         if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
         if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
-        await base44.auth.updateMe(updateData);
+        await base44.asServiceRole.entities.User.update(userId, updateData);
         bridgeToken = provisionJson.user_token || null;
       }
       if (!bridgeToken) {
@@ -543,8 +556,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const closedTrades = await base44.entities.Trade.filter(
-      { created_by_id: user.id, status: "Closed" }, "-closed_at", 50
+    const closedTrades = await base44.asServiceRole.entities.Trade.filter(
+      { created_by_id: userId, status: "Closed" }, "-closed_at", 50
     ).catch(() => []);
 
     const todayKey = nyDateKey(new Date());

@@ -18,6 +18,7 @@ import GoldMorningRangeSettings from "@/components/robotstart/GoldMorningRangeSe
 import GoldDailyBreakoutSettings from "@/components/robotstart/GoldDailyBreakoutSettings";
 import PyramidingSettings from "@/components/robotstart/PyramidingSettings";
 import WinCompoundingSettings from "@/components/robotstart/WinCompoundingSettings";
+import AiAutoExecuteSettings from "@/components/robotstart/AiAutoExecuteSettings";
 import CollapsibleSection from "@/components/robotstart/CollapsibleSection";
 import { Field, NumberInput, SelectInput, Toggle } from "@/components/robotstart/FormControls";
 import {
@@ -267,6 +268,16 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <CollapsibleSection title="🚀 Win Compounding" defaultOpen={false}>
                 <WinCompoundingSettings
+                  form={form}
+                  set={set}
+                  Field={Field}
+                  NumberInput={NumberInput}
+                  Toggle={Toggle}
+                />
+              </CollapsibleSection>
+
+              <CollapsibleSection title="🤖 AI Auto-Execute" defaultOpen={false} accent="green">
+                <AiAutoExecuteSettings
                   form={form}
                   set={set}
                   Field={Field}

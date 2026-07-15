@@ -8,6 +8,7 @@ export default function CollapsibleSection({ title, defaultOpen = false, accent 
     accent === "red" ? "text-red-400"
     : accent === "blue" ? "text-blue-400"
     : accent === "purple" ? "text-purple-400"
+    : accent === "green" ? "text-[#00FF41]"
     : "text-white/45";
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">

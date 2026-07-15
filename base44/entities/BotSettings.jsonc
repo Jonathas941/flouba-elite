@@ -1553,6 +1553,16 @@
       "type": "boolean",
       "default": true,
       "description": "Win Compounding \u2014 reset the lot to base on any losing trade."
+    },
+    "ai_auto_execute_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "AI Auto-Execute \u2014 when enabled, the robot automatically places a trade whenever the AI Trade Decision Engine produces a TRADE signal across all strategies. Runs on a scheduled check."
+    },
+    "ai_auto_execute_min_score": {
+      "type": "number",
+      "default": 70,
+      "description": "AI Auto-Execute \u2014 minimum confluence score (0-100) required for auto-execution."
     }
   },
   "required": [],

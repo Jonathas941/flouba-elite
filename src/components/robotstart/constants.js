@@ -334,6 +334,9 @@ export const DEFAULT = {
   win_compounding_base_lot: 0.01,
   win_compounding_max_lot: 0.5,
   win_compounding_reset_on_loss: true,
+  // AI Auto-Execute — robot auto-trades on AI signal across all strategies
+  ai_auto_execute_enabled: false,
+  ai_auto_execute_min_score: 70,
 };
 
 // Keys that live only in the form UI — never loaded from or saved to BotSettings.
