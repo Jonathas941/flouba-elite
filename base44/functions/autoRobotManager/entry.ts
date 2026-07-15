@@ -301,22 +301,27 @@ Deno.serve(async (req) => {
 
         if (inStartWindow && !sessionInfo?.trading_blocked) {
           const symbol = config.active_pair || "XAUUSD";
+
+          // ── Pass the user's FULL saved configuration — no hardcoded defaults ──
+          // Every setting the user configured in the Start modal is sent to the
+          // robot so it trades with their exact setup (lot, pyramiding, trailing
+          // TP, win compounding, strategy params, risk limits — everything).
+          const {
+            id: _id, created_date: _cd, updated_date: _ud, created_by_id: _cb,
+            mt5_account: _ma, mt5_password: _mp, mt5_server: _ms, broker_name: _bn,
+            robot_version: _rv, balance: _bal, equity: _eq, margin: _mg,
+            free_margin: _fm, profit_today: _pt, daily_drawdown: _dd,
+            win_rate: _wr, total_trades: _tt, ea_sent: _es, robot_status: _rs,
+            connection_status: _cs, active_pair: _ap, ...userConfig
+          } = config;
+
           const startBody = {
-            strategy: config.adaptive_enabled ? "Auto (AI Select)" : (config.adaptive_active_strategy || "Momentum Scalping"),
+            ...userConfig,
             symbol,
-            trading_mode: config.trading_mode || "Balanced",
-            bot_mentality: config.bot_mentality || "Premium",
+            strategy: config.adaptive_enabled ? "Auto (AI Select)" : (config.adaptive_active_strategy || "Momentum Scalping"),
             lot_size: config.win_compounding_enabled
-              ? (config.win_compounding_current_lot || config.win_compounding_base_lot || config.lot_size || 0.01)
-              : (config.lot_size || 0.01),
-            risk_percentage: config.risk_percentage || 1,
-            stop_loss: config.dynamic_stop_loss ? 0 : (config.stop_loss || 50),
-            take_profit: config.take_profit || 100,
-            max_concurrent_trades: config.max_concurrent_trades || 2,
-            trade_direction: config.trade_direction || "both",
-            daily_loss_limit: config.daily_loss_limit || 50,
-            stop_after_losses: config.stop_after_losses || 2,
-            lot_multiplier: config.lot_multiplier || 1,
+              ? (config.win_compounding_current_lot || config.win_compounding_base_lot || config.lot_size)
+              : config.lot_size,
           };
 
           // Multi-pair: auto-select best pairs by spread and pass symbols array
