@@ -339,6 +339,24 @@ export const DEFAULT = {
   ai_auto_execute_min_score: 70,
 };
 
+// Signal Assistant settings — separate entity (SignalAssistantSettings)
+export const SIGNAL_ASSISTANT_DEFAULT = {
+  execution_mode: "signal_only",
+  show_signals_on_chart: true,
+  auto_trading_enabled: false,
+  manual_execution_enabled: true,
+  virtual_trigger_mode: true,
+  broker_pending_order_mode: false,
+  draw_entry_sl_tp_lines: true,
+  draw_direction_arrows: true,
+  show_expiration_timer: true,
+  cancel_expired_signals: true,
+  signal_expiration_minutes: 30,
+  magic_number: 20260001,
+  trade_comment: "Flouba Gold HFT",
+  min_confidence_score: 70,
+};
+
 // Keys that live only in the form UI — never loaded from or saved to BotSettings.
 // strategy = resolved by caller before onStart; dynamic_stop_loss / atr_sl_multiplier / hft_* = form-only state.
 export const FORM_ONLY_KEYS = new Set([

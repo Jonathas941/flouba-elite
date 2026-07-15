@@ -19,11 +19,12 @@ import GoldDailyBreakoutSettings from "@/components/robotstart/GoldDailyBreakout
 import PyramidingSettings from "@/components/robotstart/PyramidingSettings";
 import WinCompoundingSettings from "@/components/robotstart/WinCompoundingSettings";
 import AiAutoExecuteSettings from "@/components/robotstart/AiAutoExecuteSettings";
+import SignalAssistantSettings from "@/components/robotstart/SignalAssistantSettings";
 import CollapsibleSection from "@/components/robotstart/CollapsibleSection";
 import { Field, NumberInput, SelectInput, Toggle } from "@/components/robotstart/FormControls";
 import {
   STRATEGIES, PAIRS, MODES, MENTALITIES, MODE_PRESETS, DEFAULT,
-  FORM_ONLY_KEYS, LOCKED_ON,
+  FORM_ONLY_KEYS, LOCKED_ON, SIGNAL_ASSISTANT_DEFAULT,
 } from "@/components/robotstart/constants";
 
 const strategyFlags = (s) => ({
@@ -67,6 +68,7 @@ function buildPatch(form) {
 
 export default function RobotStartModal({ open, onClose, onStart }) {
   const [form, setForm] = useState({ ...DEFAULT });
+  const [saForm, setSaForm] = useState({ ...SIGNAL_ASSISTANT_DEFAULT });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -78,6 +80,17 @@ export default function RobotStartModal({ open, onClose, onStart }) {
     base44.entities.BotSettings.list().then((records) => {
       if (!records?.length) return;
       setForm((prev) => mergeSavedSettings(prev, records[0]));
+    }).catch(() => {});
+    // Load SignalAssistantSettings (separate entity)
+    base44.entities.SignalAssistantSettings.list().then((records) => {
+      if (!records?.length) return;
+      setSaForm((prev) => {
+        const merged = { ...prev };
+        for (const key of Object.keys(SIGNAL_ASSISTANT_DEFAULT)) {
+          if (records[0][key] != null) merged[key] = records[0][key];
+        }
+        return merged;
+      });
     }).catch(() => {});
   }, [open]);
 
@@ -93,6 +106,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
   const dynamicSlPoints = atrPreview ? Math.round(atrPreview * form.atr_sl_multiplier * 10) : null;
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const setSa = (key) => (val) => setSaForm((f) => ({ ...f, [key]: val }));
 
   // Aggressive/Conservative mode auto-scales lot size and max concurrent trades
   const setTradingMode = (mode) => setForm((f) => ({ ...f, trading_mode: mode, ...MODE_PRESETS[mode] }));
@@ -112,6 +126,14 @@ export default function RobotStartModal({ open, onClose, onStart }) {
         await base44.entities.BotSettings.update(records[0].id, patch);
       } else {
         await base44.entities.BotSettings.create(patch);
+      }
+
+      // Persist SignalAssistantSettings (separate entity)
+      const saRecords = await base44.entities.SignalAssistantSettings.list();
+      if (saRecords?.length) {
+        await base44.entities.SignalAssistantSettings.update(saRecords[0].id, saForm);
+      } else {
+        await base44.entities.SignalAssistantSettings.create(saForm);
       }
 
       // If win compounding is enabled, use the tracked compounded lot from BotSettings
@@ -282,6 +304,17 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   set={set}
                   Field={Field}
                   NumberInput={NumberInput}
+                  Toggle={Toggle}
+                />
+              </CollapsibleSection>
+
+              <CollapsibleSection title="📡 Signal Assistant" defaultOpen={false} accent="gold">
+                <SignalAssistantSettings
+                  saForm={saForm}
+                  setSa={setSa}
+                  Field={Field}
+                  NumberInput={NumberInput}
+                  SelectInput={SelectInput}
                   Toggle={Toggle}
                 />
               </CollapsibleSection>

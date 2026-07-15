@@ -16,6 +16,7 @@ import HftModeButton from "@/components/dashboard/HftModeButton";
 import HolographicHero from "@/components/dashboard/hud/HolographicHero";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import DynamicDailyTargetPanel from "@/components/dashboard/DynamicDailyTargetPanel";
+import SignalAssistantPanel from "@/components/dashboard/SignalAssistantPanel";
 import EmaIndicatorPanel from "@/components/dashboard/EmaIndicatorPanel";
 import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
@@ -389,6 +390,9 @@ export default function Home() {
 
         {/* HFT MODE — bypasses all rules, scalps any profit, compounds lots on wins */}
         <HftModeButton settings={botSettings} onUpdate={(s) => setBotSettings(s)} onAutoStart={handleDangerAutoStart} />
+
+        {/* SIGNAL ASSISTANT — professional signal display with 3 execution modes */}
+        <SignalAssistantPanel connected={connected} />
 
         {/* DYNAMIC DAILY TARGET — tiered profit targets with progressive risk reduction */}
         <DynamicDailyTargetPanel />

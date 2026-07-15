@@ -1,0 +1,173 @@
+{
+  "name": "FloubaSignal",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading symbol (e.g. XAUUSD)."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "BUY",
+        "SELL"
+      ]
+    },
+    "entry_price": {
+      "type": "number",
+      "description": "Calculated entry price for the signal."
+    },
+    "stop_loss": {
+      "type": "number"
+    },
+    "take_profit": {
+      "type": "number"
+    },
+    "lot_size": {
+      "type": "number"
+    },
+    "risk_percentage": {
+      "type": "number",
+      "description": "Risk per trade as a percentage of balance."
+    },
+    "confidence_score": {
+      "type": "number",
+      "description": "AI confluence score (0-100)."
+    },
+    "signal_reason": {
+      "type": "string",
+      "description": "Human-readable reason the signal was generated."
+    },
+    "market_structure_reason": {
+      "type": "string",
+      "description": "Market structure context (BOS, CHOCH, trend, regime)."
+    },
+    "expiration_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the signal expires if not triggered."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "WAITING_FOR_ENTRY",
+        "CONFIRMED",
+        "EXECUTED",
+        "EXPIRED",
+        "CANCELLED"
+      ],
+      "default": "WAITING_FOR_ENTRY"
+    },
+    "entry_style": {
+      "type": "string",
+      "enum": [
+        "virtual_trigger",
+        "broker_pending"
+      ],
+      "default": "virtual_trigger"
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": [
+        "signal_only",
+        "semi_auto",
+        "full_auto"
+      ],
+      "default": "signal_only"
+    },
+    "strategy_name": {
+      "type": "string",
+      "description": "AI-selected best strategy for this signal."
+    },
+    "magic_number": {
+      "type": "number",
+      "default": 20260001
+    },
+    "comment": {
+      "type": "string",
+      "default": "Flouba Gold HFT"
+    },
+    "ticket_id": {
+      "type": "string",
+      "description": "MT5 ticket number once executed."
+    },
+    "executed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cancelled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expired_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "8-pillar analysis breakdown from the Trade Decision Engine."
+    },
+    "regime": {
+      "type": "string",
+      "description": "Detected market regime at signal time."
+    },
+    "risk_reward": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "symbol",
+    "direction"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
