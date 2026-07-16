@@ -108,6 +108,15 @@ Deno.serve(async (req) => {
       params.symbol = base;
     }
 
+    // ── Ensure the EA receives the lot size under both field names ──
+    // Some EA builds read `lot_size`, others read `volume`. Send both so the
+    // user's configured lot is always respected regardless of the EA version.
+    if (params.lot_size != null && params.volume == null) {
+      params.volume = params.lot_size;
+    } else if (params.volume != null && params.lot_size == null) {
+      params.lot_size = params.volume;
+    }
+
     // Multi-pair: strip suffixes from the symbols array and pass through to the EA
     if (Array.isArray(params.symbols)) {
       let commonSuffix = "";
