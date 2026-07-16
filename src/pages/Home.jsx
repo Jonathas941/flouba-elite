@@ -52,6 +52,9 @@ export default function Home() {
   const touchStartY = useRef(0);
   const [pullY, setPullY] = useState(0);
 
+  const disconnectCountRef = useRef(0);
+  const reconnectingRef = useRef(false);
+
   const loadFast = useCallback(async () => {
     try {
       const [acctRes, posRes, robotRes] = await Promise.all([
@@ -63,9 +66,17 @@ export default function Home() {
         const a = acctRes.data.account;
         setConnected(a.balance != null);
         setAccount(a);
+        disconnectCountRef.current = 0;
       } else {
         setConnected(false);
         setAccount(null);
+        disconnectCountRef.current += 1;
+        // Auto-reconnect after 2 consecutive failed heartbeats (~16s)
+        if (disconnectCountRef.current >= 2 && !reconnectingRef.current) {
+          reconnectingRef.current = true;
+          try { await mt5Api.connect(); } catch {}
+          reconnectingRef.current = false;
+        }
       }
       if (posRes?.ok && posRes.data?.positions) {
         setPositions(posRes.data.positions);

@@ -176,7 +176,25 @@ Deno.serve(async (req) => {
       ...(method === "POST" ? { body: JSON.stringify(params) } : {}),
     };
 
-    const res = await fetch(url, fetchOpts);
+    // ── Retry transient failures (502/503/network) up to 2 times ──
+    // The bridge occasionally returns 502 Bad Gateway under load; a quick
+    // retry recovers without surfacing an error to the dashboard.
+    let res = null;
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await fetch(url, fetchOpts);
+        if (res.status !== 502 && res.status !== 503 && res.status !== 504) break;
+        // Transient — wait 400ms then retry
+        await new Promise((r) => setTimeout(r, 400));
+      } catch (e) {
+        lastErr = e;
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+    if (!res) {
+      return Response.json({ ok: false, status: 502, data: null, error: lastErr?.message || "Bridge unreachable after retries" }, { status: 200 });
+    }
     const rawText = await res.text();
     let data;
     try { data = JSON.parse(rawText); } catch { data = { raw: rawText }; }
