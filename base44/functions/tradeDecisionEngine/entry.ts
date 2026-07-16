@@ -461,19 +461,29 @@ function computeTradeParams(args) {
   const tpDistance = slDistance * rr;
   const tpPrice = direction === "BUY" ? price + tpDistance : price - tpDistance;
 
-  // Lot from risk % — NEVER increases after a loss (computed fresh each time)
-  const riskPct = cfg.risk_percentage ?? 1;
-  const riskAmount = balance * (riskPct / 100);
-  // Approximate: SL distance in price units → dollar risk per lot
-  // For XAUUSD: 1 lot = 100 oz, so $1 move = $100. SL distance × 100 = risk per lot
-  // For FX: use tick value approximation
-  const dollarsPerLotPerPrice = symbol === "XAUUSD" ? 100 : (symbol === "NAS100" || symbol === "US30" ? 1 : 10);
-  const riskPerLot = slDistance * dollarsPerLotPerPrice;
-  let lot = riskPerLot > 0 ? riskAmount / riskPerLot : 0.01;
-  lot = Math.max(0.01, Math.round(lot * 100) / 100);
-  // Cap at max concurrent lot
-  const maxLot = cfg.lot_size ?? 0.05;
-  lot = Math.min(lot, maxLot * (cfg.max_concurrent_trades ?? 2));
+  // ── Lot sizing — user's configured lot is the single source of truth ──
+  // Fixed mode (default): use cfg.lot_size directly so the lot the user enters
+  //   in the Start modal is exactly what gets traded.
+  // Auto Risk mode: compute from risk % of balance (still never increases after
+  //   a loss — fresh each call), floored at the broker minimum 0.01.
+  const baseLot = cfg.lot_size ?? 0.01;
+  let lot;
+  if (cfg.lot_size_mode === "Auto Risk") {
+    const riskPct = cfg.risk_percentage ?? 1;
+    const riskAmount = balance * (riskPct / 100);
+    // Approximate: SL distance in price units → dollar risk per lot
+    // XAUUSD: 1 lot = 100 oz → $1 move = $100. Indices: $1 move = $1. FX: ~$10.
+    const dollarsPerLotPerPrice = symbol === "XAUUSD" ? 100 : (symbol === "NAS100" || symbol === "US30" ? 1 : 10);
+    const riskPerLot = slDistance * dollarsPerLotPerPrice;
+    lot = riskPerLot > 0 ? riskAmount / riskPerLot : baseLot;
+    lot = Math.max(0.01, Math.round(lot * 100) / 100);
+  } else {
+    // Fixed — respect the user's entered lot exactly
+    lot = baseLot;
+  }
+  // Safety cap: never exceed baseLot × max concurrent (prevents runaway sizing)
+  const maxLot = baseLot * (cfg.max_concurrent_trades ?? 2);
+  lot = Math.min(lot, maxLot);
 
   return {
     direction,
