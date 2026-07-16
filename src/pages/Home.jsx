@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Play, Square, Bell, ChevronDown, Radar, FileText } from "lucide-react";
+import { Play, Square, Bell, ChevronDown, Radar, FileText, WifiOff } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
@@ -54,6 +54,30 @@ export default function Home() {
 
   const disconnectCountRef = useRef(0);
   const reconnectingRef = useRef(false);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  // ── Auto-reconnect: re-establish the MT5 link and verify it's truly back ──
+  const attemptReconnect = useCallback(async () => {
+    if (reconnectingRef.current) return;
+    reconnectingRef.current = true;
+    setReconnecting(true);
+    try {
+      await mt5Api.connect();
+      // Verify the link is genuinely restored with a fresh account read
+      const verify = await mt5Api.account();
+      if (verify?.ok && verify.data?.account?.balance != null) {
+        disconnectCountRef.current = 0;
+        setConnected(true);
+        setAccount(verify.data.account);
+        toast({ title: "Connection Restored", description: "MT5 link re-established automatically.", duration: 3000 });
+      }
+    } catch {
+      // keep the disconnect counter climbing — next poll retries
+    } finally {
+      reconnectingRef.current = false;
+      setReconnecting(false);
+    }
+  }, [toast]);
 
   const loadFast = useCallback(async () => {
     try {
@@ -72,11 +96,7 @@ export default function Home() {
         setAccount(null);
         disconnectCountRef.current += 1;
         // Auto-reconnect after 2 consecutive failed heartbeats (~16s)
-        if (disconnectCountRef.current >= 2 && !reconnectingRef.current) {
-          reconnectingRef.current = true;
-          try { await mt5Api.connect(); } catch {}
-          reconnectingRef.current = false;
-        }
+        if (disconnectCountRef.current >= 2) await attemptReconnect();
       }
       if (posRes?.ok && posRes.data?.positions) {
         setPositions(posRes.data.positions);
@@ -89,10 +109,14 @@ export default function Home() {
       }
     } catch {
       setConnected(false);
+      setAccount(null);
+      disconnectCountRef.current += 1;
+      // Network-level failure — also attempt auto-reconnect
+      if (disconnectCountRef.current >= 2) await attemptReconnect();
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [attemptReconnect]);
 
   const loadSlow = useCallback(async () => {
     try {
@@ -290,12 +314,14 @@ export default function Home() {
 
   const statusLabel = active
     ? (robotStatus === "Running" ? "ROBOT IS RUNNING" : robotStatus.toUpperCase())
+    : reconnecting ? "RECONNECTING…"
     : connected ? "ROBOT IS PAUSED" : "NOT CONNECTED";
   const statusDesc = active
     ? "AI system is analyzing the market..."
+    : reconnecting ? "Restoring MT5 link automatically…"
     : connected ? "Press START to activate the robot." : "Connect your MT5 account to begin.";
-  const statusColor = active ? "text-[#00FF41]" : connected ? "text-amber-400" : "text-[#FF3131]";
-  const statusDot = active ? "bg-[#00FF41]" : connected ? "bg-amber-400" : "bg-[#FF3131]";
+  const statusColor = active ? "text-[#00FF41]" : (reconnecting || connected) ? "text-amber-400" : "text-[#FF3131]";
+  const statusDot = active ? "bg-[#00FF41]" : (reconnecting || connected) ? "bg-amber-400" : "bg-[#FF3131]";
 
   return (
     <div
@@ -307,6 +333,29 @@ export default function Home() {
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50" style={{ opacity: pullY / 60 }}>
           <div className={`w-6 h-6 border-2 border-red-500/40 border-t-red-500 rounded-full ${refreshing ? "animate-spin" : ""}`} />
         </div>
+      )}
+
+      {reconnecting && (
+        <motion.div
+          className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[60] px-4 pt-2"
+          initial={{ y: -60, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -60, opacity: 0 }}
+        >
+          <div className="rounded-xl flex items-center justify-center gap-2 py-2"
+            style={{ background: "rgba(255,204,66,0.15)", border: "1px solid rgba(255,204,66,0.45)", backdropFilter: "blur(12px)" }}>
+            <motion.span className="w-2 h-2 rounded-full bg-amber-400"
+              animate={{ opacity: [1, 0.2, 1], scale: [1, 1.4, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+              style={{ boxShadow: "0 0 10px rgba(255,204,66,0.7)" }}
+            />
+            <WifiOff className="w-3.5 h-3.5 text-amber-400" />
+            <span className="font-heading font-black text-[11px] tracking-[0.25em] text-amber-400"
+              style={{ textShadow: "0 0 12px rgba(255,204,66,0.5)" }}>
+              RECONNECTING MT5…
+            </span>
+          </div>
+        </motion.div>
       )}
 
       {dangerMode && (
