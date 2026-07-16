@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Play, Square, Bell, ChevronDown, Radar, FileText, WifiOff, BookOpen } from "lucide-react";
+import { Play, Square, Bell, ChevronDown, Radar, FileText, WifiOff, BookOpen, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
@@ -288,6 +288,28 @@ export default function Home() {
   };
 
   const [downloadingDocs, setDownloadingDocs] = useState(false);
+  const [downloadingExport, setDownloadingExport] = useState(false);
+
+  const handleDownloadExport = async () => {
+    setDownloadingExport(true);
+    try {
+      const response = await base44.functions.fetch("/exportCodebase");
+      if (!response.ok) throw new Error("Export failed");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "FloubaElite-Codebase-Export.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Codebase Exported", description: "Full replication bundle downloaded.", duration: 3000 });
+    } catch (e) {
+      toast({ title: "Export Failed", description: e.message || "Could not generate export.", variant: "destructive", duration: 4000 });
+    }
+    setDownloadingExport(false);
+  };
   const handleDownloadDocs = async () => {
     setDownloadingDocs(true);
     try {
@@ -561,6 +583,23 @@ export default function Home() {
             <p className="text-[9px] font-mono text-white/35">{downloadingDocs ? "Generating PDF…" : "Full reference — functions, strategies, setups"}</p>
           </div>
           <ChevronDown className="w-4 h-4 text-[#00FF41]/40 rotate-[-90deg]" />
+        </button>
+
+        {/* Codebase Export — full replication bundle (schemas + manifest + guide) */}
+        <button onClick={handleDownloadExport} disabled={downloadingExport}
+          className="w-full hud-clip flex items-center gap-3 px-4 py-3.5 transition-all active:scale-[0.98] disabled:opacity-60"
+          style={{ background: "rgba(0,170,255,0.04)", border: "1px solid rgba(0,170,255,0.18)", backdropFilter: "blur(12px)" }}>
+          <div className="w-10 h-10 hud-clip-sm flex items-center justify-center shrink-0"
+            style={{ background: "rgba(0,170,255,0.08)", border: "1px solid rgba(0,170,255,0.25)" }}>
+            {downloadingExport
+              ? <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+              : <Download className="w-5 h-5" style={{ color: "#0aa" }} />}
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-mono font-bold text-sm text-white tracking-[0.1em]">CODE EXPORT</p>
+            <p className="text-[9px] font-mono text-white/35">{downloadingExport ? "Generating bundle…" : "Full replication bundle — schemas, manifest, deploy guide"}</p>
+          </div>
+          <ChevronDown className="w-4 h-4 text-cyan-400/40 rotate-[-90deg]" />
         </button>
 
         {/* FAQ — frequently asked questions */}
