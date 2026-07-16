@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Play, Square, Bell, ChevronDown, Radar, FileText, WifiOff } from "lucide-react";
+import { Play, Square, Bell, ChevronDown, Radar, FileText, WifiOff, BookOpen } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
@@ -286,6 +286,28 @@ export default function Home() {
     logNotification({ type: "bot_action", title: "Robot Paused", message: "Trading robot was paused by user.", category: "info" });
   };
 
+  const [downloadingDocs, setDownloadingDocs] = useState(false);
+  const handleDownloadDocs = async () => {
+    setDownloadingDocs(true);
+    try {
+      const response = await base44.functions.fetch("/generateSystemDocumentation");
+      if (!response.ok) throw new Error("Generation failed");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "FloubaElite-System-Documentation.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Documentation Downloaded", description: "Flouba Elite system reference PDF saved.", duration: 3000 });
+    } catch (e) {
+      toast({ title: "Download Failed", description: e.message || "Could not generate PDF.", variant: "destructive", duration: 4000 });
+    }
+    setDownloadingDocs(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -521,6 +543,23 @@ export default function Home() {
             <p className="text-[9px] font-mono text-white/35">Summary sheet — every win &amp; loss with date &amp; time</p>
           </div>
           <ChevronDown className="w-4 h-4 text-[#FF3131]/40 rotate-[-90deg]" />
+        </button>
+
+        {/* System Documentation — downloadable PDF reference */}
+        <button onClick={handleDownloadDocs} disabled={downloadingDocs}
+          className="w-full hud-clip flex items-center gap-3 px-4 py-3.5 transition-all active:scale-[0.98] disabled:opacity-60"
+          style={{ background: "rgba(0,255,65,0.04)", border: "1px solid rgba(0,255,65,0.18)", backdropFilter: "blur(12px)" }}>
+          <div className="w-10 h-10 hud-clip-sm flex items-center justify-center shrink-0"
+            style={{ background: "rgba(0,255,65,0.08)", border: "1px solid rgba(0,255,65,0.25)" }}>
+            {downloadingDocs
+              ? <div className="w-4 h-4 border-2 border-[#00FF41]/30 border-t-[#00FF41] rounded-full animate-spin" />
+              : <BookOpen className="w-5 h-5" style={{ color: "#00FF41" }} />}
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-mono font-bold text-sm text-white tracking-[0.1em]">SYSTEM DOCS</p>
+            <p className="text-[9px] font-mono text-white/35">{downloadingDocs ? "Generating PDF…" : "Full reference — functions, strategies, setups"}</p>
+          </div>
+          <ChevronDown className="w-4 h-4 text-[#00FF41]/40 rotate-[-90deg]" />
         </button>
       </div>
 
