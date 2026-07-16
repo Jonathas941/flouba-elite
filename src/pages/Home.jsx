@@ -223,7 +223,7 @@ export default function Home() {
       const activeSymbol = launchFormWithTF.symbol || form.symbol;
       const pairsLabel = launchFormWithTF.symbols?.length ? launchFormWithTF.symbols.join(", ") : activeSymbol;
       setActivePair(activeSymbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
-      toast({ title: "Robot Started", description: `${strategy} active on ${pairsLabel}`, duration: 3000 });
+      toast({ title: "Robot Started", description: `${strategy} active on ${pairsLabel} • Lot ${launchFormWithTF.lot_size}`, duration: 3000 });
       logNotification({ type: "bot_action", title: "Robot Started", message: `${strategy} engine launched on ${pairsLabel}.`, category: "success", meta: { strategy, symbol: activeSymbol, symbols: launchFormWithTF.symbols || undefined } });
       setUnreadCount((c) => c + 1);
     } else {
