@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const BASE = "https://dazzling-perception-production-8e53.up.railway.app/api";
+const BRIDGE = (Deno.env.get("FLOUBA_BACKEND_URL") || "").replace(/\/$/, "");
+const B44 = `${BRIDGE}/api/base44`;
 
 function num(v) { return typeof v === "number" ? v : (v == null ? null : Number(v)); }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -539,85 +540,82 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Get bridge JWT ──
-    let bridgeToken = user.flouba_token;
-    if (!bridgeToken) {
-      let apiKey = user.mt5_api_key;
-      if (!apiKey) {
-        const provisionSecret = Deno.env.get("PROVISION_SECRET");
-        if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
-        const provisionRes = await fetch(`${BASE}/provision/user`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
-        });
-        const provisionJson = await provisionRes.json().catch(() => ({}));
-        if (!provisionJson?.success || !provisionJson?.api_key) {
-          return Response.json({ ok: false, error: "Failed to provision bridge account" });
-        }
-        apiKey = provisionJson.api_key;
-        const updateData = { mt5_api_key: apiKey };
-        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
-        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
-        await base44.asServiceRole.entities.User.update(userId, updateData);
-        bridgeToken = provisionJson.user_token || null;
-      }
-      if (!bridgeToken) {
-        const tokenRes = await fetch(`${BASE}/auth/token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: apiKey }),
-        });
-        const tokenJson = await tokenRes.json().catch(() => ({}));
-        bridgeToken = tokenJson?.token || null;
-      }
-    }
-    if (!bridgeToken) return Response.json({ ok: false, error: "Bridge auth failed" });
+    // ── Bridge auth (shared secret) + robot identity ──
+    // The new command-queue bridge uses ONE shared x-api-key (FLOUBA_BASE44_API_KEY)
+    // for all Base44 calls; per-user identity is the robotId = MT5 account number.
+    if (!BRIDGE) return Response.json({ ok: false, error: "FLOUBA_BACKEND_URL not set" });
+    const robotId = String(cfg.mt5_account);
+    const robotPath = `${B44}/robots/${encodeURIComponent(robotId)}`;
+    const symbol = cfg.active_pair || "XAUUSD";
+    const b44Headers = () => ({
+      "x-api-key": Deno.env.get("FLOUBA_BASE44_API_KEY") || "",
+      "x-request-id": crypto.randomUUID(),
+      "x-timestamp": new Date().toISOString(),
+      "Content-Type": "application/json",
+    });
 
-    const authHeaders = buildHeaders(bridgeToken, cfg);
-
-    // ── Fetch ALL live data in parallel ──
-    const [scanRes, quotesRes, posRes, acctRes, robotRes] = await Promise.all([
-      fetch(`${BASE}/scanner/status`, { headers: authHeaders }).catch(() => null),
-      fetch(`${BASE}/symbols`, { headers: authHeaders }).catch(() => null),
-      fetch(`${BASE}/positions`, { headers: authHeaders }).catch(() => null),
-      fetch(`${BASE}/account`, { headers: authHeaders }).catch(() => null),
-      fetch(`${BASE}/robot/status`, { headers: authHeaders }).catch(() => null),
+    // ── Fetch synced snapshot + EA-published indicators in parallel ──
+    const [indRes, acctRes, posRes, statusRes] = await Promise.all([
+      fetch(`${robotPath}/indicators?symbol=${encodeURIComponent(symbol)}`, { headers: b44Headers() }).catch(() => null),
+      fetch(`${robotPath}/account`, { headers: b44Headers() }).catch(() => null),
+      fetch(`${robotPath}/positions`, { headers: b44Headers() }).catch(() => null),
+      fetch(`${robotPath}/status`, { headers: b44Headers() }).catch(() => null),
     ]);
 
     let ind = null, quote = null, positions = [], account = null, robotRunning = false;
-    if (scanRes?.ok) { const j = await scanRes.json().catch(() => ({})); ind = j?.scanner?.indicators || j?.indicators || null; }
-    if (quotesRes?.ok) {
-      const j = await quotesRes.json().catch(() => ({}));
-      const syms = Array.isArray(j?.symbols) ? j.symbols : (Array.isArray(j) ? j : []);
-      const sym = syms.find((s) => (s.symbol || "").toUpperCase() === (cfg.active_pair || "XAUUSD")) || syms[0];
-      if (sym && sym.bid != null) quote = { bid: Number(sym.bid), ask: Number(sym.ask), spread: sym.spread != null ? Number(sym.spread) : (Number(sym.ask) - Number(sym.bid)) };
-    }
-    if (posRes?.ok) { const j = await posRes.json().catch(() => ({})); positions = j?.positions || []; }
-    if (acctRes?.ok) { const j = await acctRes.json().catch(() => ({})); account = j?.account || j; }
-    if (robotRes?.ok) { const j = await robotRes.json().catch(() => ({})); robotRunning = j?.running ?? j?.robot?.running ?? false; }
-
-    // ── Fallback: if /symbols returned null prices, use the scanner's live indicator data ──
-    // The scanner publishes real bid/ask/spread in its indicators object even when
-    // the /symbols endpoint hasn't been populated by the EA yet.
-    if (!quote?.bid && ind?.bid != null) {
-      const indAsk = num(ind?.ask);
-      const indBid = num(ind?.bid);
-      if (indBid != null) {
-        quote = {
-          bid: indBid,
-          ask: indAsk ?? indBid,
-          spread: ind?.spread_pips != null ? Number(ind.spread_pips) : ((indAsk ?? indBid) - indBid),
+    if (indRes?.ok) {
+      const j = await indRes.json().catch(() => ({}));
+      const row = j?.data ?? j;
+      if (row) {
+        // Normalize the bridge's indicator row into the field names the pillar
+        // functions already expect, so all downstream logic is unchanged.
+        ind = {
+          ema_20: num(row.ema20 ?? row.ema_20),
+          ema20: num(row.ema20 ?? row.ema_20),
+          ema_50: num(row.ema50 ?? row.ema_50),
+          ema50: num(row.ema50 ?? row.ema_50),
+          ema_200: num(row.ema200 ?? row.ema_200),
+          ema200: num(row.ema200 ?? row.ema_200),
+          ema_50_m15: num(row.ema50M15 ?? row.ema50_m15),
+          rsi: num(row.rsi ?? row.rsi_14),
+          rsi_14: num(row.rsi ?? row.rsi_14),
+          adx: num(row.adx),
+          plus_di: num(row.plusDI),
+          minus_di: num(row.minusDI),
+          atr_14: num(row.atr ?? row.atr_14),
+          atr14: num(row.atr ?? row.atr_14),
+          ema_slope: num(row.emaSlope ?? row.ema_slope),
+          slope: num(row.emaSlope ?? row.ema_slope),
+          liquidity_sweep: row.liquiditySweep === true,
+          sweep: row.liquiditySweep === true,
+          sweep_dir: row.sweepDir || null,
+          sweep_direction: row.sweepDir || null,
+          bos: row.bos === true,
+          break_of_structure: row.bos === true,
+          choch: row.choch === true,
+          change_of_character: row.choch === true,
+          high_impact_news: row.newsHighImpact === true,
+          news_high_impact: row.newsHighImpact === true,
+          news_minutes_until: num(row.newsMinutesUntil),
+          minutes_to_news: num(row.newsMinutesUntil),
+          bid: num(row.bid),
+          ask: num(row.ask),
+          spread_pips: num(row.spread),
         };
+        const bid = num(row.bid), ask = num(row.ask);
+        if (bid != null) quote = { bid, ask: ask ?? bid, spread: row.spread != null ? Number(row.spread) : ((ask ?? bid) - bid) };
       }
     }
+    if (acctRes?.ok) { const j = await acctRes.json().catch(() => ({})); account = (j?.data ?? j?.account ?? j); }
+    if (posRes?.ok) { const j = await posRes.json().catch(() => ({})); positions = Array.isArray(j?.data) ? j.data : (j?.positions || []); }
+    if (statusRes?.ok) { const j = await statusRes.json().catch(() => ({})); const st = j?.data ?? j; robotRunning = st?.status === "ONLINE" || st?.robotRunning === true; }
 
-    const connected = account?.balance != null && quote?.bid != null;
+    const connected = account?.balance != null && ind != null;
     if (!connected) {
       return Response.json({
         ok: true,
         decision: "NO_TRADE",
-        reason: "Market feed disconnected — no live MT5 data.",
+        reason: "Indicator feed unavailable — the EA isn't publishing market data yet. Start the EA so it syncs indicators to the bridge.",
         connected: false,
         pillars: [],
         score: 0,
