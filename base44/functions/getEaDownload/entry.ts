@@ -43,11 +43,11 @@ Deno.serve(async (req) => {
       `Robot_Id=${robotId}`,
       `Timer_Seconds=5`,
       ``,
-      `; Safety defaults — review before going live.`,
-      `Operating_Mode=MANUAL_SIGNAL_ONLY`,
-      `Dry_Run=true`,
-      `Allow_Backend_Trades=false`,
-      `Allow_Local_Auto_Trades=false`,
+      `; Defaults — allow the dashboard to start/stop/trade the robot.`,
+      `Operating_Mode=AUTO_BACKEND`,
+      `Dry_Run=false`,
+      `Allow_Backend_Trades=true`,
+      `Allow_Local_Auto_Trades=true`,
       ``,
     ].join("\r\n");
 
