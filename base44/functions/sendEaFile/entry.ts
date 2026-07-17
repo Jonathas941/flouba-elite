@@ -1,8 +1,17 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// MT5 bridge server — the base URL injected into every Bridge preset .set file
-const BRIDGE_BASE_URL = "https://dazzling-perception-production-8e53.up.railway.app";
-const BRIDGE_API_URL = `${BRIDGE_BASE_URL}/api`;
+// ── Flouba Lite bridge (command-queue architecture) ──────────────────────────
+// The EA authenticates to the bridge with a SINGLE shared secret
+// (MT5_ROBOT_API_KEY, sent as x-robot-api-key), not per-user tokens.
+// Per-user identity is the Robot_Id, which maps 1:1 to the user's MT5 account
+// number (BotSettings.mt5_account). There is NO per-user provisioning endpoint
+// in the new bridge — the EA registers itself via /api/mt5/register.
+
+const BRIDGE_BASE_URL = (() => {
+  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
+  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
+  return v;
+})();
 
 Deno.serve(async (req) => {
   try {
@@ -20,57 +29,39 @@ Deno.serve(async (req) => {
     const eaUrl = Deno.env.get("EA_FILE_URL");
     if (!eaUrl) return Response.json({ error: "EA_FILE_URL secret not set" }, { status: 500 });
 
-    // ── Fetch the user's BotSettings to extract the broker symbol suffix ──
-    // Exness and other brokers append suffixes to instrument names (e.g. XAUUSDm,
-    // EURUSDs). The bridge normalizes to base symbols (XAUUSD), so the EA must
-    // know the suffix to map base symbols back to the broker's actual instruments.
+    const robotApiKey = Deno.env.get("MT5_ROBOT_API_KEY");
+    if (!robotApiKey) return Response.json({ error: "MT5_ROBOT_API_KEY secret not set" }, { status: 500 });
+    if (!BRIDGE_BASE_URL) return Response.json({ error: "FLOUBA_BACKEND_URL secret not set" }, { status: 500 });
+
+    // ── Resolve the user's Robot_Id (MT5 account number) ──
     const settingsRecords = await base44.entities.BotSettings.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
     const userSettings = settingsRecords?.[0];
-    const activePair = userSettings?.active_pair || "XAUUSD";
-    // Extract trailing suffix: letters after the base symbol (e.g. "m" from "XAUUSDm")
-    const suffixMatch = activePair.match(/[a-zA-Z]+$/);
-    const knownBases = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
-    let symbolSuffix = "";
-    for (const base of knownBases) {
-      if (activePair.startsWith(base) && activePair.length > base.length) {
-        symbolSuffix = activePair.slice(base.length);
-        break;
-      }
+    const robotId = String(userSettings?.mt5_account || "").trim();
+    if (!robotId) {
+      return Response.json({
+        error: "MT5 account not connected — link your MT5 account on the Connect MT5 page first so we can set your Robot_Id.",
+      }, { status: 400 });
     }
 
-    // ── Provision / fetch the user's bridge API key ──
-    // Same flow as mt5Bridge: provision on first use, persist to the User entity.
-    let apiKey = user.mt5_api_key;
-    if (!apiKey) {
-      const provisionSecret = Deno.env.get("PROVISION_SECRET");
-      if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
-      const provisionRes = await fetch(`${BRIDGE_API_URL}/provision/user`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
-      });
-      const provisionJson = await provisionRes.json().catch(() => ({}));
-      if (!provisionJson?.success || !provisionJson?.api_key) {
-        return Response.json({ error: "Failed to provision bridge account" }, { status: 500 });
-      }
-      apiKey = provisionJson.api_key;
-      const updateData = { mt5_api_key: apiKey };
-      if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
-      if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
-      if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
-      await base44.asServiceRole.entities.User.update(user.id, updateData);
-    }
-
-    // ── Build the Bridge preset .set file ──
+    // ── Build the EA preset .set file ──
     // MT5 .set preset format: key=value pairs, one per line, ';' for comments.
-    const setFileName = `FloubaElite_Bridge.set`;
+    // The EA's real input names: Backend_URL, MT5_Robot_Api_Key, Robot_Id.
+    const setFileName = `FloubaElite_EA_${robotId}.set`;
     const setContent = [
-      `; Flouba Elite — Bridge Preset`,
+      `; Flouba Elite — EA Preset (Bridge)`,
       `; Auto-generated for ${email}`,
-      `; Do not share. This links your EA to your private bridge account.`,
-      `API_KEY=${apiKey}`,
-      `BASE_URL=${BRIDGE_BASE_URL}`,
-      ...(symbolSuffix ? [`SYMBOL_SUFFIX=${symbolSuffix}`] : []),
+      `; Robot_Id: ${robotId}`,
+      `; Do not share. This links your EA to your bridge account.`,
+      `Backend_URL=${BRIDGE_BASE_URL}`,
+      `MT5_Robot_Api_Key=${robotApiKey}`,
+      `Robot_Id=${robotId}`,
+      `Timer_Seconds=5`,
+      ``,
+      `; Safety defaults — review before going live.`,
+      `Operating_Mode=MANUAL_SIGNAL_ONLY`,
+      `Dry_Run=true`,
+      `Allow_Backend_Trades=false`,
+      `Allow_Local_Auto_Trades=false`,
       ``,
     ].join("\r\n");
 
@@ -81,8 +72,7 @@ Deno.serve(async (req) => {
       const uploadRes = await base44.integrations.Core.UploadFile({ file: setFile });
       setUrl = uploadRes?.file_url || null;
     } catch (e) {
-      // Non-fatal — the EA download + inline credentials still work.
-      console.log("Bridge preset upload failed:", e?.message);
+      console.log("EA preset upload failed:", e?.message);
     }
 
     const fullName = user.full_name || "Trader";
@@ -92,18 +82,18 @@ Deno.serve(async (req) => {
     const credsBlock = `
       <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.18);border-radius:10px;margin-top:8px;">
         <tr><td style="padding:14px 16px;">
-          <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:1px;color:#5fe8ff;text-transform:uppercase;">Bridge Credentials</p>
-          <p style="margin:0 0 6px;font-size:12px;color:#9a9a9a;">API_KEY</p>
-          <p style="margin:0 0 12px;font-family:monospace;font-size:12px;color:#ffffff;word-break:break-all;background:#080808;padding:8px 10px;border-radius:6px;">${apiKey}</p>
-          <p style="margin:0 0 6px;font-size:12px;color:#9a9a9a;">BASE_URL</p>
-          <p style="margin:0;font-family:monospace;font-size:12px;color:#ffffff;word-break:break-all;background:#080808;padding:8px 10px;border-radius:6px;">${BRIDGE_BASE_URL}</p>
-          ${symbolSuffix ? `<p style="margin:12px 0 6px;font-size:12px;color:#9a9a9a;">SYMBOL_SUFFIX <span style="color:#5fe8ff;">(Broker-specific — ${activePair})</span></p>
-          <p style="margin:0;font-family:monospace;font-size:12px;color:#ffffff;background:#080808;padding:8px 10px;border-radius:6px;">${symbolSuffix}</p>` : ""}
+          <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:1px;color:#5fe8ff;text-transform:uppercase;">EA Inputs</p>
+          <p style="margin:0 0 6px;font-size:12px;color:#9a9a9a;">Backend_URL</p>
+          <p style="margin:0 0 12px;font-family:monospace;font-size:12px;color:#ffffff;word-break:break-all;background:#080808;padding:8px 10px;border-radius:6px;">${BRIDGE_BASE_URL}</p>
+          <p style="margin:0 0 6px;font-size:12px;color:#9a9a9a;">MT5_Robot_Api_Key</p>
+          <p style="margin:0 0 12px;font-family:monospace;font-size:12px;color:#ffffff;word-break:break-all;background:#080808;padding:8px 10px;border-radius:6px;">${robotApiKey}</p>
+          <p style="margin:0 0 6px;font-size:12px;color:#9a9a9a;">Robot_Id <span style="color:#5fe8ff;">(Your MT5 account number)</span></p>
+          <p style="margin:0;font-family:monospace;font-size:12px;color:#ffffff;background:#080808;padding:8px 10px;border-radius:6px;">${robotId}</p>
         </td></tr>
       </table>`;
 
     const setButton = setUrl
-      ? `<a href="${setUrl}" target="_blank" style="display:inline-block;padding:14px 36px;background:#0a1a2a;color:#5fe8ff;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;border-radius:10px;border:1px solid rgba(0,229,255,0.4);box-shadow:0 0 16px rgba(0,229,255,0.25);margin-left:8px;">⚙ Download Bridge Preset (.set)</a>`
+      ? `<a href="${setUrl}" target="_blank" style="display:inline-block;padding:14px 36px;background:#0a1a2a;color:#5fe8ff;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;border-radius:10px;border:1px solid rgba(0,229,255,0.4);box-shadow:0 0 16px rgba(0,229,255,0.25);margin-left:8px;">⚙ Download EA Preset (.set)</a>`
       : "";
 
     const htmlBody = `<!DOCTYPE html>
@@ -126,14 +116,14 @@ Deno.serve(async (req) => {
           <table width="100%" cellpadding="0" cellspacing="0"><tr>
             <td style="width:3px;background:#dc2626;border-radius:2px;"></td>
             <td style="padding:0 0 0 16px;">
-              <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;color:#ffffff;">Account Connected Successfully</h2>
+              <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;color:#ffffff;">Your EA &amp; Preset Are Ready</h2>
             </td>
           </tr></table>
         </td></tr>
 
         <tr><td style="padding:12px 32px 0;font-size:15px;line-height:1.7;color:#b0b0b0;">
           <p style="margin:0 0 16px;">Dear ${firstName},</p>
-          <p style="margin:0 0 16px;">Your MetaTrader 5 account is now securely linked to <strong style="color:#ffffff;">Flouba Elite</strong>. To activate automated trading, install the Expert Advisor (EA) on your MT5 terminal and load the Bridge preset so the EA can authenticate with your private bridge account.</p>
+          <p style="margin:0 0 16px;">Here is your Flouba Elite Expert Advisor and a pre-configured preset file. Install the EA on your MT5 terminal and load the preset so it can authenticate with the bridge and begin executing your strategy.</p>
         </td></tr>
 
         <!-- DOWNLOAD BUTTONS -->
@@ -142,12 +132,12 @@ Deno.serve(async (req) => {
           ${setButton}
         </td></tr>
 
-        <!-- BRIDGE PRESET SECTION -->
+        <!-- PRESET SECTION -->
         <tr><td style="padding:0 32px 8px;">
-          <h3 style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:1px;color:#5fe8ff;text-transform:uppercase;">Bridge Preset (.set)</h3>
+          <h3 style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:1px;color:#5fe8ff;text-transform:uppercase;">EA Preset (.set)</h3>
           <p style="margin:0 0 4px;font-size:13px;line-height:1.6;color:#9a9a9a;">
             ${setUrl
-              ? `Download the preset file above, then in MT5 load it onto the EA via <strong style="color:#fff;">Inputs &rarr; Load</strong> when attaching the EA to your chart.`
+              ? `Download the preset above, then in MT5 load it onto the EA via <strong style="color:#fff;">Inputs &rarr; Load</strong> when attaching the EA to your chart.`
               : `When attaching the EA to your chart, open <strong style="color:#fff;">Inputs</strong> and enter the values below:`}
           </p>
           ${credsBlock}
@@ -161,10 +151,11 @@ Deno.serve(async (req) => {
           <table width="100%" cellpadding="0" cellspacing="0">
             ${[
               "Open <strong style='color:#fff;'>MT5</strong> &rarr; File &rarr; Open Data Folder",
-              "Navigate to <strong style='color:#fff;'>MQL5 / Experts</strong>",
+              "Navigate to <strong style='color:#fff;'>MQL5 / Experts / FloubaLite</strong> (create it if missing)",
               "Copy the downloaded EA file into that folder",
-              "Restart MT5, then drag the EA onto your chart",
-              `Load the <strong style='color:#fff;'>Bridge preset (.set)</strong> in the Inputs tab`,
+              "Open <strong style='color:#fff;'>MetaEditor</strong> (F4) &rarr; open the EA &rarr; Compile (F7)",
+              "In MT5: <strong style='color:#fff;'>Tools &rarr; Options &rarr; Expert Advisors</strong> &rarr; enable <strong style='color:#fff;'>Allow algorithmic trading</strong> and <strong style='color:#fff;'>Allow WebRequest</strong> for your backend URL",
+              "Drag the EA onto your chart, then <strong style='color:#fff;'>Load the preset (.set)</strong> in the Inputs tab",
               "Enable <strong style='color:#fff;'>AutoTrading</strong> (green button in toolbar)",
             ].map((step, i) => `<tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
               <table cellpadding="0" cellspacing="0"><tr>
@@ -179,7 +170,7 @@ Deno.serve(async (req) => {
         <tr><td style="padding:0 32px 24px;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.15);border-radius:10px;">
             <tr><td style="padding:16px;font-size:13px;line-height:1.6;color:#9a9a9a;">
-              <strong style="color:#dc2626;">&#9888; Important:</strong> The Bridge preset contains your private API key. Do not share it. The EA uses it to authenticate with the Flouba Elite bridge server. Ensure your MT5 terminal remains running and connected to the internet for uninterrupted automated trading.
+              <strong style="color:#dc2626;">&#9888; Important:</strong> The preset contains your private API key and Robot_Id. Do not share it. Keep your MT5 terminal running and connected to the internet for uninterrupted automated trading. On first launch the EA self-registers with the bridge using your Robot_Id.
             </td></tr>
           </table>
         </td></tr>
@@ -187,7 +178,7 @@ Deno.serve(async (req) => {
         <!-- FOOTER -->
         <tr><td style="padding:24px 32px;border-top:1px solid rgba(255,255,255,0.06);background:#080808;">
           <p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;color:#555;text-transform:uppercase;text-align:center;">&mdash; Flouba Elite Team &mdash;</p>
-          <p style="margin:0;font-size:10px;color:#444;text-align:center;line-height:1.6;">This email was sent because your MT5 account was connected to Flouba Elite.<br/>If you did not initiate this action, please contact support immediately.</p>
+          <p style="margin:0;font-size:10px;color:#444;text-align:center;line-height:1.6;">This email was sent because you requested your EA file &amp; preset.<br/>If you did not initiate this action, please contact support immediately.</p>
         </td></tr>
 
       </table>
@@ -198,11 +189,11 @@ Deno.serve(async (req) => {
 
     await base44.integrations.Core.SendEmail({
       to: email,
-      subject: "Flouba Elite — Your EA File & Bridge Preset",
+      subject: "Flouba Elite — Your EA File & Preset",
       body: htmlBody,
     });
 
-    return Response.json({ ok: true, sent: true, email, set_url: setUrl });
+    return Response.json({ ok: true, sent: true, email, set_url: setUrl, robot_id: robotId });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
