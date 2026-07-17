@@ -9,6 +9,7 @@ import MobileHeader from "@/components/MobileHeader";
 import MobileSelect from "@/components/MobileSelect";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
+import EaDownloadButton from "@/components/EaDownloadButton";
 import {
   Wifi, WifiOff, ShieldCheck, Eye, EyeOff,
   Loader2, CheckCircle2, ArrowRight, Bot, AlertCircle,
@@ -479,6 +480,13 @@ export default function ConnectMT5() {
 
         {/* ── 5. BUTTONS ── */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }} className="space-y-3">
+          <EaDownloadButton
+            robotId={login}
+            className="w-full h-12 border-cyan-500/30 text-cyan-400 font-heading font-bold tracking-widest text-xs uppercase rounded-xl hover:bg-cyan-500/10"
+          />
+          <p className="text-[10px] text-center text-muted-foreground/70 -mt-1">
+            Download the EA &amp; preset, install on MT5, then connect your account below.
+          </p>
           {status !== "success" && (
             <>
               <Button variant="outline"
