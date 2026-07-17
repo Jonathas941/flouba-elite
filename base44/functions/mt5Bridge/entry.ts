@@ -11,7 +11,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // /api/mt5/commands. Base44 reads synced snapshots from /api/base44/robots/:id
 // and issues trade/control commands into the queue (201 = queued, not executed).
 
-const BASE = (Deno.env.get("FLOUBA_BACKEND_URL") || "").replace(/\/$/, "");
+const BASE = (() => {
+  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
+  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
+  return v;
+})();
 
 function authHeaders() {
   const apiKey = Deno.env.get("FLOUBA_BASE44_API_KEY");
@@ -117,7 +121,9 @@ Deno.serve(async (req) => {
     // /health/live is unauthenticated — allow it without a robotId.
     if (action === "status") {
       const r = await bridgeCall("GET", "/health/live");
-      return Response.json({ ok: r.ok, status: r.status, data: r.data ?? { healthy: r.ok } });
+      let host = null, schemeOk = false;
+      try { if (BASE) { const u = new URL(BASE); host = u.host; schemeOk = u.protocol === "https:" || u.protocol === "http:"; } } catch {}
+      return Response.json({ ok: r.ok, status: r.status, data: r.data ?? { healthy: r.ok }, error: r.error || null, base_set: !!BASE, base_host: host, base_valid_url: schemeOk });
     }
 
     const robotId = String(cfg?.mt5_account || "");
@@ -135,7 +141,7 @@ Deno.serve(async (req) => {
     // ── account ──
     if (action === "account") {
       const r = await bridgeCall("GET", `${robotPath}/account`);
-      return Response.json({ ok: r.ok, status: r.status, data: { account: normalizeAccount(r.data) } });
+      return Response.json({ ok: r.ok, status: r.status, data: { account: normalizeAccount(r.data) }, error: r.error || null });
     }
 
     // ── positions ──

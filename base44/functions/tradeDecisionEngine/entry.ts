@@ -1,6 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const BRIDGE = (Deno.env.get("FLOUBA_BACKEND_URL") || "").replace(/\/$/, "");
+const BRIDGE = (() => {
+  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
+  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
+  return v;
+})();
 const B44 = `${BRIDGE}/api/base44`;
 
 function num(v) { return typeof v === "number" ? v : (v == null ? null : Number(v)); }
