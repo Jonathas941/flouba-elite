@@ -1,7 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// MT5 server provision endpoint — creates a fresh account + API key + JWT for a user
-const PROVISION_URL = "https://dazzling-perception-production-8e53.up.railway.app/api/provision/user";
+// MT5 server provision endpoint — host comes from FLOUBA_BACKEND_URL so it never goes stale.
+const PROVISION_HOST = (Deno.env.get("FLOUBA_BACKEND_URL") || "").replace(/\/$/, "");
+const PROVISION_URL = `${PROVISION_HOST}/api/provision/user`;
 
 Deno.serve(async (req) => {
   try {
