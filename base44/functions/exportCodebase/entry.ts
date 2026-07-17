@@ -106,6 +106,9 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     let user = null;
     try { user = await base44.auth.me(); } catch {}
+    if (!user || user.role !== "admin") {
+      return Response.json({ error: "Forbidden: admin access required to export the codebase" }, { status: 403 });
+    }
 
     const ts = new Date().toISOString();
     const lines = [];

@@ -79,20 +79,19 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════
     // MANUAL MODE — current authenticated user
     // ═══════════════════════════════════════════════════════════════
+    // IDOR guard: a non-admin caller can only ever act as themselves.
+    // body.user_id (acting on another account) is restricted to admins.
+    let caller = null;
     if (!isCron) {
-      const isAuth = await base44.auth.isAuthenticated().catch(() => false);
-      if (!isAuth) return Response.json({ error: "Unauthorized" }, { status: 401 });
+      caller = await base44.auth.me().catch(() => null);
+      if (!caller) return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let userId = body.user_id || null;
-    let user = null;
-
-    if (userId) {
-      user = await base44.asServiceRole.entities.User.get(userId).catch(() => null);
-    } else {
-      user = await base44.auth.me().catch(() => null);
-      if (user) userId = user.id;
-    }
+    const isAdmin = isCron || caller?.role === "admin";
+    const userId = (body.user_id && isAdmin) ? body.user_id : (caller ? caller.id : null);
+    const user = userId
+      ? await base44.asServiceRole.entities.User.get(userId).catch(() => null)
+      : null;
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const settings = await base44.asServiceRole.entities.BotSettings.filter(
