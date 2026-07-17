@@ -23,7 +23,7 @@ function authHeaders() {
   };
 }
 
-async function bridgeCall(method, path, body) {
+async function bridgeCall(method, path, body, extraHeaders) {
   if (!BASE) return { ok: false, status: 503, data: null, error: "FLOUBA_BACKEND_URL not set" };
   let res = null;
   let lastErr = null;
@@ -31,7 +31,7 @@ async function bridgeCall(method, path, body) {
     try {
       res = await fetch(`${BASE}${path}`, {
         method,
-        headers: authHeaders(),
+        headers: { ...authHeaders(), ...(extraHeaders || {}) },
         ...(method !== "GET" && body != null ? { body: JSON.stringify(body) } : {}),
       });
       if (res.status !== 502 && res.status !== 503 && res.status !== 504) break;
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
       return Response.json({ ok: r.ok, status: r.status, data: { connected: r.ok && r.data?.status === "ONLINE" } });
     }
 
-    // ── robot_start: push config to settings, then issue START_ROBOT command ──
+    // ── robot_start: push config to settings, then POST /start ──
     if (action === "robot_start") {
       // Push the user's launch config into the robot's settings first.
       const settingsPatch = {};
@@ -187,50 +187,41 @@ Deno.serve(async (req) => {
       if (Object.keys(settingsPatch).length > 0) {
         await bridgeCall("PUT", `${robotPath}/settings`, settingsPatch);
       }
-      const r = await bridgeCall("POST", `${robotPath}/commands`, {
-        commandType: "START_ROBOT",
-        idempotencyKey: `start-${robotId}-${Date.now()}`,
+      const idemKey = `start-${robotId}-${Date.now()}`;
+      const r = await bridgeCall("POST", `${robotPath}/start`, {
         metadata: { strategy: params.strategy, symbol: params.symbol },
-      });
+      }, { "x-idempotency-key": idemKey });
       return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
     }
 
     // ── robot_stop ──
     if (action === "robot_stop") {
-      const r = await bridgeCall("POST", `${robotPath}/commands`, {
-        commandType: "STOP_ROBOT",
-        idempotencyKey: `stop-${robotId}-${Date.now()}`,
-      });
+      const idemKey = `stop-${robotId}-${Date.now()}`;
+      const r = await bridgeCall("POST", `${robotPath}/stop`, { metadata: {} }, { "x-idempotency-key": idemKey });
       return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
     }
 
     // ── close_all ──
     if (action === "close_all") {
-      const r = await bridgeCall("POST", `${robotPath}/commands`, {
-        commandType: "CLOSE_ALL_POSITIONS",
-        idempotencyKey: `closeall-${robotId}-${Date.now()}`,
-      });
+      const idemKey = `closeall-${robotId}-${Date.now()}`;
+      const r = await bridgeCall("POST", `${robotPath}/close-all`, { metadata: {} }, { "x-idempotency-key": idemKey });
       return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
     }
 
-    // ── close single position ──
+    // ── close single position (no dedicated endpoint in contract — use /commands queue) ──
     if (action === "close") {
-      const cmd = {
-        commandType: "CLOSE_POSITION",
-        idempotencyKey: `close-${robotId}-${params.ticket}-${Date.now()}`,
-      };
+      const cmd = { commandType: "CLOSE_POSITION" };
       if (params.ticket != null) cmd.brokerTicket = String(params.ticket);
-      const r = await bridgeCall("POST", `${robotPath}/commands`, cmd);
+      const r = await bridgeCall("POST", `${robotPath}/commands`, cmd, { "x-idempotency-key": `close-${robotId}-${params.ticket}-${Date.now()}` });
       return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
     }
 
-    // ── buy / sell (market orders) ──
+    // ── buy / sell (market orders — no dedicated endpoint in contract — use /commands queue) ──
     if (action === "buy" || action === "sell") {
       const dir = action === "buy" ? "BUY" : "SELL";
       const cmd = {
         commandType: action === "buy" ? "OPEN_BUY" : "OPEN_SELL",
         direction: dir,
-        idempotencyKey: `${dir}-${robotId}-${Date.now()}`,
       };
       if (params.symbol) cmd.symbol = params.symbol;
       if (params.volume != null) cmd.lotSize = Number(params.volume);
@@ -239,7 +230,7 @@ Deno.serve(async (req) => {
       if (params.tp != null) cmd.takeProfit = Number(params.tp);
       if (params.stop_loss != null) cmd.stopLoss = Number(params.stop_loss);
       if (params.take_profit != null) cmd.takeProfit = Number(params.take_profit);
-      const r = await bridgeCall("POST", `${robotPath}/commands`, cmd);
+      const r = await bridgeCall("POST", `${robotPath}/commands`, cmd, { "x-idempotency-key": `${dir}-${robotId}-${Date.now()}` });
       return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
     }
 
