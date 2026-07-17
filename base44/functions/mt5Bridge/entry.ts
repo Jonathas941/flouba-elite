@@ -247,29 +247,68 @@ Deno.serve(async (req) => {
       return Response.json({ ok: r.ok, status: r.status, data: { trades: Array.isArray(r.data) ? r.data : (r.data?.items || []) } });
     }
 
-    // ── indicators: raw diagnostic of the EA-published indicator snapshot ──
-    if (action === "indicators") {
-      const r = await bridgeCall("GET", `${robotPath}/indicators`);
-      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    // ── Heartbeat fallback: when /indicators is unreachable (Railway stale build),
+    //    assemble a degraded snapshot from the latest heartbeat record. No EMA/RSI/ADX/ATR,
+    //    but spread + symbol + risk flags keep the scanner informative. ──
+    async function heartbeatFallback() {
+      const r = await bridgeCall("GET", `${robotPath}/heartbeat`);
+      if (!r.ok || !Array.isArray(r.data) || r.data.length === 0) return null;
+      const hb = r.data[0];
+      return {
+        _symbol: hb.currentSymbol || cfg?.active_pair || "XAUUSD",
+        _receivedAt: hb.receivedAt,
+        spread: hb.currentSpread != null ? Number(hb.currentSpread) : null,
+        bid: null, ask: null,
+        ema20: null, ema50: null, ema200: null, adx: null, rsi: null, atr: null,
+        _degraded: true,
+        _risk: {
+          session_allowed: hb.sessionAllowed,
+          spread_filter_passed: hb.spreadFilterPassed,
+          risk_status: hb.riskStatus,
+          open_positions: hb.openPositionCount,
+          floating_profit: hb.floatingProfit != null ? Number(hb.floatingProfit) : null,
+          drawdown_pct: hb.drawdownPercent != null ? Number(hb.drawdownPercent) : null,
+        },
+      };
     }
 
-    // ── symbols: live bid/ask/spread from the EA-published indicator snapshot ──
+    // ── indicators: raw diagnostic of the EA-published indicator snapshot (heartbeat fallback) ──
+    if (action === "indicators") {
+      const r = await bridgeCall("GET", `${robotPath}/indicators`);
+      if (r.ok) return Response.json({ ok: true, status: r.status, data: r.data, error: null });
+      const hb = await heartbeatFallback();
+      return Response.json({ ok: !!hb, status: hb ? 200 : r.status, data: hb, error: hb ? null : (r.error || "Indicator feed unavailable.") });
+    }
+
+    // ── symbols: live bid/ask/spread (heartbeat fallback) ──
     if (action === "symbols") {
       const indRes = await bridgeCall("GET", `${robotPath}/indicators`);
       const ind = indRes.ok ? (indRes.data || {}) : {};
       if (ind.bid == null && ind.ask == null) {
+        const hb = await heartbeatFallback();
+        if (hb && hb.spread != null) {
+          return Response.json({
+            ok: true, status: 200,
+            data: {
+              degraded: true,
+              symbols: [{
+                symbol: hb._symbol,
+                bid: null, ask: null,
+                spread: hb.spread,
+                time: hb._receivedAt,
+              }],
+            },
+          });
+        }
         return Response.json({ ok: false, status: 200, data: null, error: indRes.error || "No live quotes yet — waiting for EA heartbeat." });
       }
       return Response.json({
-        ok: true,
-        status: 200,
+        ok: true, status: 200,
         data: {
           symbols: [{
             symbol: ind._symbol || cfg?.active_pair || "XAUUSD",
-            bid: ind.bid,
-            ask: ind.ask,
-            spread: ind.spread,
-            time: ind._receivedAt,
+            bid: ind.bid, ask: ind.ask,
+            spread: ind.spread, time: ind._receivedAt,
           }],
         },
       });
@@ -283,14 +322,18 @@ Deno.serve(async (req) => {
         bridgeCall("GET", `${robotPath}/positions`),
         bridgeCall("GET", `${robotPath}/status`),
       ]);
-      const ind = indRes.ok ? (indRes.data || {}) : {};
+      let ind = indRes.ok ? (indRes.data || {}) : {};
+      let degraded = false;
+      if (ind.bid == null && ind.ema20 == null) {
+        const hb = await heartbeatFallback();
+        if (!hb) {
+          return Response.json({ ok: false, status: 200, data: null, error: indRes.error || "Indicator feed unavailable — waiting for EA heartbeat." });
+        }
+        ind = hb; degraded = true;
+      }
       const acct = acctRes.ok ? normalizeAccount(acctRes.data) : null;
       const positions = posRes.ok && Array.isArray(posRes.data) ? posRes.data.map(normalizePosition) : [];
       const st = statusRes.ok ? (statusRes.data || {}) : {};
-
-      if (ind.bid == null && ind.ema20 == null) {
-        return Response.json({ ok: false, status: 200, data: null, error: indRes.error || "Indicator feed unavailable — waiting for EA heartbeat." });
-      }
 
       const indicators = {
         ema_20: ind.ema20, ema_50: ind.ema50, ema_200: ind.ema200,
@@ -306,6 +349,45 @@ Deno.serve(async (req) => {
       const ema20 = ind.ema20, ema50 = ind.ema50, ema200 = ind.ema200;
       const adx = ind.adx, rsi = ind.rsi, atr = ind.atr, spread = ind.spread;
       const robotRunning = st.status === "ONLINE" || st.robotRunning === true;
+
+      // ── Degraded mode (no indicator feed): report live status without a confluence score ──
+      if (degraded) {
+        const hbRisk = ind._risk || {};
+        const floatingPnl = acct ? (acct.profit ?? (acct.equity - acct.balance)) : (hbRisk.floating_profit ?? 0);
+        const conditions = [
+          "⚠ Indicator feed deploying — showing live heartbeat status (no confluence score).",
+          `Robot ${robotRunning ? "ONLINE" : "OFFLINE"} — symbol ${ind._symbol || cfg?.active_pair || "XAUUSD"}.`,
+          spread != null ? `Spread ${spread}pts.` : "Spread unavailable.",
+          `Open positions: ${positions.length}.`,
+          hbRisk.session_allowed != null ? `Session allowed: ${hbRisk.session_allowed ? "yes" : "no"}.` : "",
+          hbRisk.spread_filter_passed != null ? `Spread filter: ${hbRisk.spread_filter_passed ? "passed" : "blocked"}.` : "",
+          hbRisk.risk_status ? `Risk status: ${hbRisk.risk_status}.` : "",
+        ].filter(Boolean);
+        return Response.json({
+          ok: true, status: 200,
+          data: {
+            scanner: {
+              symbol: ind._symbol || cfg?.active_pair || "XAUUSD",
+              strategy: cfg.adaptive_active_strategy || "auto",
+              last_signal: "HOLD",
+              signal_score: null,
+              last_scan_time: ind._receivedAt || new Date().toISOString(),
+              robot_running: robotRunning,
+              open_positions_count: positions.length,
+              indicators: { spread_pips: spread, spread, degraded: true },
+              conditions,
+              risk: {
+                daily_pnl: Math.round(floatingPnl * 100) / 100,
+                open_trades: positions.length,
+                trading_allowed: false,
+                block_reason: "Indicator feed deploying — confluence score unavailable.",
+              },
+              degraded: true,
+              reason: `Live heartbeat mode — ${positions.length} open position(s), score pending indicator feed.`,
+            },
+          },
+        });
+      }
 
       // ── Lightweight confluence score + direction (heavy 8-pillar engine is tradeDecisionEngine) ──
       const conditions = [];

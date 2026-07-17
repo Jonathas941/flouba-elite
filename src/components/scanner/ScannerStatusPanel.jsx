@@ -49,6 +49,7 @@ export default function ScannerStatusPanel() {
 
   // Normalise — backend returns { success, scanner: { ... } }
   const s        = data?.scanner ?? data;
+  const degraded = s?.degraded === true;
   const running  = s?.robot_running ?? s?.running ?? s?.active ?? false;
   const strategy = s?.strategy ?? s?.active_strategy ?? null;
   const signals  = s?.last_signal ?? s?.signal_count ?? null;
@@ -57,6 +58,7 @@ export default function ScannerStatusPanel() {
   const openPos  = s?.open_positions_count ?? null;
   const symbol   = s?.symbol ?? null;
   const pairs    = symbol ? [symbol] : [];
+  const blockReason = s?.risk?.block_reason ?? null;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -98,8 +100,13 @@ export default function ScannerStatusPanel() {
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {strategy && <span className="text-[9px] font-heading font-bold px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 uppercase">{strategy.replace(/_/g," ")}</span>}
         {symbol   && <span className="text-[9px] font-heading font-bold px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/50">{symbol}</span>}
+        {degraded && <span className="text-[9px] font-heading font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/25 text-amber-300 uppercase">Heartbeat Mode</span>}
         {lastTick && <span className="text-[9px] text-white/20 font-heading ml-auto">Scan: {lastTick}</span>}
       </div>
+
+      {degraded && blockReason && (
+        <p className="text-[9px] text-amber-300/70 pt-1 leading-snug">⚠ {blockReason}</p>
+      )}
 
       {/* Pair chips */}
       {Array.isArray(pairs) && pairs.length > 0 && (
