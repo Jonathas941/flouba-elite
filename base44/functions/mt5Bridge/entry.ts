@@ -253,13 +253,148 @@ Deno.serve(async (req) => {
       return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
     }
 
-    // ── symbols / scanner_status: no market-data endpoint in the command-queue bridge ──
-    if (action === "symbols" || action === "scanner_status") {
+    // ── symbols: live bid/ask/spread from the EA-published indicator snapshot ──
+    if (action === "symbols") {
+      const indRes = await bridgeCall("GET", `${robotPath}/indicators`);
+      const ind = indRes.ok ? (indRes.data || {}) : {};
+      if (ind.bid == null && ind.ask == null) {
+        return Response.json({ ok: false, status: 200, data: null, error: indRes.error || "No live quotes yet — waiting for EA heartbeat." });
+      }
       return Response.json({
-        ok: false,
+        ok: true,
         status: 200,
-        data: null,
-        error: "This bridge has no live market-data endpoint. The EA owns the terminal; quotes/scanner indicators are not published to the bridge.",
+        data: {
+          symbols: [{
+            symbol: ind._symbol || cfg?.active_pair || "XAUUSD",
+            bid: ind.bid,
+            ask: ind.ask,
+            spread: ind.spread,
+            time: ind._receivedAt,
+          }],
+        },
+      });
+    }
+
+    // ── scanner_status: assemble a real scanner payload from EA indicators + account + positions ──
+    if (action === "scanner_status") {
+      const [indRes, acctRes, posRes, statusRes] = await Promise.all([
+        bridgeCall("GET", `${robotPath}/indicators`),
+        bridgeCall("GET", `${robotPath}/account`),
+        bridgeCall("GET", `${robotPath}/positions`),
+        bridgeCall("GET", `${robotPath}/status`),
+      ]);
+      const ind = indRes.ok ? (indRes.data || {}) : {};
+      const acct = acctRes.ok ? normalizeAccount(acctRes.data) : null;
+      const positions = posRes.ok && Array.isArray(posRes.data) ? posRes.data.map(normalizePosition) : [];
+      const st = statusRes.ok ? (statusRes.data || {}) : {};
+
+      if (ind.bid == null && ind.ema20 == null) {
+        return Response.json({ ok: false, status: 200, data: null, error: indRes.error || "Indicator feed unavailable — waiting for EA heartbeat." });
+      }
+
+      const indicators = {
+        ema_20: ind.ema20, ema_50: ind.ema50, ema_200: ind.ema200,
+        adx: ind.adx, adx_14: ind.adx,
+        rsi: ind.rsi, rsi_14: ind.rsi,
+        atr: ind.atr, atr_14: ind.atr,
+        spread_pips: ind.spread, spread: ind.spread,
+        bid: ind.bid, ask: ind.ask,
+        ema_slope: ind.emaSlope,
+      };
+
+      const price = ind.bid ?? ind.ask;
+      const ema20 = ind.ema20, ema50 = ind.ema50, ema200 = ind.ema200;
+      const adx = ind.adx, rsi = ind.rsi, atr = ind.atr, spread = ind.spread;
+      const robotRunning = st.status === "ONLINE" || st.robotRunning === true;
+
+      // ── Lightweight confluence score + direction (heavy 8-pillar engine is tradeDecisionEngine) ──
+      const conditions = [];
+      let score = 0;
+      let direction = "HOLD";
+
+      if (ema20 != null && ema50 != null && price != null) {
+        const bull = ema20 > ema50 && price > ema20 && price > ema50 && (ema200 == null || price > ema200);
+        const bear = ema20 < ema50 && price < ema20 && price < ema50 && (ema200 == null || price < ema200);
+        if (bull) { score += 25; direction = "BUY"; conditions.push("✓ EMA stack bullish (20>50, price above)"); }
+        else if (bear) { score += 25; direction = "SELL"; conditions.push("✓ EMA stack bearish (20<50, price below)"); }
+        else conditions.push("✗ EMA stack flat / entangled — no trend");
+      } else conditions.push("✗ EMA data incomplete");
+
+      if (adx != null) {
+        if (adx >= 25) { score += 20; conditions.push(`✓ ADX ${adx.toFixed(0)} ≥ 25 — strong trend`); }
+        else if (adx >= 20) { score += 12; conditions.push(`ADX ${adx.toFixed(0)} forming (20-25)`); }
+        else conditions.push(`✗ ADX ${adx.toFixed(0)} < 20 — weak/no trend`);
+      } else conditions.push("✗ ADX unavailable");
+
+      if (rsi != null && direction !== "HOLD") {
+        if (direction === "BUY" && rsi >= 50 && rsi <= 70) { score += 15; conditions.push(`✓ RSI ${rsi.toFixed(0)} in BUY zone (50-70)`); }
+        else if (direction === "SELL" && rsi >= 30 && rsi <= 50) { score += 15; conditions.push(`✓ RSI ${rsi.toFixed(0)} in SELL zone (30-50)`); }
+        else if (rsi > 70) conditions.push(`✗ RSI ${rsi.toFixed(0)} overbought — chasing`);
+        else if (rsi < 30) conditions.push(`✗ RSI ${rsi.toFixed(0)} oversold — chasing`);
+        else conditions.push(`RSI ${rsi.toFixed(0)} neutral for ${direction}`);
+      } else if (rsi != null) conditions.push(`RSI ${rsi.toFixed(0)} — no direction yet`);
+
+      if (atr != null && price != null && price > 0) {
+        const ratio = atr / price;
+        if (ratio >= 0.0004 && ratio <= 0.003) { score += 10; conditions.push(`✓ ATR ${(ratio*100).toFixed(3)}% — healthy volatility`); }
+        else if (ratio < 0.0004) conditions.push(`✗ ATR ${(ratio*100).toFixed(3)}% — market too quiet`);
+        else conditions.push(`✗ ATR ${(ratio*100).toFixed(2)}% — extreme volatility`);
+      } else conditions.push("✗ ATR unavailable");
+
+      const maxSpread = cfg.swing_max_spread_points ?? 30;
+      if (spread != null) {
+        if (spread <= maxSpread) { score += 5; conditions.push(`✓ Spread ${spread}pts ≤ ${maxSpread}`); }
+        else conditions.push(`✗ Spread ${spread}pts > ${maxSpread} — too wide`);
+      } else conditions.push("Spread unavailable");
+
+      const utcMin = new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
+      const inLondon = utcMin >= 480 && utcMin < 720;
+      const inNY = utcMin >= 720 && utcMin <= 1020;
+      const inOverlap = utcMin >= 720 && utcMin <= 900;
+      const inAsian = utcMin >= 1915 || utcMin <= 225;
+      let sessScore = 0, sessName = "Off-Session";
+      if (inOverlap) { sessScore = 5; sessName = "London/NY Overlap"; }
+      else if (inNY) { sessScore = 4; sessName = "New York"; }
+      else if (inLondon) { sessScore = 4; sessName = "London"; }
+      else if (inAsian && cfg.asian_session !== false) { sessScore = 2; sessName = "Asian"; }
+      else if (inAsian) conditions.push("✗ Asian session disabled");
+      score += sessScore;
+      if (sessScore > 0) conditions.push(`✓ ${sessName} session active`);
+      else if (!inAsian) conditions.push("✗ Off-session — waiting for London/NY");
+
+      score = Math.min(100, Math.round(score));
+      const threshold = cfg.min_score_balanced ?? 75;
+      const lastSignal = score >= threshold ? direction : "HOLD";
+
+      const floatingPnl = acct ? (acct.profit ?? (acct.equity - acct.balance)) : 0;
+      const risk = {
+        daily_trades: 0,
+        daily_pnl: Math.round(floatingPnl * 100) / 100,
+        open_trades: positions.length,
+        trading_allowed: robotRunning && score >= threshold,
+        block_reason: !robotRunning ? "Robot paused" : (score < threshold ? `Score ${score} below ${threshold} threshold` : null),
+      };
+
+      return Response.json({
+        ok: true,
+        status: 200,
+        data: {
+          scanner: {
+            symbol: ind._symbol || cfg?.active_pair || "XAUUSD",
+            strategy: cfg.adaptive_active_strategy || "auto",
+            last_signal: lastSignal,
+            signal_score: score,
+            last_scan_time: ind._receivedAt || new Date().toISOString(),
+            robot_running: robotRunning,
+            open_positions_count: positions.length,
+            indicators,
+            conditions,
+            risk,
+            reason: robotRunning
+              ? `Live EA scan — ${positions.length} open position(s), score ${score}/100.`
+              : "Robot is paused — press START to begin live scanning.",
+          },
+        },
       });
     }
 
