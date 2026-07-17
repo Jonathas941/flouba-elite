@@ -1,16 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
-const BASE = "https://dazzling-perception-production-8e53.up.railway.app/api";
+const BASE = (() => {
+  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
+  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
+  return v;
+})();
 
-function buildHeaders(token, config) {
-  const h = {
-    "Authorization": `Bearer ${token}`,
+function bridgeHeaders() {
+  return {
+    "x-api-key": Deno.env.get("FLOUBA_BASE44_API_KEY") || "",
     "Content-Type": "application/json",
   };
-  if (config.mt5_account) h["X-MT5-Login"] = String(config.mt5_account);
-  if (config.mt5_password) h["X-MT5-Password"] = config.mt5_password;
-  if (config.mt5_server) h["X-MT5-Server"] = config.mt5_server;
-  return h;
 }
 
 // ── Strip broker suffix so the bridge accepts the base symbol ──
@@ -165,41 +165,37 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
   }
 
   // ── 4. Execute the trade via the MT5 bridge ──
-  const bridgeToken = user.flouba_token;
-  if (!bridgeToken) {
+  const symbol = config.active_pair || "XAUUSD";
+  const robotId = String(config.mt5_account || "");
+  if (!robotId) {
     return {
       executed: false,
       decision: decision?.decision,
-      reason: "No bridge token — account not provisioned",
+      reason: "No MT5 account linked — cannot address robot",
       score,
       bestStrategy,
     };
   }
 
-  const authHeaders = buildHeaders(bridgeToken, config);
-  const symbol = config.active_pair || "XAUUSD";
-  const { base: baseSym, suffix } = stripSuffix(symbol);
-
-  const tradeAction = trade.direction === "BUY" ? "buy" : "sell";
-  const orderBody = {
-    symbol: baseSym,
-    volume: trade.lot_size,
-    sl: trade.stop_loss,
-    tp: trade.take_profit,
+  const commandType = trade.direction === "BUY" ? "OPEN_BUY" : "OPEN_SELL";
+  const cmdBody = {
+    commandType,
+    symbol,
+    lotSize: Number(trade.lot_size),
+    stopLoss: trade.stop_loss != null ? Number(trade.stop_loss) : undefined,
+    takeProfit: trade.take_profit != null ? Number(trade.take_profit) : undefined,
   };
-  if (suffix) {
-    orderBody.broker_symbol = symbol;
-    orderBody.symbol_suffix = suffix;
-  }
 
-  const tradeRes = await fetch(`${BASE}/trade/${tradeAction}`, {
+  const idemKey = `${commandType}-${robotId}-${Date.now()}`;
+  const tradeRes = await fetch(`${BASE}/api/base44/robots/${encodeURIComponent(robotId)}/commands`, {
     method: "POST",
-    headers: authHeaders,
-    body: JSON.stringify(orderBody),
+    headers: { ...bridgeHeaders(), "x-idempotency-key": idemKey },
+    body: JSON.stringify(cmdBody),
   }).catch(() => null);
 
   const tradeJson = tradeRes?.ok ? await tradeRes.json().catch(() => ({})) : {};
-  const execSuccess = tradeJson?.success === true || tradeRes?.ok;
+  const cmdData = tradeJson?.data ?? tradeJson;
+  const execSuccess = !!tradeRes?.ok && (tradeJson?.success === true || !!cmdData?.commandId || !!cmdData?.id);
 
   // ── 5. Log the trade to the Trade entity for journaling ──
   if (execSuccess) {
@@ -214,7 +210,7 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
         status: "Open",
         pattern: bestStrategy,
         opened_at: new Date().toISOString(),
-        ticket_id: tradeJson?.ticket || tradeJson?.order || String(Date.now()),
+        ticket_id: cmdData?.commandId || cmdData?.id || String(Date.now()),
       });
     } catch {}
   }
@@ -239,10 +235,10 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
       ai_rr: trade.ai_rr,
     },
     execution: {
-      action: tradeAction,
+      action: commandType,
       sent: execSuccess,
       bridge_response: tradeJson?.message || tradeJson?.error || (tradeRes ? `HTTP ${tradeRes.status}` : "no response"),
-      ticket: tradeJson?.ticket || tradeJson?.order || null,
+      ticket: cmdData?.commandId || cmdData?.id || null,
     },
     pillars: decision?.pillars || [],
     regime: decision?.regime,
