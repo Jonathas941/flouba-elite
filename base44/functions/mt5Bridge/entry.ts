@@ -247,6 +247,12 @@ Deno.serve(async (req) => {
       return Response.json({ ok: r.ok, status: r.status, data: { trades: Array.isArray(r.data) ? r.data : (r.data?.items || []) } });
     }
 
+    // ── indicators: raw diagnostic of the EA-published indicator snapshot ──
+    if (action === "indicators") {
+      const r = await bridgeCall("GET", `${robotPath}/indicators`);
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
     // ── symbols / scanner_status: no market-data endpoint in the command-queue bridge ──
     if (action === "symbols" || action === "scanner_status") {
       return Response.json({
