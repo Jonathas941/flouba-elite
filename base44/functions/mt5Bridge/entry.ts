@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     try { body = JSON.parse(bodyText); } catch { body = {}; }
     const { action, ...params } = body;
 
-    // /health/live is unauthenticated — allow it without a robotId.
+    // /healthz is unauthenticated — allow it without a robotId.
     if (action === "status") {
       const r = await bridgeCall("GET", "/healthz");
       let host = null, schemeOk = false;
