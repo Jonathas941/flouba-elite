@@ -12,7 +12,7 @@ import GoldMorningRangeLiveCard from "@/components/strategy/GoldMorningRangeLive
 import GoldDailyBreakoutLiveCard from "@/components/strategy/GoldDailyBreakoutLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
-  TrendingUp, Gauge, CandlestickChart, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves, BarChart3, Box
+  TrendingUp, Gauge, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves, BarChart3, Box
 } from "lucide-react";
 
 const STRATEGY = [

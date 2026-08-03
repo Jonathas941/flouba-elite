@@ -5,9 +5,8 @@ import { base44 } from "@/api/base44Client";
 import MobileHeader from "@/components/MobileHeader";
 import GlassCard from "@/components/GlassCard";
 import { useToast } from "@/components/ui/use-toast";
-import { logNotification } from "@/lib/notifications";
 import {
-  Bot, AlertTriangle, Wifi, WifiOff, Activity, Bell,
+  Bot, AlertTriangle, Wifi, Activity, Bell,
   CheckCheck, Trash2, Loader2, Inbox,
 } from "lucide-react";
 

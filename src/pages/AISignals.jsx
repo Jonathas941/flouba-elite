@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { logNotification } from "@/lib/notifications";
 import {
-  Zap, TrendingUp, TrendingDown, Clock, Target, Loader2,
+  Zap, TrendingUp, TrendingDown, Target, Loader2,
   CheckCircle2, Send, RefreshCw, Shield, Activity, Brain, AlertCircle,
 } from "lucide-react";
 

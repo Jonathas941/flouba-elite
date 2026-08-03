@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Target, Shield, TrendingUp, TrendingDown, Lock, Edit3, Check, Power, RotateCcw } from "lucide-react";
+import { Target, Shield, Lock, Edit3, Check, Power, RotateCcw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 

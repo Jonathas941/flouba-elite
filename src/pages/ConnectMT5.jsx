@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -10,9 +10,8 @@ import MobileSelect from "@/components/MobileSelect";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import EaDownloadButton from "@/components/EaDownloadButton";
-import {
-  Wifi, WifiOff, ShieldCheck, Eye, EyeOff,
-  Loader2, CheckCircle2, ArrowRight, Bot, AlertCircle,
+import { WifiOff, ShieldCheck, Eye, EyeOff,
+  Loader2, CheckCircle2, Bot,
 } from "lucide-react";
 
 const BROKER_SERVERS = {
@@ -261,7 +260,7 @@ export default function ConnectMT5() {
         }
       } catch {}
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const isFormValid = broker && login && password && server;

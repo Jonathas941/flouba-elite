@@ -4,7 +4,6 @@ import { mt5Api } from "@/lib/mt5Api";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WifiOff, Activity, BarChart3, Shield, RefreshCw, Stethoscope, Clock } from "lucide-react";
-import LiveTradeCard from "@/components/trade/LiveTradeCard";
 import PositionsTable from "@/components/trade/PositionsTable";
 import TradeHistoryTable from "@/components/trade/TradeHistoryTable";
 import PerformancePanel from "@/components/trade/PerformancePanel";

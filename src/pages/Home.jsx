@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Play, Square, Bell, ChevronDown, Radar, FileText, WifiOff, BookOpen, Download } from "lucide-react";
+import { Play, Square, ChevronDown, Radar, FileText, WifiOff, BookOpen, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";

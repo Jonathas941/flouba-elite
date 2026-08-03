@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, XCircle, AlertTriangle, Zap, Brain } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, Zap } from "lucide-react";
 
 const STRATEGY_COLORS = {
   "Momentum Scalping": "text-green-400",

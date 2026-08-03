@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Globe, Clock, AlertTriangle, CheckCircle2, Activity, Crosshair, Sun, Moon, Timer } from "lucide-react";
+import { Globe, AlertTriangle, CheckCircle2, Activity, Crosshair, Sun, Moon, Timer } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 function QualityBar({ score, max, minRequired }) {

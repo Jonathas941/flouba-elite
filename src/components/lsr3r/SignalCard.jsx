@@ -1,5 +1,4 @@
 import React from "react";
-import { cn } from "@/lib/utils";
 
 const RESULT_STYLES = {
   TP:          { bg: "rgba(0,255,65,0.12)",  border: "rgba(0,255,65,0.35)",  text: "#00FF41", label: "TP HIT" },

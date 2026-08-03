@@ -6,8 +6,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { logNotification } from "@/lib/notifications";
 import {
   Radar, TrendingUp, TrendingDown, Clock, Target, Shield,
-  Loader2, CheckCircle2, XCircle, Send, Zap, RefreshCw, AlertCircle,
-  Activity, ArrowUpCircle, ArrowDownCircle, FileClock, Ban,
+  Loader2, CheckCircle2, XCircle, Zap, RefreshCw,
+  Activity, FileClock, Ban,
 } from "lucide-react";
 
 const STATUS_META = {

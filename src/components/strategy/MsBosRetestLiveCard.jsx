@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import GlassCard from "@/components/GlassCard";
 import {
-  Activity, TrendingUp, TrendingDown, Minus, ShieldAlert, Target,
+  Activity, ShieldAlert, Target,
   Layers, Gauge, Lock, CheckCircle2, XCircle, Loader2, GitBranch, Crosshair,
 } from "lucide-react";
 

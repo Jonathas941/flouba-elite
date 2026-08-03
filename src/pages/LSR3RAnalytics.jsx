@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BarChart3, TrendingUp, TrendingDown } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 export default function LSR3RAnalytics() {
