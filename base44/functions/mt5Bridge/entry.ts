@@ -11,54 +11,115 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // /api/mt5/commands. Base44 reads synced snapshots from /api/base44/robots/:id
 // and issues trade/control commands into the queue (201 = queued, not executed).
 
+// ── Elite Server API base ────────────────────────────────────────────────────
+// FLOUBA_BACKEND_URL may be set with or without a trailing /api. Normalize so
+// BASE always ends in /api, since the Express API sits behind that path prefix.
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
-  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
-  return v;
+  if (!v) return "";
+  if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+  v = v.replace(/\/api$/i, "");
+  return v + "/api";
 })();
 
-function authHeaders() {
-  const apiKey = Deno.env.get("FLOUBA_BASE44_API_KEY");
-  return {
-    "x-api-key": apiKey || "",
-    "x-request-id": crypto.randomUUID(),
-    "x-timestamp": new Date().toISOString(),
-    "Content-Type": "application/json",
+// Exchange the user's api_key for a 90-day JWT. The server scopes every call to
+// the slug embedded in that token; there is no account id in any path or query.
+async function resolveBridgeToken(base44, user) {
+  let token = user?.flouba_token;
+  let apiKey = user?.mt5_api_key;
+
+  if (!token && !apiKey) {
+    const provisionSecret = Deno.env.get("PROVISION_SECRET");
+    if (!provisionSecret) return null;
+    const pr = await fetch(`${BASE}/provision/user`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
+    }).catch(() => null);
+    const pj = pr ? await pr.json().catch(() => ({})) : {};
+    if (!pj?.success || !pj?.api_key) return null;
+    apiKey = pj.api_key;
+    token = pj.user_token || null;
+    const upd = { mt5_api_key: apiKey };
+    if (pj.user_token) upd.flouba_token = pj.user_token;
+    await base44.auth.updateMe(upd).catch(() => {});
+  }
+
+  if (!token && apiKey) {
+    const tr = await fetch(`${BASE}/auth/token`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: apiKey }),
+    }).catch(() => null);
+    const tj = tr ? await tr.json().catch(() => ({})) : {};
+    token = tj?.token || null;
+  }
+  return token;
+}
+
+// Per-request transport. The token is captured in a closure rather than kept in
+// module scope on purpose: Deno reuses an isolate across concurrent requests, so
+// a shared mutable token could leak one user's account data into another's reply.
+function makeBridgeCall(token) {
+  return async function bridgeCall(method, path, body, extraHeaders) {
+    if (!BASE) return { ok: false, status: 503, data: null, error: "FLOUBA_BACKEND_URL not set" };
+    const auth = {
+      "Content-Type": "application/json",
+      "x-request-id": crypto.randomUUID(),
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    };
+    let res = null;
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await fetch(`${BASE}${path}`, {
+          method,
+          headers: { ...auth, ...(extraHeaders || {}) },
+          ...(method !== "GET" && body != null ? { body: JSON.stringify(body) } : {}),
+        });
+        if (res.status !== 502 && res.status !== 503 && res.status !== 504) break;
+        await new Promise((r) => setTimeout(r, 400));
+      } catch (e) {
+        lastErr = e;
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+    if (!res) return { ok: false, status: 502, data: null, error: lastErr?.message || "Bridge unreachable" };
+    const raw = await res.text();
+    let json;
+    try { json = JSON.parse(raw); } catch { json = { raw }; }
+    if (!res.ok) {
+      const err = json?.error?.message || json?.error || json?.message || `HTTP ${res.status}`;
+      return { ok: false, status: res.status, data: null, error: err };
+    }
+    return { ok: true, status: res.status, data: json?.data ?? json };
   };
 }
 
-async function bridgeCall(method, path, body, extraHeaders) {
-  if (!BASE) return { ok: false, status: 503, data: null, error: "FLOUBA_BACKEND_URL not set" };
-  let res = null;
-  let lastErr = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      res = await fetch(`${BASE}${path}`, {
-        method,
-        headers: { ...authHeaders(), ...(extraHeaders || {}) },
-        ...(method !== "GET" && body != null ? { body: JSON.stringify(body) } : {}),
-      });
-      if (res.status !== 502 && res.status !== 503 && res.status !== 504) break;
-      await new Promise((r) => setTimeout(r, 400));
-    } catch (e) {
-      lastErr = e;
-      await new Promise((r) => setTimeout(r, 400));
-    }
-  }
-  if (!res) return { ok: false, status: 502, data: null, error: lastErr?.message || "Bridge unreachable" };
-  const raw = await res.text();
-  let json;
-  try { json = JSON.parse(raw); } catch { json = { raw }; }
-  if (!res.ok) {
-    const err = json?.error?.message || json?.error || json?.message || `HTTP ${res.status}`;
-    return { ok: false, status: res.status, data: null, error: err };
-  }
-  // Bridge success envelope: { success, data, meta }
-  return { ok: true, status: res.status, data: json?.data ?? json };
+// Elite Server publishes indicators in snake_case; map them onto the camelCase
+// names the scoring logic further down already expects, so that logic is unchanged.
+function normalizeIndicators(payload) {
+  const i = payload?.indicators ?? payload;
+  if (!i || typeof i !== "object") return null;
+  return {
+    _symbol: i.symbol,
+    _receivedAt: payload?.received_at ?? payload?.timestamp ?? null,
+    _ageSeconds: payload?.age_seconds ?? null,
+    bid: i.bid ?? null,
+    ask: i.ask ?? null,
+    spread: i.spread_pips ?? i.spread ?? null,
+    ema20: i.ema_20 ?? null,
+    ema50: i.ema_50 ?? null,
+    ema200: i.ema_200 ?? null,
+    rsi: i.rsi_14 ?? i.rsi ?? null,
+    adx: i.adx_14 ?? i.adx ?? null,
+    atr: i.atr_14 ?? i.atr ?? null,
+    emaSlope: i.ema_slope ?? null,
+  };
 }
 
 // Normalize a bridge account snapshot into the dashboard's expected shape.
 function normalizeAccount(a) {
+  a = a?.account ?? a;
   if (!a) return null;
   return {
     login: a.accountLogin ?? a.login,
@@ -66,15 +127,15 @@ function normalizeAccount(a) {
     equity: a.equity,
     margin: a.margin,
     free_margin: a.freeMargin ?? a.free_margin,
-    margin_level: a.marginLevel,
+    margin_level: a.marginLevel ?? a.margin_level,
     profit: a.floatingProfit ?? a.profit ?? a.dailyProfit,
     profit_today: a.dailyProfit ?? a.dailyNetProfit,
     floating_pnl: a.floatingProfit,
     daily_drawdown: a.drawdownPercent,
-    currency: a.accountCurrency,
+    currency: a.accountCurrency ?? a.currency,
     leverage: a.leverage,
-    broker: a.brokerName,
-    server: a.brokerServer,
+    broker: a.brokerName ?? a.broker,
+    server: a.brokerServer ?? a.server,
     terminal_connected: a.terminalConnected,
     broker_connected: a.brokerConnected,
     last_sync: a.lastSyncedAt,
@@ -114,13 +175,17 @@ Deno.serve(async (req) => {
     const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id }, "-created_date", 1);
     const cfg = settings?.[0];
 
+    // Per-request bridge transport (see makeBridgeCall for why this is a closure).
+    const bridgeToken = await resolveBridgeToken(base44, user);
+    const bridgeCall = makeBridgeCall(bridgeToken);
+
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
     const { action, ...params } = body;
 
     // /health/live is unauthenticated — allow it without a robotId.
     if (action === "status") {
-      const r = await bridgeCall("GET", "/health/live");
+      const r = await bridgeCall("GET", "/healthz");
       let host = null, schemeOk = false;
       try { if (BASE) { const u = new URL(BASE); host = u.host; schemeOk = u.protocol === "https:" || u.protocol === "http:"; } } catch {}
       return Response.json({ ok: r.ok, status: r.status, data: r.data ?? { healthy: r.ok }, error: r.error || null, base_set: !!BASE, base_host: host, base_valid_url: schemeOk });
@@ -136,7 +201,22 @@ Deno.serve(async (req) => {
       }, { status: 200 });
     }
 
-    const robotPath = `/api/base44/robots/${encodeURIComponent(robotId)}`;
+    // Elite Server scopes every call to the slug inside the JWT, so there is no
+    // robot segment in the path. Kept as a prefix constant to avoid touching the
+    // ~20 call sites below.
+    const robotPath = "";
+
+    // Stage 2 — order and control paths are NOT migrated yet. They are blocked
+    // explicitly rather than left to fall through: with the new base URL some of
+    // them (notably close-all) would otherwise resolve to real, live endpoints.
+    if (["robot_start", "robot_stop", "close_all", "close", "buy", "sell"].includes(action)) {
+      return Response.json({
+        ok: false,
+        status: 200,
+        data: null,
+        error: "Order controls are being migrated to the new bridge API and are temporarily disabled.",
+      }, { status: 200 });
+    }
 
     // ── account ──
     if (action === "account") {
@@ -147,13 +227,14 @@ Deno.serve(async (req) => {
     // ── positions ──
     if (action === "positions") {
       const r = await bridgeCall("GET", `${robotPath}/positions`);
-      const positions = Array.isArray(r.data) ? r.data.map(normalizePosition) : [];
+      const rows = Array.isArray(r.data) ? r.data : (r.data?.positions || []);
+      const positions = rows.map(normalizePosition);
       return Response.json({ ok: r.ok, status: r.status, data: { positions } });
     }
 
     // ── robot_status (EA connection + trading engine state) ──
     if (action === "robot_status") {
-      const r = await bridgeCall("GET", `${robotPath}/status`);
+      const r = await bridgeCall("GET", `${robotPath}/robot/status`);
       const st = r.data || {};
       const running = st.status === "ONLINE" || st.robotRunning === true;
       return Response.json({
@@ -173,7 +254,7 @@ Deno.serve(async (req) => {
 
     // ── connect: the EA connects to MT5 locally; Base44 just verifies the robot exists ──
     if (action === "connect") {
-      const r = await bridgeCall("GET", `${robotPath}/status`);
+      const r = await bridgeCall("GET", `${robotPath}/robot/status`);
       return Response.json({ ok: r.ok, status: r.status, data: { connected: r.ok && r.data?.status === "ONLINE" } });
     }
 
@@ -243,7 +324,7 @@ Deno.serve(async (req) => {
     // ── history (closed trades synced by the EA) ──
     if (action === "history") {
       const limit = Math.min(Number(params.limit) || 50, 200);
-      const r = await bridgeCall("GET", `${robotPath}/trades?limit=${limit}`);
+      const r = await bridgeCall("GET", `${robotPath}/history?limit=${limit}`);
       return Response.json({ ok: r.ok, status: r.status, data: { trades: Array.isArray(r.data) ? r.data : (r.data?.items || []) } });
     }
 
@@ -275,7 +356,7 @@ Deno.serve(async (req) => {
     // ── indicators: raw diagnostic of the EA-published indicator snapshot (heartbeat fallback) ──
     if (action === "indicators") {
       const r = await bridgeCall("GET", `${robotPath}/indicators`);
-      if (r.ok) return Response.json({ ok: true, status: r.status, data: r.data, error: null });
+      if (r.ok) return Response.json({ ok: true, status: r.status, data: normalizeIndicators(r.data), error: null });
       const hb = await heartbeatFallback();
       return Response.json({ ok: !!hb, status: hb ? 200 : r.status, data: hb, error: hb ? null : (r.error || "Indicator feed unavailable.") });
     }
@@ -283,7 +364,7 @@ Deno.serve(async (req) => {
     // ── symbols: live bid/ask/spread (heartbeat fallback) ──
     if (action === "symbols") {
       const indRes = await bridgeCall("GET", `${robotPath}/indicators`);
-      const ind = indRes.ok ? (indRes.data || {}) : {};
+      const ind = (indRes.ok ? normalizeIndicators(indRes.data) : null) || {};
       if (ind.bid == null && ind.ask == null) {
         const hb = await heartbeatFallback();
         if (hb && hb.spread != null) {
@@ -320,9 +401,9 @@ Deno.serve(async (req) => {
         bridgeCall("GET", `${robotPath}/indicators`),
         bridgeCall("GET", `${robotPath}/account`),
         bridgeCall("GET", `${robotPath}/positions`),
-        bridgeCall("GET", `${robotPath}/status`),
+        bridgeCall("GET", `${robotPath}/robot/status`),
       ]);
-      let ind = indRes.ok ? (indRes.data || {}) : {};
+      let ind = (indRes.ok ? normalizeIndicators(indRes.data) : null) || {};
       let degraded = false;
       if (ind.bid == null && ind.ema20 == null) {
         const hb = await heartbeatFallback();
@@ -332,7 +413,8 @@ Deno.serve(async (req) => {
         ind = hb; degraded = true;
       }
       const acct = acctRes.ok ? normalizeAccount(acctRes.data) : null;
-      const positions = posRes.ok && Array.isArray(posRes.data) ? posRes.data.map(normalizePosition) : [];
+      const posRows = posRes.ok ? (Array.isArray(posRes.data) ? posRes.data : (posRes.data?.positions || [])) : [];
+      const positions = posRows.map(normalizePosition);
       const st = statusRes.ok ? (statusRes.data || {}) : {};
 
       const indicators = {
