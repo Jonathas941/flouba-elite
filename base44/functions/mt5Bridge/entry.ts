@@ -235,27 +235,42 @@ Deno.serve(async (req) => {
     // ── robot_status (EA connection + trading engine state) ──
     if (action === "robot_status") {
       const r = await bridgeCall("GET", `${robotPath}/robot/status`);
-      const st = r.data || {};
-      const running = st.status === "ONLINE" || st.robotRunning === true;
+      const rb = r.data?.robot || {};
+      const running = rb.running === true;
       return Response.json({
         ok: r.ok,
         status: r.status,
         data: {
           robot: {
             running,
-            status: st.status,
-            emergency_stop: st.emergencyStopActive,
-            last_heartbeat: st.lastHeartbeatAt,
-            config: { symbol: st.symbol || cfg?.active_pair || "XAUUSD" },
+            status: running ? "ONLINE" : "OFFLINE",
+            emergency_stop: null,
+            last_heartbeat: rb.last_scan ?? null,
+            scan_count: rb.scan_count ?? null,
+            trades_queued: rb.trades_queued ?? null,
+            last_error: rb.last_error ?? null,
+            config: { symbol: rb.config?.symbol || cfg?.active_pair || "XAUUSD" },
           },
         },
       });
     }
 
-    // ── connect: the EA connects to MT5 locally; Base44 just verifies the robot exists ──
+    // ── connect: the EA connects to MT5 locally; Base44 just verifies the bridge sees it ──
+    // EA liveness lives on /status as bridge.connected — /robot/status only reports
+    // whether the autonomous robot loop is running, which is a different question.
     if (action === "connect") {
-      const r = await bridgeCall("GET", `${robotPath}/robot/status`);
-      return Response.json({ ok: r.ok, status: r.status, data: { connected: r.ok && r.data?.status === "ONLINE" } });
+      const r = await bridgeCall("GET", `${robotPath}/status`);
+      const br = r.data?.bridge || {};
+      return Response.json({
+        ok: r.ok,
+        status: r.status,
+        data: {
+          connected: r.ok && br.connected === true,
+          ea_version: br.ea_version ?? null,
+          last_heartbeat: br.last_heartbeat ?? null,
+          seconds_since_heartbeat: br.seconds_since_heartbeat ?? null,
+        },
+      });
     }
 
     // ── robot_start: push config to settings, then POST /start ──
@@ -430,7 +445,7 @@ Deno.serve(async (req) => {
       const price = ind.bid ?? ind.ask;
       const ema20 = ind.ema20, ema50 = ind.ema50, ema200 = ind.ema200;
       const adx = ind.adx, rsi = ind.rsi, atr = ind.atr, spread = ind.spread;
-      const robotRunning = st.status === "ONLINE" || st.robotRunning === true;
+      const robotRunning = st.robot?.running === true;
 
       // ── Degraded mode (no indicator feed): report live status without a confluence score ──
       if (degraded) {
