@@ -29,14 +29,16 @@ export default function TradingView() {
   const [saving, setSaving] = useState(false);
 
   const [showLiveWarning, setShowLiveWarning] = useState(false);
+  const [botSettings, setBotSettings] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [tvList, sigList, connList] = await Promise.all([
+      const [tvList, sigList, connList, botList] = await Promise.all([
         base44.entities.TradingViewSettings.list(),
         base44.entities.TradingViewSignal.list("-created_date", 10),
         base44.entities.TradingExecutionConnection.list(),
+        base44.entities.BotSettings.list(),
       ]);
 
       let tv = tvList?.[0];
@@ -58,6 +60,7 @@ export default function TradingView() {
       setSettings(tv);
       setSignals(sigList || []);
       setConnection(connList?.[0] || null);
+      setBotSettings(botList?.[0] || null);
     } catch (err) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -78,6 +81,7 @@ export default function TradingView() {
       await base44.entities.TradingViewSettings.update(settings.id, {
         auto_trading_enabled: settings.auto_trading_enabled,
         trading_mode: settings.trading_mode,
+        execution_target: settings.execution_target || "auto",
         use_alert_quantity: settings.use_alert_quantity,
         fixed_order_size: Number(settings.fixed_order_size ?? settings.fixed_lot_size ?? 0.01),
         allowed_symbols: settings.allowed_symbols,
@@ -138,6 +142,9 @@ export default function TradingView() {
   const webhookUrl = `${window.location.origin}/api/apps/${settings.app_id || '6a437ad84dc8721fedd64296'}/functions/tradingViewWebhook`;
   const execConnected = connection?.connection_status === "Connected";
   const lastSignal = signals?.[0]?.received_at || signals?.[0]?.created_date;
+  const hasMt5 = !!botSettings?.mt5_account;
+  const execTarget = settings.execution_target || "auto";
+  const activePath = (execTarget === "mt5_robot" || (execTarget === "auto" && hasMt5)) ? "mt5_robot" : "broker_api";
 
   return (
     <div className="min-h-screen px-4 pt-6 pb-28 space-y-4 max-w-md mx-auto">
@@ -161,9 +168,14 @@ export default function TradingView() {
             active={settings.auto_trading_enabled}
           />
           <StatusChip
+            label="Exec Path"
+            value={activePath === "mt5_robot" ? "MT5 Robot" : "Broker API"}
+            active={activePath === "mt5_robot" ? hasMt5 : execConnected}
+          />
+          <StatusChip
             label="Trade Execution"
-            value={execConnected ? "Ready" : "Not Connected"}
-            active={execConnected}
+            value={activePath === "mt5_robot" ? (hasMt5 ? "Ready" : "No MT5") : (execConnected ? "Ready" : "Not Connected")}
+            active={activePath === "mt5_robot" ? hasMt5 : execConnected}
           />
           <StatusChip
             label="Auto Trading"
@@ -235,6 +247,42 @@ export default function TradingView() {
               icon={Zap}
             />
           </div>
+        </div>
+
+        {/* Execution Target */}
+        <div>
+          <Label className="text-sm text-white mb-2 block">Execution Target</Label>
+          <div className="grid grid-cols-3 gap-2">
+            <ModeButton
+              active={execTarget === "auto"}
+              onClick={() => updateField("execution_target", "auto")}
+              label="Auto"
+              icon={Zap}
+            />
+            <ModeButton
+              active={execTarget === "mt5_robot"}
+              onClick={() => updateField("execution_target", "mt5_robot")}
+              label="MT5 Robot"
+              icon={Activity}
+            />
+            <ModeButton
+              active={execTarget === "broker_api"}
+              onClick={() => updateField("execution_target", "broker_api")}
+              label="Broker API"
+              icon={Webhook}
+            />
+          </div>
+          <p className="text-[10px] text-white/30 mt-1">
+            {execTarget === "auto"
+              ? hasMt5
+                ? `Auto → MT5 Robot (account ${botSettings.mt5_account}) detected`
+                : "Auto → Broker API (no MT5 account connected)"
+              : execTarget === "mt5_robot"
+              ? hasMt5
+                ? `MT5 Robot (account ${botSettings.mt5_account})`
+                : "MT5 Robot — ⚠ No MT5 account connected"
+              : "Broker API (OANDA / cTrader)"}
+          </p>
         </div>
 
         {/* Live Mode Warning */}

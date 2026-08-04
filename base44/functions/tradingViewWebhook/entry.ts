@@ -1,26 +1,28 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { postCommand } from '../../shared/mt5Bridge.ts';
 
 // ═══════════════════════════════════════════════════════════════
-// TradingView Webhook Receiver — Independent from MT5
-// POST /api/functions/tradingViewWebhook/:userId
+// TradingView Webhook Receiver — Hybrid Auto Execution
+// POST /api/functions/tradingViewWebhook
 //
 // Flow: TradingView alert → webhook → validate → execute via
-// independent trading API → save result → display on page.
+// MT5 robot bridge OR broker API (OANDA/cTrader) → save → display.
+//
+// execution_target:
+//   auto       → MT5 robot if BotSettings.mt5_account set, else broker API
+//   mt5_robot  → force MT5 bridge (Flouba Lite command queue)
+//   broker_api → force OANDA/cTrader via tradingExecute
 // ═══════════════════════════════════════════════════════════════
 
-// ── Symbol normalization ──────────────────────────────────────
 function normalizeSymbol(raw) {
   if (!raw || typeof raw !== "string") return null;
   let s = raw.trim().toUpperCase();
-  // Strip exchange prefixes: OANDA:XAUUSD, FOREXCOM:XAUUSD, FX:XAUUSD
   const colonIdx = s.indexOf(":");
   if (colonIdx > 0 && colonIdx < 12) s = s.slice(colonIdx + 1);
-  // Strip common suffixes
   s = s.replace(/[\.\-_]$/g, "");
   return s || null;
 }
 
-// ── Action normalization ─────────────────────────────────────
 function normalizeAction(raw) {
   if (!raw) return null;
   const a = String(raw).trim().toLowerCase();
@@ -39,11 +41,17 @@ function normalizeAction(raw) {
 
 function num(v) { return v == null || v === "" ? null : Number(v); }
 
+// Map TradingView actions to MT5 bridge command types
+const MT5_COMMAND_MAP = {
+  BUY: "OPEN_BUY",
+  SELL: "OPEN_SELL",
+  CLOSE: "CLOSE_ALL",
+  CLOSE_BUY: "CLOSE_BUY",
+  CLOSE_SELL: "CLOSE_SELL",
+};
+
 Deno.serve(async (req) => {
   try {
-    const url = new URL(req.url);
-
-    // ── Parse body ──
     const bodyText = await req.text().catch(() => "{}");
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
@@ -51,7 +59,7 @@ Deno.serve(async (req) => {
     const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
     const base44 = createClientFromRequest(headersReq);
 
-    // ── Look up settings by webhook secret (the secret IS the user identifier) ──
+    // ── Look up settings by webhook secret ──
     const secret = body.secret;
     if (!secret || secret.length < 8) {
       return Response.json({ success: false, status: "error", message: "Invalid or missing webhook secret" }, { status: 403 });
@@ -65,7 +73,6 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, status: "error", message: "Invalid webhook secret" }, { status: 403 });
     }
 
-    // ── Get userId from the settings owner ──
     const userId = settings.created_by_id;
 
     // ── Check auto trading ──
@@ -138,7 +145,7 @@ Deno.serve(async (req) => {
 
     // ── Save received signal ──
     const rawPayload = { ...body };
-    delete rawPayload.secret; // Never store the secret
+    delete rawPayload.secret;
 
     const signal = await base44.asServiceRole.entities.TradingViewSignal.create({
       created_by_id: userId,
@@ -155,7 +162,7 @@ Deno.serve(async (req) => {
       received_at: new Date().toISOString(),
     });
 
-    // ── TEST MODE: simulate, don't call execution API ──
+    // ── TEST MODE: simulate, don't execute ──
     if (mode === "test") {
       await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
         status: "Simulated",
@@ -174,7 +181,112 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── LIVE MODE: execute via independent trading API ──
+    // ═══════════════════════════════════════════════════════════════
+    // LIVE MODE — Hybrid Auto Execution
+    // ═══════════════════════════════════════════════════════════════
+    const execTarget = settings.execution_target || "auto";
+
+    // ── Check if MT5 robot is available ──
+    let hasMt5 = false;
+    let botSettings = null;
+    if (execTarget === "auto" || execTarget === "mt5_robot") {
+      const botList = await base44.asServiceRole.entities.BotSettings.filter(
+        { created_by_id: userId }, "-created_date", 1
+      );
+      botSettings = botList?.[0];
+      if (botSettings?.mt5_account) {
+        hasMt5 = true;
+      }
+    }
+
+    // ── Route execution ──
+    const useMt5 = (execTarget === "mt5_robot") || (execTarget === "auto" && hasMt5);
+
+    if (useMt5 && hasMt5) {
+      // ═══════════════════════════════════════════════════════════════
+      // MT5 Robot Bridge Execution (Flouba Lite command queue)
+      // ═══════════════════════════════════════════════════════════════
+      const robotId = String(botSettings.mt5_account);
+      const commandType = MT5_COMMAND_MAP[action];
+      if (!commandType) {
+        await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+          status: "Rejected",
+          message: `Unsupported action for MT5: ${action}`,
+          executed_at: new Date().toISOString(),
+        });
+        return Response.json({ success: false, status: "error", alert_id: alertId, message: `Unsupported action for MT5: ${action}` });
+      }
+
+      const command = {
+        commandType,
+        direction: action,
+        symbol,
+        lotSize: Number(quantity),
+      };
+
+      const idemKey = `tv-${commandType}-${robotId}-${symbol}-${alertId}`;
+      const execRes = await postCommand(robotId, command, idemKey);
+
+      if (execRes.ok) {
+        const orderId = execRes?.data?.commandId || execRes?.data?.id || idemKey;
+        await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+          status: "Executed",
+          order_id: String(orderId),
+          message: `MT5 robot executed — command ${commandType} queued for robot ${robotId}`,
+          executed_at: new Date().toISOString(),
+        });
+
+        // ── Send notification ──
+        await base44.asServiceRole.entities.Notification.create({
+          created_by_id: userId,
+          type: "trade",
+          title: "Trade Executed (MT5 Robot)",
+          message: `${action} ${symbol} • ${quantity} lot • Robot ${robotId}`,
+          category: "success",
+          read: false,
+          meta: {
+            source: "tradingview_webhook",
+            execution_path: "mt5_robot",
+            alert_id: alertId,
+            order_id: String(orderId),
+            symbol,
+            action,
+            quantity,
+          },
+        }).catch(() => {});
+
+        return Response.json({
+          success: true,
+          status: "executed",
+          alert_id: alertId,
+          order_id: String(orderId),
+          execution_path: "mt5_robot",
+          symbol,
+          action,
+          quantity,
+          message: "MT5 robot executed the order successfully",
+        });
+      }
+
+      // ── MT5 execution failed ──
+      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+        status: "Error",
+        message: `MT5 bridge error: ${execRes.error}`,
+        executed_at: new Date().toISOString(),
+      });
+
+      return Response.json({
+        success: false,
+        status: "error",
+        alert_id: alertId,
+        execution_path: "mt5_robot",
+        message: `MT5 bridge error: ${execRes.error}`,
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Broker API Execution (OANDA / cTrader via tradingExecute)
+    // ═══════════════════════════════════════════════════════════════
     const execRes = await base44.asServiceRole.functions.invoke("tradingExecute", {
       user_id: userId,
       alert_id: alertId,
@@ -191,21 +303,20 @@ Deno.serve(async (req) => {
       await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
         status: "Executed",
         order_id: exec.order_id,
-        message: `Executed — order ID ${exec.order_id}`,
+        message: `Broker API executed — order ID ${exec.order_id}`,
         executed_at: new Date().toISOString(),
       });
 
-      // ── Send notification ──
-      const dirLabel = action === "BUY" ? "BUY" : action === "SELL" ? "SELL" : action;
       await base44.asServiceRole.entities.Notification.create({
         created_by_id: userId,
         type: "trade",
-        title: "Trade Executed",
-        message: `${dirLabel} ${symbol} • ${quantity} lot • Order ${exec.order_id}`,
+        title: "Trade Executed (Broker API)",
+        message: `${action} ${symbol} • ${quantity} lot • Order ${exec.order_id}`,
         category: "success",
         read: false,
         meta: {
           source: "tradingview_webhook",
+          execution_path: "broker_api",
           alert_id: alertId,
           order_id: exec.order_id,
           symbol,
@@ -219,10 +330,11 @@ Deno.serve(async (req) => {
         status: "executed",
         alert_id: alertId,
         order_id: exec.order_id,
+        execution_path: "broker_api",
         symbol,
         action,
         quantity,
-        message: "Order executed successfully",
+        message: "Order executed successfully via broker API",
       });
     }
 
@@ -243,33 +355,3 @@ Deno.serve(async (req) => {
     return Response.json({ success: false, status: "error", message: err.message }, { status: 500 });
   }
 });
-
-// ── Helper: ensure settings exist ──
-async function ensureSettings(base44, userId) {
-  const list = await base44.asServiceRole.entities.TradingViewSettings.filter(
-    { created_by_id: userId }, "-created_date", 1
-  );
-  if (list?.[0]) return list[0];
-  return await base44.asServiceRole.entities.TradingViewSettings.create({
-    created_by_id: userId,
-    webhook_secret: crypto.randomUUID().replace(/-/g, ""),
-    auto_trading_enabled: false,
-    trading_mode: "test",
-    use_alert_quantity: true,
-    fixed_order_size: 0.01,
-    max_order_size: 0.1,
-    allowed_symbols: "XAUUSD",
-    max_open_positions: 3,
-    allow_buy: true,
-    allow_sell: true,
-    allow_close: true,
-  });
-}
-
-// ── Helper: get execution connection ──
-async function getExecutionConnection(base44, userId) {
-  const list = await base44.asServiceRole.entities.TradingExecutionConnection.filter(
-    { created_by_id: userId }, "-created_date", 1
-  );
-  return list?.[0] || null;
-}

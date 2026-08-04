@@ -18,7 +18,17 @@
         "live"
       ],
       "default": "test",
-      "description": "test = validate and simulate only. live = execute via independent trading API."
+      "description": "test = validate and simulate only. live = execute via MT5 robot or broker API."
+    },
+    "execution_target": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "mt5_robot",
+        "broker_api"
+      ],
+      "default": "auto",
+      "description": "auto = use MT5 robot if connected, else broker API. mt5_robot = force MT5 bridge. broker_api = force OANDA/cTrader."
     },
     "use_alert_quantity": {
       "type": "boolean",
