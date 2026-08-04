@@ -183,12 +183,14 @@ Deno.serve(async (req) => {
     try { body = JSON.parse(bodyText); } catch { body = {}; }
     const { action, ...params } = body;
 
-    // /healthz is unauthenticated — allow it without a robotId.
+    // /status is the Replit server's health endpoint (replaces Railway's /healthz).
     if (action === "status") {
-      const r = await bridgeCall("GET", "/healthz");
+      const r = await bridgeCall("GET", "/status");
       let host = null, schemeOk = false;
       try { if (BASE) { const u = new URL(BASE); host = u.host; schemeOk = u.protocol === "https:" || u.protocol === "http:"; } } catch {}
-      return Response.json({ ok: r.ok, status: r.status, data: r.data ?? { healthy: r.ok }, error: r.error || null, base_set: !!BASE, base_host: host, base_valid_url: schemeOk });
+      const br = r.ok ? (r.data?.bridge || {}) : {};
+      const healthy = r.ok && (br.connected === true || r.status === 200);
+      return Response.json({ ok: healthy, status: r.status, data: { healthy, bridge: br }, error: r.error || null, base_set: !!BASE, base_host: host, base_valid_url: schemeOk });
     }
 
     const robotId = String(cfg?.mt5_account || "");
