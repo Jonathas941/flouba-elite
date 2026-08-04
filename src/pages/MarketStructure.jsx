@@ -6,6 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import MarketStructureSettingsEditor from "@/components/scanner/MarketStructureSettingsEditor";
+import MarketStructurePresetsBar from "@/components/scanner/MarketStructurePresetsBar";
 
 const STATUS_COLORS = {
   "Scanning": "text-cyan-400",
@@ -244,7 +245,12 @@ export default function MarketStructure() {
         </motion.button>
       </div>
 
-      {/* B. SCANNER SETTINGS */}
+      {/* B. SCANNER PRESETS */}
+      <HudPanel label="Strategy Presets" accent="#FFCC42">
+        <MarketStructurePresetsBar settings={settings} onApplyPreset={setSettings} />
+      </HudPanel>
+
+      {/* C. SCANNER SETTINGS */}
       <HudPanel label="Scanner Settings" accent="#00FF41">
         <MarketStructureSettingsEditor settings={settings} onUpdated={setSettings} />
       </HudPanel>
