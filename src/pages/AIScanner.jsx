@@ -13,6 +13,7 @@ import DrawdownProtection from "@/components/analysis/DrawdownProtection";
 import LiveDebugPanel from "@/components/scanner/LiveDebugPanel";
 import ScannerStatusPanel from "@/components/scanner/ScannerStatusPanel";
 import TradeChecklist from "@/components/scanner/TradeChecklist";
+import AISignalExecutionPanel from "@/components/scanner/AISignalExecutionPanel";
 import EmaCrossOverlay from "@/components/scanner/EmaCrossOverlay";
 import SystemHealthCheck from "@/components/health/SystemHealthCheck";
 
@@ -98,6 +99,7 @@ export default function AIScanner() {
         {tab === "dashboard" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <ScannerStatusPanel />
+            <AISignalExecutionPanel />
             <SessionNewsFilter onFilterChange={handleFilterChange} />
             <AIDashboard scanner={scanData?.scanner} />
             <EmaCrossOverlay scanner={scanData?.scanner} />
