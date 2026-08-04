@@ -1,319 +1,313 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
-// ── TradingView Webhook Receiver ────────────────────────────────────────────
-// Accepts POST requests from TradingView alerts. Authenticates via per-user
-// webhook_secret stored in TradingViewSettings. Validates risk rules, normalizes
-// symbols/actions, deduplicates by alert_id, and executes trades through the
-// existing Flouba Elite MT5 bridge (same command-queue as the rest of the app).
+// ═══════════════════════════════════════════════════════════════
+// TradingView Webhook Receiver — Independent from MT5
+// POST /api/functions/tradingViewWebhook/:userId
+//
+// Flow: TradingView alert → webhook → validate → execute via
+// independent trading API → save result → display on page.
+// ═══════════════════════════════════════════════════════════════
 
-import { BRIDGE, B44, bridgeHeaders, postCommand } from "../../shared/mt5Bridge.ts";
-
-// ── Normalize TradingView symbol ── remove exchange prefix (OANDA:, FX:, etc.)
+// ── Symbol normalization ──────────────────────────────────────
 function normalizeSymbol(raw) {
-  if (!raw || typeof raw !== "string") return "";
+  if (!raw || typeof raw !== "string") return null;
   let s = raw.trim().toUpperCase();
-  // Strip exchange prefix: "OANDA:XAUUSD" → "XAUUSD", "FX:EURUSD" → "EURUSD"
+  // Strip exchange prefixes: OANDA:XAUUSD, FOREXCOM:XAUUSD, FX:XAUUSD
   const colonIdx = s.indexOf(":");
   if (colonIdx > 0 && colonIdx < 12) s = s.slice(colonIdx + 1);
-  // Remove common broker suffixes (m, s, .r, etc.) — bridge handles base symbol
-  s = s.replace(/\.R$/i, "").replace(/[MS]$/i, "");
-  return s;
+  // Strip common suffixes
+  s = s.replace(/[\.\-_]$/g, "");
+  return s || null;
 }
 
-// ── Normalize action ──
-function normalizeAction(raw, strategyPosition, message) {
+// ── Action normalization ─────────────────────────────────────
+function normalizeAction(raw) {
   if (!raw) return null;
-  let a = String(raw).trim().toLowerCase();
-
-  // Check message for implicit commands
-  const msg = (message || "").toLowerCase();
-  if (msg.includes("order buy") || msg.includes("order:buy")) a = "buy";
-  else if (msg.includes("order sell") || msg.includes("order:sell")) a = "sell";
-  else if (msg.includes("exit") || msg.includes("position is 0")) a = "close";
-  else if (msg.includes("close")) a = "close";
-
-  // strategy_position 0 after an open position = exit, not new entry
-  if (strategyPosition != null && Number(strategyPosition) === 0 && (a === "buy" || a === "sell")) {
-    // Only treat as close if the message explicitly says exit/close
-    if (msg.includes("exit") || msg.includes("close") || msg.includes("position is 0")) {
-      a = "close";
-    }
-  }
-
-  switch (a) {
-    case "buy": case "long": return "BUY";
-    case "sell": case "short": return "SELL";
-    case "close": case "exit": case "flatten": return "CLOSE";
-    case "close_buy": case "closebuy": return "CLOSE_BUY";
-    case "close_sell": case "closesell": return "CLOSE_SELL";
-    default: return null;
-  }
+  const a = String(raw).trim().toLowerCase();
+  const map = {
+    buy: "BUY",
+    sell: "SELL",
+    close: "CLOSE",
+    exit: "CLOSE",
+    close_buy: "CLOSE_BUY",
+    close_sell: "CLOSE_SELL",
+    closebuy: "CLOSE_BUY",
+    closesell: "CLOSE_SELL",
+  };
+  return map[a] || null;
 }
 
-// ── Generate a unique webhook secret per user ──
-function generateSecret() {
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  return "tv_" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
-}
+function num(v) { return v == null || v === "" ? null : Number(v); }
 
 Deno.serve(async (req) => {
   try {
-    // ── Extract userId from path: .../tradingViewWebhook/USER_ID ──
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
-    const pathUserId = pathParts[pathParts.length - 1] || null;
+    const userId = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
 
+    // ── Parse body ──
     const bodyText = await req.text().catch(() => "{}");
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
 
-    const isTest = body.__test === true;
-    const userId = pathUserId || body.__user_id || null;
+    // ── Test signal from the dashboard ──
+    if (body.__test) {
+      const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
+      const base44 = createClientFromRequest(headersReq);
+      const user = await base44.auth.me().catch(() => null);
+      if (!user) return Response.json({ success: false, message: "Unauthorized" }, { status: 401 });
+
+      const settings = await ensureSettings(base44, user.id);
+      const conn = await getExecutionConnection(base44, user.id);
+
+      const testSignal = {
+        alert_id: `test-${Date.now()}`,
+        symbol: "XAUUSD",
+        action: "BUY",
+        quantity: 0.01,
+        price: null,
+        mode: settings.trading_mode || "test",
+        status: "Simulated",
+        message: "Test signal — simulated successfully. No order sent to execution API.",
+        received_at: new Date().toISOString(),
+        executed_at: new Date().toISOString(),
+      };
+
+      const saved = await base44.asServiceRole.entities.TradingViewSignal.create({
+        ...testSignal,
+        raw_payload: { __test: true, symbol: "XAUUSD", action: "BUY", quantity: 0.01 },
+      });
+
+      return Response.json({
+        success: true,
+        status: "executed",
+        alert_id: testSignal.alert_id,
+        ticket: "TEST",
+        message: "Test mode — alert received and validated. No trade sent to execution API.",
+        signal_id: saved?.id,
+        execution_api_connected: !!conn,
+      });
+    }
+
+    // ── Validate user ID from path ──
+    if (!userId || userId.length < 10) {
+      return Response.json({ success: false, status: "error", message: "Invalid webhook URL" }, { status: 400 });
+    }
 
     const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
     const base44 = createClientFromRequest(headersReq);
 
-    // ── For test calls from the frontend, authenticate via session ──
-    if (isTest) {
-      const me = await base44.auth.me().catch(() => null);
-      if (!me) return Response.json({ error: "Unauthorized" }, { status: 401 });
-      return await handleTestAlert(base44, me.id);
-    }
-
-    if (!userId) {
-      return Response.json({ error: "Missing user ID in webhook path" }, { status: 400 });
-    }
-
-    // ── Load user's TradingViewSettings ──
+    // ── Load user's TradingViewSettings (service role — webhook is unauthenticated) ──
     const settingsList = await base44.asServiceRole.entities.TradingViewSettings.filter(
       { created_by_id: userId }, "-created_date", 1
-    ).catch(() => []);
-    let tvSettings = settingsList?.[0];
-
-    // Auto-create settings with a new secret if none exist
-    if (!tvSettings) {
-      tvSettings = await base44.asServiceRole.entities.TradingViewSettings.create({
+    );
+    let settings = settingsList?.[0];
+    if (!settings) {
+      // Auto-provision settings with a random secret
+      settings = await base44.asServiceRole.entities.TradingViewSettings.create({
         created_by_id: userId,
-        webhook_secret: generateSecret(),
+        webhook_secret: crypto.randomUUID().replace(/-/g, ""),
         auto_trading_enabled: false,
         trading_mode: "test",
+        use_alert_quantity: true,
+        fixed_order_size: 0.01,
+        max_order_size: 0.1,
+        allowed_symbols: "XAUUSD",
+        max_open_positions: 3,
+        allow_buy: true,
+        allow_sell: true,
+        allow_close: true,
       });
     }
 
     // ── Validate webhook secret ──
-    const providedSecret = body.secret;
-    if (!providedSecret || providedSecret !== tvSettings.webhook_secret) {
-      return Response.json({ error: "Invalid or missing webhook secret" }, { status: 401 });
+    if (!body.secret || body.secret !== settings.webhook_secret) {
+      return Response.json({ success: false, status: "error", message: "Invalid webhook secret" }, { status: 403 });
     }
 
-    // ── Check auto_trading_enabled ──
-    if (!tvSettings.auto_trading_enabled) {
-      return Response.json({ error: "Auto trading is disabled" }, { status: 403 });
+    // ── Check auto trading ──
+    if (!settings.auto_trading_enabled) {
+      return Response.json({ success: false, status: "error", message: "Auto trading is OFF" }, { status: 403 });
     }
 
-    return await processAlert(base44, userId, tvSettings, body);
-  } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
-  }
-});
+    // ── Normalize symbol ──
+    const symbol = normalizeSymbol(body.symbol);
+    if (!symbol) {
+      return Response.json({ success: false, status: "error", message: "Invalid or missing symbol" }, { status: 400 });
+    }
 
-// ═══ Test alert handler — simulates an XAUUSD BUY without executing ─══
-async function handleTestAlert(base44, userId) {
-  const settingsList = await base44.asServiceRole.entities.TradingViewSettings.filter(
-    { created_by_id: userId }, "-created_date", 1
-  ).catch(() => []);
-  let tvSettings = settingsList?.[0];
-  if (!tvSettings) {
-    tvSettings = await base44.asServiceRole.entities.TradingViewSettings.create({
+    // ── Check allowed symbols ──
+    const allowed = (settings.allowed_symbols || "XAUUSD").split(",").map(s => s.trim().toUpperCase());
+    if (!allowed.includes(symbol)) {
+      return Response.json({ success: false, status: "error", message: `Symbol ${symbol} not allowed` }, { status: 403 });
+    }
+
+    // ── Normalize action ──
+    const action = normalizeAction(body.action);
+    if (!action) {
+      return Response.json({ success: false, status: "error", message: `Invalid action: ${body.action}` }, { status: 400 });
+    }
+
+    // ── Check action permissions ──
+    if (action === "BUY" && !settings.allow_buy) {
+      return Response.json({ success: false, status: "error", message: "BUY action not allowed" }, { status: 403 });
+    }
+    if (action === "SELL" && !settings.allow_sell) {
+      return Response.json({ success: false, status: "error", message: "SELL action not allowed" }, { status: 403 });
+    }
+    if (action.startsWith("CLOSE") && !settings.allow_close) {
+      return Response.json({ success: false, status: "error", message: "CLOSE action not allowed" }, { status: 403 });
+    }
+
+    // ── Determine quantity ──
+    let quantity = num(body.quantity);
+    if (settings.use_alert_quantity) {
+      if (quantity == null || quantity <= 0) {
+        return Response.json({ success: false, status: "error", message: "Invalid or missing quantity" }, { status: 400 });
+      }
+    } else {
+      quantity = settings.fixed_order_size ?? 0.01;
+    }
+
+    // ── Check max order size ──
+    const maxSize = settings.max_order_size ?? 0.1;
+    if (quantity > maxSize) {
+      return Response.json({ success: false, status: "error", message: `Quantity ${quantity} exceeds max ${maxSize}` }, { status: 403 });
+    }
+
+    const alertId = body.alert_id || `tv-${Date.now()}`;
+    const mode = settings.trading_mode || "test";
+    const price = num(body.price);
+    const positionSize = num(body.position_size || body.strategy_position);
+
+    // ── Dedup: check for existing alert_id ──
+    const existing = await base44.asServiceRole.entities.TradingViewSignal.filter(
+      { created_by_id: userId, alert_id: alertId }, "-created_date", 1
+    );
+    if (existing?.length > 0) {
+      return Response.json({
+        success: false,
+        status: "duplicate",
+        alert_id: alertId,
+        message: "Duplicate alert — already processed",
+      });
+    }
+
+    // ── Save received signal ──
+    const rawPayload = { ...body };
+    delete rawPayload.secret; // Never store the secret
+
+    const signal = await base44.asServiceRole.entities.TradingViewSignal.create({
       created_by_id: userId,
-      webhook_secret: generateSecret(),
-      auto_trading_enabled: false,
-      trading_mode: "test",
+      alert_id: alertId,
+      symbol,
+      action,
+      quantity,
+      price,
+      position_size: positionSize,
+      mode,
+      status: "Validated",
+      message: "Signal validated",
+      raw_payload: rawPayload,
+      received_at: new Date().toISOString(),
     });
-  }
 
-  const testBody = {
-    alert_id: `test-${Date.now()}`,
-    symbol: "XAUUSD",
-    action: "buy",
-    quantity: 0.01,
-    price: 0,
-    strategy_position: 0.01,
-    timestamp: new Date().toISOString(),
-  };
+    // ── TEST MODE: simulate, don't call execution API ──
+    if (mode === "test") {
+      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+        status: "Simulated",
+        message: "Test mode — order simulated. No live execution.",
+        executed_at: new Date().toISOString(),
+      });
 
-  const result = await processAlert(base44, userId, tvSettings, testBody, true);
-  return Response.json(result);
-}
+      return Response.json({
+        success: true,
+        status: "simulated",
+        alert_id: alertId,
+        symbol,
+        action,
+        quantity,
+        message: "Test mode — order simulated successfully",
+      });
+    }
 
-// ═══ Core: process a TradingView alert ─══
-async function processAlert(base44, userId, tvSettings, body, isTest = false) {
-  const alertId = body.alert_id || `${body.symbol || "unknown"}-${body.timestamp || Date.now()}`;
-  const rawSymbol = body.symbol || "";
-  const symbol = normalizeSymbol(rawSymbol);
-  const action = normalizeAction(body.action, body.strategy_position, body.message);
-
-  // ── Dedup: check if alert_id already processed ──
-  const existing = await base44.asServiceRole.entities.TradingViewAlert.filter(
-    { created_by_id: userId, alert_id: alertId }, "-created_date", 1
-  ).catch(() => []);
-
-  if (existing?.length > 0) {
-    const dup = existing[0];
-    return {
-      success: false,
-      status: "duplicate",
+    // ── LIVE MODE: execute via independent trading API ──
+    const execRes = await base44.asServiceRole.functions.invoke("tradingExecute", {
+      user_id: userId,
       alert_id: alertId,
-      message: `Duplicate alert — already processed as ${dup.status}`,
-    };
-  }
+      symbol,
+      action,
+      quantity,
+      price,
+      mode: "live",
+    }).catch((e) => ({ data: { success: false, status: "error", message: e.message } }));
 
-  // ── Save the alert as Received ──
-  const sanitizedPayload = { ...body };
-  delete sanitizedPayload.secret; // never store the secret
+    const exec = execRes?.data || execRes;
 
-  const alertRecord = {
-    alert_id: alertId,
-    symbol,
-    action: action || "UNKNOWN",
-    requested_quantity: Number(body.quantity) || null,
-    price: Number(body.price) || null,
-    stop_loss: Number(body.stop_loss) || null,
-    take_profit: Number(body.take_profit) || null,
-    strategy_position: body.strategy_position != null ? Number(body.strategy_position) : null,
-    mode: tvSettings.trading_mode || "test",
-    status: "Received",
-    raw_payload: sanitizedPayload,
-  };
+    if (exec?.success && exec?.order_id) {
+      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+        status: "Executed",
+        order_id: exec.order_id,
+        message: `Executed — order ID ${exec.order_id}`,
+        executed_at: new Date().toISOString(),
+      });
 
-  const saved = await base44.asServiceRole.entities.TradingViewAlert.create(alertRecord);
+      return Response.json({
+        success: true,
+        status: "executed",
+        alert_id: alertId,
+        order_id: exec.order_id,
+        symbol,
+        action,
+        quantity,
+        message: "Order executed successfully",
+      });
+    }
 
-  // ── Validate action ──
-  if (!action) {
-    await updateAlert(base44, saved.id, "Rejected", "Unknown or invalid action");
-    return { success: false, status: "rejected", alert_id: alertId, message: "Unknown or invalid action" };
-  }
+    // ── Execution failed ──
+    await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+      status: "Error",
+      message: exec?.message || "Execution API returned an error",
+      executed_at: new Date().toISOString(),
+    });
 
-  // ── Validate symbol is in allowed list ──
-  const allowedSymbols = (tvSettings.allowed_symbols || "XAUUSD")
-    .split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
-  if (!allowedSymbols.includes(symbol)) {
-    await updateAlert(base44, saved.id, "Rejected", `Symbol ${symbol} not in allowed list: ${allowedSymbols.join(", ")}`);
-    return { success: false, status: "rejected", alert_id: alertId, message: `Symbol ${symbol} not allowed` };
-  }
-
-  // ── Determine lot size ──
-  let lotSize;
-  if (tvSettings.lot_size_mode === "fixed") {
-    lotSize = Number(tvSettings.fixed_lot_size) || 0.01;
-  } else {
-    lotSize = Number(body.quantity) || 0.01;
-  }
-
-  // ── Validate lot size ──
-  if (lotSize <= 0) {
-    await updateAlert(base44, saved.id, "Rejected", "Invalid quantity");
-    return { success: false, status: "rejected", alert_id: alertId, message: "Invalid quantity" };
-  }
-  const maxLot = Number(tvSettings.max_lot_size) || 0.1;
-  if (lotSize > maxLot) {
-    await updateAlert(base44, saved.id, "Rejected", `Quantity ${lotSize} exceeds max lot ${maxLot}`);
-    return { success: false, status: "rejected", alert_id: alertId, message: `Quantity exceeds max lot size` };
-  }
-
-  // ── SL/TP required checks ──
-  if (tvSettings.stop_loss_required && !body.stop_loss) {
-    await updateAlert(base44, saved.id, "Rejected", "Stop loss required but not provided");
-    return { success: false, status: "rejected", alert_id: alertId, message: "Stop loss required" };
-  }
-  if (tvSettings.take_profit_required && !body.take_profit) {
-    await updateAlert(base44, saved.id, "Rejected", "Take profit required but not provided");
-    return { success: false, status: "rejected", alert_id: alertId, message: "Take profit required" };
-  }
-
-  // ── Test mode: don't execute ──
-  if (tvSettings.trading_mode === "test" || isTest) {
-    await updateAlert(base44, saved.id, "Executed", "Test mode — no trade sent to MT5", lotSize, "TEST");
-    return {
-      success: true,
-      status: "executed",
-      alert_id: alertId,
-      ticket: "TEST",
-      message: "Test mode — alert received and validated. No trade sent to MT5.",
-    };
-  }
-
-  // ── Live mode: check MT5 connection ──
-  const botSettingsList = await base44.asServiceRole.entities.BotSettings.filter(
-    { created_by_id: userId }, "-created_date", 1
-  ).catch(() => []);
-  const cfg = botSettingsList?.[0];
-  const robotId = String(cfg?.mt5_account || "");
-  if (!robotId) {
-    await updateAlert(base44, saved.id, "Error", "MT5 account not connected");
-    return { success: false, status: "error", alert_id: alertId, message: "MT5 account not connected" };
-  }
-
-  // ── Check max open trades ──
-  const maxOpen = Number(tvSettings.max_open_trades) || 3;
-  const openTradesList = await base44.asServiceRole.entities.Trade.filter(
-    { created_by_id: userId, status: "Open" }, "-created_date", 100
-  ).catch(() => []);
-  if ((openTradesList?.length || 0) >= maxOpen && (action === "BUY" || action === "SELL")) {
-    await updateAlert(base44, saved.id, "Rejected", `Max open trades (${maxOpen}) reached`);
-    return { success: false, status: "rejected", alert_id: alertId, message: `Max open trades reached` };
-  }
-
-  // ── Execute via the Flouba Elite MT5 bridge ──
-  let commandType;
-  if (action === "BUY") commandType = "OPEN_BUY";
-  else if (action === "SELL") commandType = "OPEN_SELL";
-  else if (action === "CLOSE") commandType = "CLOSE_ALL";
-  else if (action === "CLOSE_BUY") commandType = "CLOSE_BUY";
-  else if (action === "CLOSE_SELL") commandType = "CLOSE_SELL";
-  else {
-    await updateAlert(base44, saved.id, "Rejected", `Unsupported action: ${action}`);
-    return { success: false, status: "rejected", alert_id: alertId, message: `Unsupported action` };
-  }
-
-  const command = {
-    commandType,
-    direction: action,
-    symbol,
-    lotSize: lotSize,
-    ...(body.stop_loss ? { stopLoss: Number(body.stop_loss) } : {}),
-    ...(body.take_profit ? { takeProfit: Number(body.take_profit) } : {}),
-    comment: "Flouba TradingView",
-  };
-
-  const idemKey = `${commandType}-${robotId}-${symbol}-${alertId}`;
-  const execRes = await postCommand(robotId, command, idemKey);
-
-  if (execRes.ok) {
-    const ticket = execRes.data?.commandId || execRes.data?.id || String(Date.now());
-    await updateAlert(base44, saved.id, "Executed", "Trade executed successfully", lotSize, ticket);
-    return {
-      success: true,
-      status: "executed",
-      alert_id: alertId,
-      ticket,
-      message: "Trade executed successfully",
-    };
-  } else {
-    await updateAlert(base44, saved.id, "Error", execRes.error || "Execution failed");
-    return {
+    return Response.json({
       success: false,
       status: "error",
       alert_id: alertId,
-      message: execRes.error || "Execution failed",
-    };
+      message: exec?.message || "Execution API error",
+    });
+  } catch (err) {
+    return Response.json({ success: false, status: "error", message: err.message }, { status: 500 });
   }
+});
+
+// ── Helper: ensure settings exist ──
+async function ensureSettings(base44, userId) {
+  const list = await base44.asServiceRole.entities.TradingViewSettings.filter(
+    { created_by_id: userId }, "-created_date", 1
+  );
+  if (list?.[0]) return list[0];
+  return await base44.asServiceRole.entities.TradingViewSettings.create({
+    created_by_id: userId,
+    webhook_secret: crypto.randomUUID().replace(/-/g, ""),
+    auto_trading_enabled: false,
+    trading_mode: "test",
+    use_alert_quantity: true,
+    fixed_order_size: 0.01,
+    max_order_size: 0.1,
+    allowed_symbols: "XAUUSD",
+    max_open_positions: 3,
+    allow_buy: true,
+    allow_sell: true,
+    allow_close: true,
+  });
 }
 
-async function updateAlert(base44, alertId, status, message, executedQty, ticket) {
-  const update = { status, message };
-  if (executedQty != null) update.executed_quantity = executedQty;
-  if (ticket != null) update.mt5_ticket = ticket;
-  await base44.asServiceRole.entities.TradingViewAlert.update(alertId, update).catch(() => {});
+// ── Helper: get execution connection ──
+async function getExecutionConnection(base44, userId) {
+  const list = await base44.asServiceRole.entities.TradingExecutionConnection.filter(
+    { created_by_id: userId }, "-created_date", 1
+  );
+  return list?.[0] || null;
 }
