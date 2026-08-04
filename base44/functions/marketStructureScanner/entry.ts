@@ -560,13 +560,6 @@ Deno.serve(async (req) => {
       if (setup.status !== "Waiting Approval" && setup.status !== "Signal Found") {
         return Response.json({ ok: false, error: `Setup is ${setup.status} — cannot approve.` });
       }
-      if (cfg.trading_mode === "demo") {
-        await base44.asServiceRole.entities.MarketStructureSetup.update(setup.id, {
-          status: "Pending Order Placed",
-          mt5_ticket: "DEMO-" + Date.now(),
-        });
-        return Response.json({ ok: true, demo: true, message: "Demo mode — order simulated." });
-      }
       const result = await sendPendingOrder(base44, setup, cfg);
       return Response.json(result);
     }
@@ -596,7 +589,7 @@ Deno.serve(async (req) => {
       );
       const setup = setups?.[0];
       if (!setup) return Response.json({ ok: false, error: "Setup not found" }, { status: 404 });
-      if (setup.mt5_ticket && !setup.mt5_ticket.startsWith("DEMO-")) {
+      if (setup.mt5_ticket) {
         await base44.functions.invoke("mt5Bridge", { action: "close", ticket: setup.mt5_ticket }).catch(() => {});
       }
       await base44.asServiceRole.entities.MarketStructureSetup.update(setup.id, {
@@ -629,14 +622,7 @@ Deno.serve(async (req) => {
 
       // Auto-execute if enabled
       if (r.found && r.setup && cfg.execution_mode === "auto" && cfg.auto_execution_enabled) {
-        if (cfg.trading_mode === "demo") {
-          await base44.asServiceRole.entities.MarketStructureSetup.update(r.setup.id, {
-            status: "Pending Order Placed",
-            mt5_ticket: "DEMO-" + Date.now(),
-          });
-        } else {
-          await sendPendingOrder(base44, r.setup, cfg);
-        }
+        await sendPendingOrder(base44, r.setup, cfg);
       }
     }
 

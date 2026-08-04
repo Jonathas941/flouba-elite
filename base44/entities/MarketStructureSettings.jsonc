@@ -182,15 +182,6 @@
       "default": "manual",
       "description": "manual = wait for user approval; auto = send pending order automatically."
     },
-    "trading_mode": {
-      "type": "string",
-      "enum": [
-        "demo",
-        "live"
-      ],
-      "default": "demo",
-      "description": "demo = simulate only; live = execute via MT5."
-    },
     "auto_execution_enabled": {
       "type": "boolean",
       "default": false,

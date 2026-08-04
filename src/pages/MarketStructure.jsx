@@ -90,11 +90,7 @@ export default function MarketStructure() {
       const res = await base44.functions.invoke("marketStructureScanner", { action: "approve", setup_id: setupId });
       const r = res?.data;
       if (r?.ok) {
-        if (r.demo) {
-          toast({ title: "Demo Order Placed", description: "Demo mode — order simulated successfully.", duration: 3000 });
-        } else {
-          toast({ title: "Order Placed", description: `MT5 ticket: ${r.ticket}`, duration: 4000 });
-        }
+        toast({ title: "Order Placed", description: `MT5 ticket: ${r.ticket}`, duration: 4000 });
       } else {
         toast({ title: "Order Rejected", description: r?.error || "MT5 rejected the order.", variant: "destructive", duration: 5000 });
       }
@@ -188,7 +184,6 @@ export default function MarketStructure() {
             { label: "Scanner", value: cfg.scanner_active ? "Active" : "Stopped", color: cfg.scanner_active ? "text-[#00FF41]" : "text-[#FF3131]" },
             { label: "MT5", value: connected ? "Connected" : "Disconnected", color: connected ? "text-[#00FF41]" : "text-[#FF3131]" },
             { label: "Auto Exec", value: cfg.auto_execution_enabled ? "ON" : "OFF", color: cfg.auto_execution_enabled ? "text-amber-400" : "text-white/40" },
-            { label: "Mode", value: cfg.trading_mode || "demo", color: cfg.trading_mode === "live" ? "text-[#FF3131]" : "text-cyan-400" },
             { label: "Last Scan", value: cfg.last_scan_time ? new Date(cfg.last_scan_time).toLocaleTimeString() : "--", color: "text-white/60" },
             { label: "Last Signal", value: cfg.last_signal_time ? new Date(cfg.last_signal_time).toLocaleTimeString() : "--", color: "text-white/60" },
           ].map(({ label, value, color }) => (
@@ -345,10 +340,7 @@ export default function MarketStructure() {
       {/* SAFETY NOTICE */}
       <div className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
         <p className="text-[9px] font-mono text-amber-400/70 leading-relaxed">
-          ⚠ {cfg.trading_mode === "live"
-            ? "LIVE MODE — Real orders will be sent to MT5. Ensure all settings are correct."
-            : "DEMO MODE — Orders are simulated. No real trades will be placed."}
-          {" "}Default is Manual Confirmation — you approve every order before it's sent.
+          ⚠ LIVE MODE — Real orders will be sent to MT5 when approved. Default is Manual Confirmation — you approve every order before it's sent.
         </p>
       </div>
     </div>
