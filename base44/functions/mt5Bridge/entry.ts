@@ -139,7 +139,7 @@ function normalizeAccount(a) {
     terminal_connected: a.terminalConnected,
     broker_connected: a.brokerConnected,
     last_sync: a.lastSyncedAt,
-    connected: a.terminalConnected === true || a.balance != null,
+    connected: a.connected === false ? false : (a.terminalConnected === true || a.balance != null),
   };
 }
 
