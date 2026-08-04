@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import GlassCard from "@/components/GlassCard";
+import ExecutionConnectionPanel from "@/components/tradingview/ExecutionConnectionPanel";
 import { Activity, Webhook, Copy, Trash2, Send, BookOpen, WifiOff, Zap, AlertTriangle } from "lucide-react";
 
 const TV_JSON_TEMPLATE = `{
@@ -340,6 +341,9 @@ export default function TradingView() {
           {saving ? "Saving..." : "Save Settings"}
         </Button>
       </GlassCard>
+
+      {/* C2. Execution API Connection */}
+      <ExecutionConnectionPanel connection={connection} onSaved={loadData} />
 
       {/* D. Recent Signals */}
       <GlassCard className="p-4 space-y-3">
