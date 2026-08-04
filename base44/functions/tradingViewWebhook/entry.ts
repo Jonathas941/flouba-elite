@@ -190,10 +190,12 @@ Deno.serve(async (req) => {
     let hasMt5 = false;
     let botSettings = null;
     if (execTarget === "auto" || execTarget === "mt5_robot") {
+      // Service role bypasses RLS, so find BotSettings by app_id since
+      // TradingViewSettings may have been auto-created by the service role.
       const botList = await base44.asServiceRole.entities.BotSettings.filter(
-        { created_by_id: userId }, "-created_date", 1
-      );
-      botSettings = botList?.[0];
+        { app_id: settings.app_id }, "-created_date", 10
+      ).catch(() => []);
+      botSettings = botList?.find(b => b.mt5_account) || botList?.[0];
       if (botSettings?.mt5_account) {
         hasMt5 = true;
       }
