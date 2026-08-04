@@ -2,41 +2,87 @@
   "name": "TradingExecutionConnection",
   "type": "object",
   "properties": {
+    "provider_type": {
+      "type": "string",
+      "enum": [
+        "oanda",
+        "ctrader"
+      ],
+      "default": "oanda",
+      "description": "Execution provider type \u2014 oanda (REST API key) or ctrader (OAuth 2.0)."
+    },
     "provider_name": {
       "type": "string",
-      "description": "Broker or execution provider name (e.g. OANDA, Interactive Brokers, Alpaca, Tradovate)."
+      "description": "Broker or execution provider name (e.g. OANDA, IC Markets cTrader)."
     },
     "api_base_url": {
       "type": "string",
-      "description": "Broker REST API base URL (e.g. https://api-fxtrade.oanda.com, https://api.alpaca.markets)."
+      "description": "Broker REST API base URL \u2014 OANDA only."
     },
     "connection_status": {
       "type": "string",
       "enum": [
         "Connected",
-        "Disconnected"
+        "Disconnected",
+        "Authorization Required",
+        "Token Expired",
+        "Account Not Found",
+        "Demo/Live Mismatch",
+        "Connection Error"
       ],
-      "default": "Disconnected"
+      "default": "Disconnected",
+      "description": "Disconnected = Not Connected. Authorization Required = OAuth started but not completed. Connected = fully authenticated. Token Expired = access token expired. Account Not Found = no account selected. Demo/Live Mismatch = environment mismatch. Connection Error = last attempt failed."
     },
     "encrypted_api_key": {
       "type": "string",
-      "description": "Broker API key \u2014 stored encrypted, never exposed in logs or frontend."
+      "description": "OANDA API key \u2014 stored encrypted, never exposed in logs or frontend."
     },
     "encrypted_api_secret": {
       "type": "string",
-      "description": "Broker API secret \u2014 stored encrypted, never exposed in logs or frontend."
+      "description": "OANDA API secret \u2014 stored encrypted, never exposed in logs or frontend."
     },
     "account_id": {
       "type": "string",
-      "description": "Broker account ID for order execution."
+      "description": "OANDA account ID for order execution."
     },
     "environment": {
       "type": "string",
       "enum": [
         "test",
-        "live"
+        "live",
+        "demo"
       ],
-      "default": "test"
+      "default": "test",
+      "description": "test/live = OANDA. demo/live = cTrader."
+    },
+    "client_id": {
+      "type": "string",
+      "description": "cTrader Open API OAuth client ID."
+    },
+    "encrypted_client_secret": {
+      "type": "string",
+      "description": "cTrader OAuth client secret \u2014 encrypted, never exposed."
+    },
+    "encrypted_access_token": {
+      "type": "string",
+      "description": "cTrader OAuth access token \u2014 encrypted, never exposed."
+    },
+    "encrypted_refresh_token": {
+      "type": "string",
+      "description": "cTrader OAuth refresh token \u2014 encrypted, never exposed."
+    },
+    "access_token_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the cTrader access token expires."
+    },
+    "ctrader_account_id": {
+      "type": "string",
+      "description": "Selected cTrader trading account ID."
+    },
+    "last_connection_error": {
+      "type": "string",
+      "description": "Last error message from a failed connection or execution attempt."
     }
   },
   "required": [
