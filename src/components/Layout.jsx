@@ -23,12 +23,12 @@ export default function Layout() {
     >
       <Outlet />
 
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 px-4 pb-4">
-        <div className="flex items-center justify-around py-2.5 px-2 rounded-2xl"
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 px-2 pb-4">
+        <div className="flex items-stretch justify-between gap-0.5 py-1.5 px-1 rounded-2xl"
           style={{
             background: "rgba(12,12,12,0.97)",
             backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid rgba(0,255,65,0.10)",
             borderRadius: "22px",
             boxShadow: "0 -4px 30px rgba(0,0,0,0.6)",
           }}>
@@ -39,13 +39,14 @@ export default function Layout() {
                 key={item.to}
                 onClick={() => navigate(item.to)}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all",
-                  active ? "text-[#FF3131]" : "text-white/30"
+                  "flex flex-col items-center justify-center gap-1 rounded-xl transition-all",
+                  "flex-1 min-w-0 h-12 px-0.5",
+                  active ? "text-[#00FF41]" : "text-white/30 hover:text-white/50"
                 )}
-                style={active ? { filter: "drop-shadow(0 0 6px rgba(255,49,49,0.5))" } : undefined}
+                style={active ? { filter: "drop-shadow(0 0 6px rgba(0,255,65,0.5))" } : undefined}
               >
-                <item.icon className="w-5 h-5" />
-                <span className={cn("text-[10px] uppercase tracking-wider font-heading font-bold", active && "text-[#FF3131]")}>
+                <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
+                <span className="text-[10px] font-semibold truncate w-full text-center leading-none">
                   {item.label}
                 </span>
               </button>
