@@ -76,6 +76,196 @@ async function fetchAccount(base44) {
   } catch { return null; }
 }
 
+// ── AI Fallback: When candle data is unavailable (bridge /rates returns 404),
+//    use LLM with web search to analyze live market structure and generate a setup.
+//    Uses gemini_3_flash (only model supporting add_context_from_internet). ──
+async function aiScanFallback(symbol, cfg, base44, userId, quote) {
+  const result = { symbol, found: false, setup: null, score: 0, reason: "" };
+  const currentPrice = quote?.price;
+  if (!currentPrice) {
+    result.reason = `${symbol}: No live price available for AI scan.`;
+    return result;
+  }
+
+  const sess = sessionInfo(cfg);
+  // Session filter still applies
+  if (!sess.open) {
+    result.reason = `${symbol}: ${sess.name} — ${sess.reason}.`;
+    return result;
+  }
+
+  try {
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are an expert Smart Money Concepts (SMC) trading analyst. Analyze the LIVE market structure for ${symbol} (XAUUSD = Gold/USD) right now.
+
+Current price: ${currentPrice}
+Spread: ${quote.spread}
+Timeframe context: Trend=${cfg.trend_timeframe}, Structure=${cfg.structure_timeframe}, Entry=${cfg.entry_timeframe}
+
+TASK: Perform a full SMC market structure analysis using current live market data from the web. Identify:
+1. Break of Structure (BOS) — has price broken a prior swing high/low in the trend direction?
+2. Change of Character (CHOCH) — has the trend shifted, indicating a potential reversal?
+3. Liquidity Sweep — has price swept a liquidity pool (stop hunt) and reversed?
+4. Fair Value Gap (FVG) — is there a visible imbalance zone nearby?
+5. Order Block — is there a valid order block (last opposite candle before impulsive move)?
+6. Market Bias — bullish, bearish, or neutral?
+7. Entry Zone — where is the optimal entry price (order block mid, FVG mid, or key level)?
+8. Stop Loss — where should the stop loss go (below/above the swing low/high)?
+9. Take Profit — where should TP go (next liquidity zone or 2R minimum)?
+10. Confidence score (0-100) — how confident are you in this setup?
+
+RULES:
+- Use REAL current market data from the web. Do NOT hallucinate prices.
+- Entry must be at a valid SMC zone (order block, FVG, supply/demand, or key level).
+- Stop loss must be beyond the swing low (BUY) or swing high (SELL).
+- Risk-to-reward must be at least ${cfg.min_rr || 2}:1.
+- Only return a setup if confidence >= ${cfg.min_signal_score || 70}.
+- If no valid setup exists, return found=false with a clear reason.
+
+Respond with your analysis as JSON.`,
+      add_context_from_internet: true,
+      model: "gemini_3_flash",
+      response_json_schema: {
+        type: "object",
+        properties: {
+          found: { type: "boolean", description: "Whether a valid setup was found" },
+          direction: { type: "string", enum: ["BUY", "SELL"], description: "Trade direction" },
+          entry_price: { type: "number", description: "Entry price" },
+          stop_loss: { type: "number", description: "Stop loss price" },
+          take_profit: { type: "number", description: "Take profit price" },
+          order_type: { type: "string", enum: ["BUY_LIMIT", "SELL_LIMIT", "BUY_STOP", "SELL_STOP"], description: "MT5 order type" },
+          bos: { type: "boolean", description: "Break of Structure detected" },
+          choch: { type: "boolean", description: "Change of Character detected" },
+          liquidity_sweep: { type: "boolean", description: "Liquidity sweep detected" },
+          fvg: { type: "boolean", description: "Fair Value Gap detected" },
+          order_block: { type: "boolean", description: "Order block detected" },
+          market_bias: { type: "string", enum: ["bullish", "bearish", "neutral"] },
+          confidence: { type: "number", description: "Confidence score 0-100" },
+          zone_high: { type: "number", description: "Upper edge of entry zone" },
+          zone_low: { type: "number", description: "Lower edge of entry zone" },
+          zone_type: { type: "string", enum: ["order_block", "fvg", "supply_demand", "fib", "breakout"] },
+          swing_high: { type: "number", description: "Recent swing high" },
+          swing_low: { type: "number", description: "Recent swing low" },
+          reasoning: { type: "string", description: "Detailed SMC reasoning" },
+        },
+        required: ["found", "confidence", "market_bias", "reasoning"],
+      },
+    });
+
+    if (!res || !res.found) {
+      result.reason = `${symbol}: AI scan — no valid setup found. ${res?.reasoning || "Market conditions not optimal."}`;
+      return result;
+    }
+
+    const aiScore = Math.min(100, Math.max(0, Math.round(res.confidence || 0)));
+    if (aiScore < (cfg.min_signal_score || 70)) {
+      result.reason = `${symbol}: AI confidence ${aiScore} below minimum ${cfg.min_signal_score}.`;
+      return result;
+    }
+
+    const entryDir = res.direction;
+    const entryPrice = res.entry_price;
+    const stopLoss = res.stop_loss;
+    const takeProfit = res.take_profit;
+    const slDistance = Math.abs(entryPrice - stopLoss);
+    const actualRR = slDistance > 0 ? Math.abs(takeProfit - entryPrice) / slDistance : 0;
+    if (actualRR < (cfg.min_rr || 2)) {
+      result.reason = `${symbol}: AI RR ${actualRR.toFixed(2)} below minimum ${cfg.min_rr}.`;
+      return result;
+    }
+
+    // Determine order type
+    let orderType = res.order_type;
+    if (!orderType) {
+      if (entryDir === "BUY") orderType = currentPrice > entryPrice ? "BUY_LIMIT" : "BUY_STOP";
+      else orderType = currentPrice < entryPrice ? "SELL_LIMIT" : "SELL_STOP";
+    }
+
+    // Duplicate protection
+    const setupId = `${symbol}-AI-${entryDir}-${Date.now().toString().slice(-8)}`;
+    const existing = await base44.asServiceRole.entities.MarketStructureSetup.filter(
+      { created_by_id: userId, setup_id: setupId }, "-created_date", 1
+    ).catch(() => []);
+    if (existing?.length > 0) {
+      result.reason = `${symbol}: AI setup already exists.`;
+      return result;
+    }
+
+    // Lot size
+    const account = await fetchAccount(base44);
+    const balance = account?.balance || 0;
+    let lotSize = cfg.lot_size_mode === "Fixed" ? (cfg.fixed_lot_size || 0.01) : calculateLotSize(balance, cfg.risk_percentage || 1, entryPrice, stopLoss, symbol);
+    lotSize = Math.min(lotSize, cfg.max_lot_size || 0.5);
+
+    // Expiration
+    let expirationTime = null;
+    if (cfg.expiration_mode === "candles") {
+      const tfMinutes = { M1: 1, M5: 5, M15: 15, M30: 30, H1: 60, H4: 240, D1: 1440 };
+      const mins = (cfg.expiration_candles || 12) * (tfMinutes[cfg.entry_timeframe] || 5);
+      expirationTime = new Date(Date.now() + mins * 60000).toISOString();
+    } else if (cfg.expiration_mode === "minutes") {
+      expirationTime = new Date(Date.now() + (cfg.expiration_minutes || 720) * 60000).toISOString();
+    } else if (cfg.expiration_mode === "session_end") {
+      const { minutes } = nyParts(new Date());
+      const endMins = 17 * 60;
+      const remaining = endMins > minutes ? (endMins - minutes) * 60000 : 24 * 60 * 60000;
+      expirationTime = new Date(Date.now() + remaining).toISOString();
+    }
+
+    const pillars = {
+      trend: { pass: true, score: 20, reason: `AI: ${res.market_bias} bias confirmed.` },
+      bos: { pass: res.bos === true, score: res.bos ? 15 : 0, reason: res.bos ? "BOS confirmed (AI)." : "No BOS." },
+      choch: { pass: res.choch === true, score: res.choch ? 10 : 0, reason: res.choch ? "CHOCH detected (AI)." : "No CHOCH." },
+      order_block: { pass: res.order_block === true, score: res.order_block ? 15 : 0, reason: res.order_block ? "Order block (AI)." : "No OB." },
+      fvg: { pass: res.fvg === true, score: res.fvg ? 10 : 0, reason: res.fvg ? "FVG (AI)." : "No FVG." },
+      liquidity: { pass: res.liquidity_sweep === true, score: res.liquidity_sweep ? 15 : 0, reason: res.liquidity_sweep ? "Liquidity sweep (AI)." : "No sweep." },
+      rr: { pass: true, score: 10, reason: `RR ${actualRR.toFixed(2)} ≥ ${cfg.min_rr}.` },
+      session: { pass: true, score: 5, reason: `${sess.name} session.` },
+    };
+
+    const setupPayload = {
+      setup_id: setupId,
+      symbol,
+      direction: entryDir,
+      order_type: orderType,
+      entry_price: Math.round(entryPrice * 100000) / 100000,
+      stop_loss: Math.round(stopLoss * 100000) / 100000,
+      take_profit: Math.round(takeProfit * 100000) / 100000,
+      signal_score: aiScore,
+      status: cfg.execution_mode === "auto" && cfg.auto_execution_enabled ? "Signal Found" : "Waiting Approval",
+      trend_timeframe: cfg.trend_timeframe,
+      structure_timeframe: cfg.structure_timeframe,
+      entry_timeframe: cfg.entry_timeframe,
+      entry_method: "ai_web_scan",
+      risk_reward: Math.round(actualRR * 100) / 100,
+      lot_size: lotSize,
+      risk_percent: cfg.risk_percentage || 1,
+      expiration_time: expirationTime,
+      zone_high: res.zone_high ? Math.round(res.zone_high * 100000) / 100000 : null,
+      zone_low: res.zone_low ? Math.round(res.zone_low * 100000) / 100000 : null,
+      zone_type: res.zone_type || "order_block",
+      swing_high: res.swing_high || null,
+      swing_low: res.swing_low || null,
+      pillars,
+      regime: res.market_bias === "bullish" ? "Bullish" : res.market_bias === "bearish" ? "Bearish" : "Range",
+      comment: "Flouba AI Market Structure",
+    };
+    // Use user's client so created_by_id is the user's ID (visible in dashboard).
+    // Fall back to asServiceRole for cron mode.
+    const setup = await base44.entities.MarketStructureSetup.create(setupPayload)
+      .catch(() => base44.asServiceRole.entities.MarketStructureSetup.create({ ...setupPayload, created_by_id: userId }));
+
+    result.found = true;
+    result.setup = setup;
+    result.score = aiScore;
+    result.reason = `${symbol}: AI ${entryDir} ${orderType} setup — score ${aiScore}/100, entry ${entryPrice.toFixed(2)}, SL ${stopLoss.toFixed(2)}, TP ${takeProfit.toFixed(2)}, RR ${actualRR.toFixed(2)}, lot ${lotSize}.`;
+    return result;
+  } catch (e) {
+    result.reason = `${symbol}: AI scan failed — ${e.message}`;
+    return result;
+  }
+}
+
 // ── Scan a single symbol ──
 async function scanSymbol(symbol, cfg, base44, userId) {
   const result = { symbol, found: false, setup: null, score: 0, reason: "" };
@@ -85,16 +275,16 @@ async function scanSymbol(symbol, cfg, base44, userId) {
   const structCandles = await fetchCandles(base44, symbol, cfg.structure_timeframe, 200);
   const entryCandles = await fetchCandles(base44, symbol, cfg.entry_timeframe, 200);
 
-  if (!trendCandles || trendCandles.length < 30 || !structCandles || structCandles.length < 30 || !entryCandles || entryCandles.length < 20) {
-    result.reason = `Candle data unavailable for ${symbol} — cannot scan.`;
-    return result;
-  }
-
   // Fetch live quote
   const quote = await fetchQuote(base44, symbol);
   if (!quote) {
     result.reason = `Live quote unavailable for ${symbol}.`;
     return result;
+  }
+
+  if (!trendCandles || trendCandles.length < 30 || !structCandles || structCandles.length < 30 || !entryCandles || entryCandles.length < 20) {
+    // ── AI Fallback: candle data unavailable — use LLM web search to analyze live structure ──
+    return aiScanFallback(symbol, cfg, base44, userId, quote);
   }
 
   const currentPrice = quote.price;
@@ -540,18 +730,19 @@ Deno.serve(async (req) => {
 
     // ── SETUPS action ──
     if (action === "setups") {
-      const setups = await base44.asServiceRole.entities.MarketStructureSetup.filter(
-        { created_by_id: userId, status: { $in: ["Scanning", "Signal Found", "Waiting Approval", "Pending Order Placed", "Activated"] } },
-        "-created_date", 50
-      );
+      const all = await base44.asServiceRole.entities.MarketStructureSetup.filter(
+        {}, "-created_date", 100
+      ).catch(() => []);
+      const setups = (all || []).filter((s) => s.created_by_id === userId && ["Scanning", "Signal Found", "Waiting Approval", "Pending Order Placed", "Activated"].includes(s.status));
       return Response.json({ ok: true, setups });
     }
 
     // ── ACTIVITY action ──
     if (action === "activity") {
-      const activity = await base44.asServiceRole.entities.MarketStructureSetup.filter(
-        { created_by_id: userId }, "-created_date", 20
-      );
+      const all = await base44.asServiceRole.entities.MarketStructureSetup.filter(
+        {}, "-created_date", 50
+      ).catch(() => []);
+      const activity = (all || []).filter((s) => s.created_by_id === userId);
       return Response.json({ ok: true, activity });
     }
 
