@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
+import MarketStructureSettingsEditor from "@/components/scanner/MarketStructureSettingsEditor";
 
 const STATUS_COLORS = {
   "Scanning": "text-cyan-400",
@@ -245,36 +246,7 @@ export default function MarketStructure() {
 
       {/* B. SCANNER SETTINGS */}
       <HudPanel label="Scanner Settings" accent="#00FF41">
-        <div className="space-y-2 text-[10px] font-mono">
-          <div className="flex justify-between items-center py-1 border-b border-white/5">
-            <span className="text-white/35 uppercase tracking-wider">Symbols</span>
-            <span className="text-white font-bold">{cfg.symbols || "XAUUSD"}</span>
-          </div>
-          <div className="flex justify-between items-center py-1 border-b border-white/5">
-            <span className="text-white/35 uppercase tracking-wider">Timeframes</span>
-            <span className="text-white font-bold">{cfg.trend_timeframe}/{cfg.structure_timeframe}/{cfg.entry_timeframe}</span>
-          </div>
-          <div className="flex justify-between items-center py-1 border-b border-white/5">
-            <span className="text-white/35 uppercase tracking-wider">Risk %</span>
-            <span className="text-white font-bold">{cfg.risk_percentage}%</span>
-          </div>
-          <div className="flex justify-between items-center py-1 border-b border-white/5">
-            <span className="text-white/35 uppercase tracking-wider">Min Score</span>
-            <span className="text-white font-bold">{cfg.min_signal_score}</span>
-          </div>
-          <div className="flex justify-between items-center py-1 border-b border-white/5">
-            <span className="text-white/35 uppercase tracking-wider">Entry Method</span>
-            <span className="text-white font-bold">{(cfg.entry_method || "order_block_mid").replace(/_/g, " ")}</span>
-          </div>
-          <div className="flex justify-between items-center py-1 border-b border-white/5">
-            <span className="text-white/35 uppercase tracking-wider">Risk:Reward</span>
-            <span className="text-white font-bold">1:{cfg.default_rr}</span>
-          </div>
-          <div className="flex justify-between items-center py-1">
-            <span className="text-white/35 uppercase tracking-wider">Max Pending</span>
-            <span className="text-white font-bold">{cfg.max_pending_orders}</span>
-          </div>
-        </div>
+        <MarketStructureSettingsEditor settings={settings} onUpdated={setSettings} />
       </HudPanel>
 
       {/* C. CURRENT SETUPS */}
