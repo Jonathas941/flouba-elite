@@ -42,49 +42,31 @@ function num(v) { return v == null || v === "" ? null : Number(v); }
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    const userId = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
 
     // ── Parse body ──
     const bodyText = await req.text().catch(() => "{}");
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
 
-    // ── Validate user ID from path ──
-    if (!userId || userId.length < 10) {
-      return Response.json({ success: false, status: "error", message: "Invalid webhook URL" }, { status: 400 });
-    }
-
     const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
     const base44 = createClientFromRequest(headersReq);
 
-    // ── Load user's TradingViewSettings (service role — webhook is unauthenticated) ──
+    // ── Look up settings by webhook secret (the secret IS the user identifier) ──
+    const secret = body.secret;
+    if (!secret || secret.length < 8) {
+      return Response.json({ success: false, status: "error", message: "Invalid or missing webhook secret" }, { status: 403 });
+    }
+
     const settingsList = await base44.asServiceRole.entities.TradingViewSettings.filter(
-      { created_by_id: userId }, "-created_date", 1
+      { webhook_secret: secret }, "-created_date", 1
     );
     let settings = settingsList?.[0];
     if (!settings) {
-      // Auto-provision settings with a random secret
-      settings = await base44.asServiceRole.entities.TradingViewSettings.create({
-        created_by_id: userId,
-        webhook_secret: crypto.randomUUID().replace(/-/g, ""),
-        auto_trading_enabled: false,
-        trading_mode: "test",
-        use_alert_quantity: true,
-        fixed_order_size: 0.01,
-        max_order_size: 0.1,
-        allowed_symbols: "XAUUSD",
-        max_open_positions: 3,
-        allow_buy: true,
-        allow_sell: true,
-        allow_close: true,
-      });
-    }
-
-    // ── Validate webhook secret ──
-    if (!body.secret || body.secret !== settings.webhook_secret) {
       return Response.json({ success: false, status: "error", message: "Invalid webhook secret" }, { status: 403 });
     }
+
+    // ── Get userId from the settings owner ──
+    const userId = settings.created_by_id;
 
     // ── Check auto trading ──
     if (!settings.auto_trading_enabled) {

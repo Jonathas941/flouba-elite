@@ -135,7 +135,7 @@ export default function TradingView() {
     );
   }
 
-  const webhookUrl = `${window.location.origin}/api/functions/tradingViewWebhook/${settings.created_by_id || settings.created_by}`;
+  const webhookUrl = `${window.location.origin}/api/apps/${settings.app_id || '6a437ad84dc8721fedd64296'}/functions/tradingViewWebhook`;
   const execConnected = connection?.connection_status === "Connected";
   const lastSignal = signals?.[0]?.received_at || signals?.[0]?.created_date;
 
