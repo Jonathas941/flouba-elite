@@ -72,9 +72,9 @@ function consecutiveLossesCount(closedTrades) {
 // ── Pillar 1: Market Structure (AI-Enhanced SMC Analysis) ─────────────────
 // Combines EA-provided boolean flags with LLM-powered Smart Money Concepts
 // analysis (BOS, CHOCH, liquidity sweep, FVG, market bias) for deeper accuracy.
-async function checkStructure(ind, regime, dir, cfg) {
+async function checkStructure(ind, regime, dir, cfg, base44Client) {
   // Call AI market structure scanner for deeper SMC analysis
-  const ai = await aiMarketStructureScan(ind, regime, dir, cfg);
+  const ai = await aiMarketStructureScan(ind, regime, dir, cfg, base44Client);
 
   const bos = ai.bos || ind?.bos === true || ind?.break_of_structure === true;
   const choch = ai.choch || ind?.choch === true || ind?.change_of_character === true;
@@ -755,7 +755,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Evaluate pillars ──
-    const p1Structure = await checkStructure(ind, regime, regimeDir, cfg);
+    const p1Structure = await checkStructure(ind, regime, regimeDir, cfg, base44);
     const p2Trend = checkTrend(ind, price, cfg);
     const trendDir = p2Trend.direction;
     const p2bPullback = checkPullback(ind, price, trendDir, cfg);
