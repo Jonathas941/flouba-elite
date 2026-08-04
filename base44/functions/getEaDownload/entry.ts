@@ -57,7 +57,6 @@ Deno.serve(async (req) => {
       set_content: setContent,
       set_filename: setFileName,
       robot_id: robotId || null,
-      backend_url: BRIDGE_BASE_URL,
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

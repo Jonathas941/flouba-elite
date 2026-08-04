@@ -1,6 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const BASE = "https://dazzling-perception-production-8e53.up.railway.app/api";
+const BASE = (() => {
+  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
+  if (!v) return "";
+  if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+  v = v.replace(/\/api$/i, "");
+  return v + "/api";
+})();
 
 function formatDate(d) {
   if (!d) return null;

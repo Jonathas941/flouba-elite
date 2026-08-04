@@ -4,9 +4,8 @@ import { jsPDF } from 'npm:jspdf@4.2.1';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    // Optional auth — allow both authed and unauthed (static documentation)
-    let user = null;
-    try { user = await base44.auth.me(); } catch {}
+    const user = await base44.auth.me().catch(() => null);
+    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
