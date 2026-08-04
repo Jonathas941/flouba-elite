@@ -514,21 +514,26 @@ Deno.serve(async (req) => {
 
     const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
     const base44 = createClientFromRequest(headersReq);
-    // Support target_user_id for cron/admin invocation (auto-execute mode)
-    let userId = body.target_user_id || null;
-    let user = null;
-
-    if (userId) {
-      const cronSecret = Deno.env.get("CRON_SECRET");
-      const hasCron = cronSecret && (req.headers.get("X-Cron-Secret") === cronSecret || body.cron_secret === cronSecret);
-      const isAuth = await base44.auth.isAuthenticated().catch(() => false);
-      if (!hasCron && !isAuth) return Response.json({ error: "Unauthorized" }, { status: 401 });
-      user = await base44.asServiceRole.entities.User.get(userId).catch(() => null);
-    } else {
-      user = await base44.auth.me();
-      if (user) userId = user.id;
+    // Resolve caller identity; only admins/cron may use target_user_id
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const hasCron = cronSecret && (req.headers.get("X-Cron-Secret") === cronSecret || body.cron_secret === cronSecret);
+    let user = await base44.auth.me().catch(() => null);
+    if (!user) {
+      if (!hasCron) return Response.json({ error: "Unauthorized" }, { status: 401 });
+      // Cron without a user context must specify a target
+      if (!body.target_user_id) return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let userId = user ? user.id : null;
+    if (body.target_user_id && body.target_user_id !== userId) {
+      // Only admins or cron may act on behalf of another user
+      if (!hasCron && user?.role !== "admin") {
+        return Response.json({ error: "Forbidden: cannot access another user's data" }, { status: 403 });
+      }
+      user = await base44.asServiceRole.entities.User.get(body.target_user_id).catch(() => null);
+      if (!user) return Response.json({ error: "Target user not found" }, { status: 404 });
+      userId = user.id;
+    }
+    if (!user || !userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     // Load user's BotSettings (service role works for both user and cron modes)
     const settings = await base44.asServiceRole.entities.BotSettings.filter({ created_by_id: userId }, "-created_date", 1);

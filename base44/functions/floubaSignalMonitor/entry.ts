@@ -65,15 +65,19 @@ Deno.serve(async (req) => {
     }
 
     // ═══ MANUAL MODE — monitor current user's signals ═══
-    let userId = body.user_id || null;
-    let user = null;
-    if (userId) {
-      user = await base44.asServiceRole.entities.User.get(userId).catch(() => null);
-    } else {
-      user = await base44.auth.me().catch(() => null);
-      if (user) userId = user.id;
-    }
+    let user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let userId = user.id;
+    // Only admins (or cron) may act on behalf of another user
+    if (body.user_id && body.user_id !== userId) {
+      if (!isCron && user.role !== "admin") {
+        return Response.json({ error: "Forbidden: cannot monitor another user's signals" }, { status: 403 });
+      }
+      const target = await base44.asServiceRole.entities.User.get(body.user_id).catch(() => null);
+      if (!target) return Response.json({ error: "Target user not found" }, { status: 404 });
+      user = target;
+      userId = target.id;
+    }
 
     const settings = await base44.asServiceRole.entities.BotSettings.filter({ created_by_id: userId }, "-created_date", 1);
     const config = settings?.[0];
