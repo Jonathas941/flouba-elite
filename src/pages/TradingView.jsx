@@ -79,13 +79,13 @@ export default function TradingView() {
         auto_trading_enabled: settings.auto_trading_enabled,
         trading_mode: settings.trading_mode,
         use_alert_quantity: settings.use_alert_quantity,
-        fixed_order_size: Number(settings.fixed_order_size),
+        fixed_order_size: Number(settings.fixed_order_size ?? settings.fixed_lot_size ?? 0.01),
         allowed_symbols: settings.allowed_symbols,
-        max_order_size: Number(settings.max_order_size),
-        max_open_positions: Number(settings.max_open_positions),
-        allow_buy: settings.allow_buy,
-        allow_sell: settings.allow_sell,
-        allow_close: settings.allow_close,
+        max_order_size: Number(settings.max_order_size ?? settings.max_lot_size ?? 0.1),
+        max_open_positions: Number(settings.max_open_positions ?? settings.max_open_trades ?? 3),
+        allow_buy: settings.allow_buy ?? true,
+        allow_sell: settings.allow_sell ?? true,
+        allow_close: settings.allow_close ?? true,
       });
       toast({ title: "Saved", description: "TradingView settings updated." });
     } catch (err) {
