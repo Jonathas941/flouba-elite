@@ -213,6 +213,25 @@ Deno.serve(async (req) => {
         executed_at: new Date().toISOString(),
       });
 
+      // ── Send notification ──
+      const dirLabel = action === "BUY" ? "BUY" : action === "SELL" ? "SELL" : action;
+      await base44.asServiceRole.entities.Notification.create({
+        created_by_id: userId,
+        type: "trade",
+        title: "Trade Executed",
+        message: `${dirLabel} ${symbol} • ${quantity} lot • Order ${exec.order_id}`,
+        category: "success",
+        read: false,
+        meta: {
+          source: "tradingview_webhook",
+          alert_id: alertId,
+          order_id: exec.order_id,
+          symbol,
+          action,
+          quantity,
+        },
+      }).catch(() => {});
+
       return Response.json({
         success: true,
         status: "executed",
