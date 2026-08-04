@@ -1,0 +1,91 @@
+{
+  "name": "TradingExecutionConnection",
+  "type": "object",
+  "properties": {
+    "provider_name": {
+      "type": "string",
+      "description": "Broker or execution provider name (e.g. OANDA, Interactive Brokers)."
+    },
+    "connection_status": {
+      "type": "string",
+      "enum": [
+        "Connected",
+        "Disconnected"
+      ],
+      "default": "Disconnected"
+    },
+    "encrypted_api_key": {
+      "type": "string",
+      "description": "Broker API key \u2014 stored encrypted, never exposed in logs or frontend."
+    },
+    "encrypted_api_secret": {
+      "type": "string",
+      "description": "Broker API secret \u2014 stored encrypted, never exposed in logs or frontend."
+    },
+    "account_id": {
+      "type": "string",
+      "description": "Broker account ID for order execution."
+    },
+    "environment": {
+      "type": "string",
+      "enum": [
+        "test",
+        "live"
+      ],
+      "default": "test"
+    }
+  },
+  "required": [
+    "provider_name"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

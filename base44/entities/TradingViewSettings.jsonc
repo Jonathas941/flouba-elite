@@ -9,7 +9,7 @@
     "auto_trading_enabled": {
       "type": "boolean",
       "default": false,
-      "description": "Master toggle \u2014 when OFF, no TradingView alerts are executed."
+      "description": "Master toggle \u2014 when OFF, no TradingView signals are executed."
     },
     "trading_mode": {
       "type": "string",
@@ -18,40 +18,42 @@
         "live"
       ],
       "default": "test",
-      "description": "test = log only, no real trades. live = execute via MT5 bridge."
+      "description": "test = validate and simulate only. live = execute via independent trading API."
     },
-    "lot_size_mode": {
-      "type": "string",
-      "enum": [
-        "alert_quantity",
-        "fixed"
-      ],
-      "default": "alert_quantity"
+    "use_alert_quantity": {
+      "type": "boolean",
+      "default": true,
+      "description": "When ON, use the quantity from the TradingView alert. When OFF, use fixed_order_size."
     },
-    "fixed_lot_size": {
+    "fixed_order_size": {
       "type": "number",
       "default": 0.01
+    },
+    "max_order_size": {
+      "type": "number",
+      "default": 0.1,
+      "description": "Hard cap \u2014 any signal exceeding this is rejected."
     },
     "allowed_symbols": {
       "type": "string",
       "default": "XAUUSD",
       "description": "Comma-separated list of allowed trading symbols."
     },
-    "max_lot_size": {
-      "type": "number",
-      "default": 0.1
-    },
-    "max_open_trades": {
+    "max_open_positions": {
       "type": "number",
       "default": 3
     },
-    "stop_loss_required": {
+    "allow_buy": {
       "type": "boolean",
-      "default": false
+      "default": true
     },
-    "take_profit_required": {
+    "allow_sell": {
       "type": "boolean",
-      "default": false
+      "default": true
+    },
+    "allow_close": {
+      "type": "boolean",
+      "default": true
     }
   },
   "required": [],
