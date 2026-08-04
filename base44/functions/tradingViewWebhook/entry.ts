@@ -50,45 +50,6 @@ Deno.serve(async (req) => {
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
 
-    // ── Test signal from the dashboard ──
-    if (body.__test) {
-      const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
-      const base44 = createClientFromRequest(headersReq);
-      const user = await base44.auth.me().catch(() => null);
-      if (!user) return Response.json({ success: false, message: "Unauthorized" }, { status: 401 });
-
-      const settings = await ensureSettings(base44, user.id);
-      const conn = await getExecutionConnection(base44, user.id);
-
-      const testSignal = {
-        alert_id: `test-${Date.now()}`,
-        symbol: "XAUUSD",
-        action: "BUY",
-        quantity: 0.01,
-        price: null,
-        mode: settings.trading_mode || "test",
-        status: "Simulated",
-        message: "Test signal — simulated successfully. No order sent to execution API.",
-        received_at: new Date().toISOString(),
-        executed_at: new Date().toISOString(),
-      };
-
-      const saved = await base44.asServiceRole.entities.TradingViewSignal.create({
-        ...testSignal,
-        raw_payload: { __test: true, symbol: "XAUUSD", action: "BUY", quantity: 0.01 },
-      });
-
-      return Response.json({
-        success: true,
-        status: "executed",
-        alert_id: testSignal.alert_id,
-        ticket: "TEST",
-        message: "Test mode — alert received and validated. No trade sent to execution API.",
-        signal_id: saved?.id,
-        execution_api_connected: !!conn,
-      });
-    }
-
     // ── Validate user ID from path ──
     if (!userId || userId.length < 10) {
       return Response.json({ success: false, status: "error", message: "Invalid webhook URL" }, { status: 400 });

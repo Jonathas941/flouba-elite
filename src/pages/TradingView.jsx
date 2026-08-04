@@ -26,7 +26,7 @@ export default function TradingView() {
   const [connection, setConnection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
+
   const [showLiveWarning, setShowLiveWarning] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -91,24 +91,6 @@ export default function TradingView() {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const testSignal = async () => {
-    setTesting(true);
-    try {
-      const res = await base44.functions.invoke("tradingViewWebhook", { __test: true });
-      const data = res?.data || res;
-      if (data?.success) {
-        toast({ title: "Test Successful", description: data.message || "Signal simulated." });
-      } else {
-        toast({ title: "Test Failed", description: data?.message || data?.error || "Test failed.", variant: "destructive" });
-      }
-      await loadData();
-    } catch (err) {
-      toast({ title: "Test Failed", description: err.message, variant: "destructive" });
-    } finally {
-      setTesting(false);
     }
   };
 
@@ -358,17 +340,6 @@ export default function TradingView() {
           {saving ? "Saving..." : "Save Settings"}
         </Button>
       </GlassCard>
-
-      {/* Test Signal */}
-      <Button
-        onClick={testSignal}
-        disabled={testing}
-        variant="outline"
-        className="w-full border-[#00FF41]/30 text-[#00FF41] hover:bg-[#00FF41]/10"
-      >
-        <Send className="w-4 h-4 mr-2" />
-        {testing ? "Testing..." : "Test Signal"}
-      </Button>
 
       {/* D. Recent Signals */}
       <GlassCard className="p-4 space-y-3">
