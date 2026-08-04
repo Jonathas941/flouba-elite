@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { aiMarketStructureScan } from '../../shared/aiMarketStructure.ts';
 
 const BRIDGE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -68,21 +69,61 @@ function consecutiveLossesCount(closedTrades) {
   return n;
 }
 
-// ── Pillar 1: Market Structure ────────────────────────────────────────────
-function checkStructure(ind, regime, dir) {
-  const sweep = ind?.liquidity_sweep === true || ind?.sweep === true;
-  const bos = ind?.bos === true || ind?.break_of_structure === true;
-  const choch = ind?.choch === true || ind?.change_of_character === true;
-  if (regime === "Trending" && (bos || dir === "Bullish" || dir === "Bearish")) {
-    return { pass: true, score: 85, reason: "Clear Break of Structure — trend confirmed." };
+// ── Pillar 1: Market Structure (AI-Enhanced SMC Analysis) ─────────────────
+// Combines EA-provided boolean flags with LLM-powered Smart Money Concepts
+// analysis (BOS, CHOCH, liquidity sweep, FVG, market bias) for deeper accuracy.
+async function checkStructure(ind, regime, dir, cfg) {
+  // Call AI market structure scanner for deeper SMC analysis
+  const ai = await aiMarketStructureScan(ind, regime, dir, cfg);
+
+  const bos = ai.bos || ind?.bos === true || ind?.break_of_structure === true;
+  const choch = ai.choch || ind?.choch === true || ind?.change_of_character === true;
+  const sweep = ai.liquidity_sweep || ind?.liquidity_sweep === true || ind?.sweep === true;
+  const bias = ai.market_bias;
+  const confidence = ai.confidence ?? 50;
+
+  // A+ or A grade setups pass with high score
+  if (ai.setup_quality === "A+" || ai.setup_quality === "A") {
+    let s = 90;
+    if (bos && bias !== "neutral") s = 95;
+    return {
+      pass: true,
+      score: s,
+      reason: `AI SMC: ${ai.setup_quality} setup — ${bias} bias, BOS:${bos}, CHOCH:${choch}, sweep:${sweep}. ${ai.reasoning || ""}`.trim(),
+      ai,
+    };
   }
-  if (regime === "Liquidity Sweep" && (sweep || choch)) {
-    return { pass: true, score: 80, reason: "Liquidity sweep + CHOCH detected — reversal setup forming." };
+
+  if (regime === "Trending" && (bos || dir === "Bullish" || dir === "Bearish") && confidence >= 60) {
+    return {
+      pass: true,
+      score: clamp(80 + (confidence - 60) * 0.25, 0, 95),
+      reason: `AI SMC: Break of Structure — ${bias} trend confirmed (conf ${confidence}/100).`,
+      ai,
+    };
+  }
+  if (regime === "Liquidity Sweep" && (sweep || choch) && confidence >= 55) {
+    return {
+      pass: true,
+      score: clamp(75 + (confidence - 55) * 0.25, 0, 90),
+      reason: `AI SMC: Liquidity sweep + CHOCH — reversal setup forming (conf ${confidence}/100). ${ai.reasoning || ""}`.trim(),
+      ai,
+    };
   }
   if (regime === "Range") {
-    return { pass: false, score: 25, reason: "Market in range — no clear directional structure. Waiting." };
+    return {
+      pass: false,
+      score: 25,
+      reason: `AI SMC: Market in range — no clear directional structure (bias: ${bias}). Waiting.`,
+      ai,
+    };
   }
-  return { pass: false, score: 30, reason: "Market structure unclear — no confirmed BOS or CHOCH." };
+  return {
+    pass: false,
+    score: 30,
+    reason: `AI SMC: Market structure unclear — no confirmed BOS or CHOCH (conf ${confidence}/100).`,
+    ai,
+  };
 }
 
 // ── Pillar 2: Trend Alignment ─────────────────────────────────────────────
@@ -714,7 +755,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Evaluate pillars ──
-    const p1Structure = checkStructure(ind, regime, regimeDir);
+    const p1Structure = await checkStructure(ind, regime, regimeDir, cfg);
     const p2Trend = checkTrend(ind, price, cfg);
     const trendDir = p2Trend.direction;
     const p2bPullback = checkPullback(ind, price, trendDir, cfg);
