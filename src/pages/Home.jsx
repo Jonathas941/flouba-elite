@@ -57,20 +57,28 @@ export default function Home() {
   const reconnectingRef = useRef(false);
   const [reconnecting, setReconnecting] = useState(false);
 
-  // ── Auto-reconnect: re-establish the MT5 link and verify it's truly back ──
+  // ── Auto-reconnect: re-establish the MT5 link and restart the robot loop ──
   const attemptReconnect = useCallback(async () => {
     if (reconnectingRef.current) return;
     reconnectingRef.current = true;
     setReconnecting(true);
     try {
+      // 1. Check bridge status
       await mt5Api.connect();
-      // Verify the link is genuinely restored with a fresh account read
+      // 2. Try restarting the robot loop in case the EA is alive but idle
+      if (botSettings?.active_pair) {
+        await mt5Api.robotStart(botSettings.active_pair, {
+          lot_size: botSettings.lot_size ?? 0.01,
+          strategy: botSettings.trading_mode ?? "Balanced",
+        }).catch(() => {});
+      }
+      // 3. Verify the link is genuinely restored with a fresh account read
       const verify = await mt5Api.account();
       if (verify?.ok && verify.data?.account?.balance != null) {
         disconnectCountRef.current = 0;
         setConnected(true);
         setAccount(verify.data.account);
-        toast({ title: "Connection Restored", description: "MT5 link re-established automatically.", duration: 3000 });
+        toast({ title: "Connection Restored", description: "MT5 link re-established and robot restarted.", duration: 3000 });
       }
     } catch {
       // keep the disconnect counter climbing — next poll retries
@@ -78,7 +86,7 @@ export default function Home() {
       reconnectingRef.current = false;
       setReconnecting(false);
     }
-  }, [toast]);
+  }, [toast, botSettings]);
 
   const loadFast = useCallback(async () => {
     try {
@@ -96,8 +104,8 @@ export default function Home() {
         setConnected(false);
         setAccount(null);
         disconnectCountRef.current += 1;
-        // Auto-reconnect after 2 consecutive failed heartbeats (~16s)
-        if (disconnectCountRef.current >= 2) await attemptReconnect();
+        // Auto-reconnect after 3 consecutive failed heartbeats (~24s)
+        if (disconnectCountRef.current >= 3) await attemptReconnect();
       }
       if (posRes?.ok && posRes.data?.positions) {
         setPositions(posRes.data.positions);
@@ -113,7 +121,7 @@ export default function Home() {
       setAccount(null);
       disconnectCountRef.current += 1;
       // Network-level failure — also attempt auto-reconnect
-      if (disconnectCountRef.current >= 2) await attemptReconnect();
+      if (disconnectCountRef.current >= 3) await attemptReconnect();
     } finally {
       setLoading(false);
     }
