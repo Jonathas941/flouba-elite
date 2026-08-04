@@ -208,18 +208,6 @@ Deno.serve(async (req) => {
     // ~20 call sites below.
     const robotPath = "";
 
-    // Stage 2 — order and control paths are NOT migrated yet. They are blocked
-    // explicitly rather than left to fall through: with the new base URL some of
-    // them (notably close-all) would otherwise resolve to real, live endpoints.
-    if (["robot_start", "robot_stop", "close_all", "close", "buy", "sell"].includes(action)) {
-      return Response.json({
-        ok: false,
-        status: 200,
-        data: null,
-        error: "Order controls are being migrated to the new bridge API and are temporarily disabled.",
-      }, { status: 200 });
-    }
-
     // ── account ──
     if (action === "account") {
       const r = await bridgeCall("GET", `${robotPath}/account`);
@@ -275,67 +263,51 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── robot_start: push config to settings, then POST /start ──
+    // ── robot_start: POST /robot/start ──
     if (action === "robot_start") {
-      // Push the user's launch config into the robot's settings first.
-      const settingsPatch = {};
-      if (params.symbol) settingsPatch.symbol = params.symbol;
-      if (params.lot_size != null) settingsPatch.lotSize = Number(params.lot_size);
-      if (params.risk_percentage != null) settingsPatch.riskPercent = Number(params.risk_percentage);
-      if (params.stop_loss != null) settingsPatch.stopLossPips = Number(params.stop_loss);
-      if (params.take_profit != null) settingsPatch.takeProfitPips = Number(params.take_profit);
-      if (params.max_concurrent_trades != null) settingsPatch.maxConcurrentTrades = Number(params.max_concurrent_trades);
-      if (params.daily_profit_target != null) settingsPatch.dailyProfitTarget = Number(params.daily_profit_target);
-      if (params.daily_loss_limit != null) settingsPatch.dailyLossLimit = Number(params.daily_loss_limit);
-      if (params.trade_direction) settingsPatch.tradeDirection = params.trade_direction;
-      if (Object.keys(settingsPatch).length > 0) {
-        await bridgeCall("PUT", `${robotPath}/settings`, settingsPatch);
-      }
-      const idemKey = `start-${robotId}-${Date.now()}`;
-      const r = await bridgeCall("POST", `${robotPath}/start`, {
-        metadata: { strategy: params.strategy, symbol: params.symbol },
-      }, { "x-idempotency-key": idemKey });
-      return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
+      const body = {};
+      if (params.symbol) body.symbol = params.symbol;
+      if (params.lot_size != null) body.lot_size = Number(params.lot_size);
+      if (params.strategy) body.strategy = params.strategy;
+      const r = await bridgeCall("POST", "/robot/start", body);
+      const success = r.ok && r.data?.success === true;
+      return Response.json({ ok: success, status: r.status, data: { success, robot: r.data?.robot || null, message: r.data?.message || null }, error: success ? null : (r.error || "Start failed") });
     }
 
-    // ── robot_stop ──
+    // ── robot_stop: POST /robot/stop ──
     if (action === "robot_stop") {
-      const idemKey = `stop-${robotId}-${Date.now()}`;
-      const r = await bridgeCall("POST", `${robotPath}/stop`, { metadata: {} }, { "x-idempotency-key": idemKey });
-      return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
+      const r = await bridgeCall("POST", "/robot/stop", {});
+      const success = r.ok && r.data?.success === true;
+      return Response.json({ ok: success, status: r.status, data: { success, robot: r.data?.robot || null, message: r.data?.message || null }, error: success ? null : (r.error || "Stop failed") });
     }
 
-    // ── close_all ──
+    // ── close_all: POST /trade/close-all ──
     if (action === "close_all") {
-      const idemKey = `closeall-${robotId}-${Date.now()}`;
-      const r = await bridgeCall("POST", `${robotPath}/close-all`, { metadata: {} }, { "x-idempotency-key": idemKey });
-      return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
+      const r = await bridgeCall("POST", "/trade/close-all", {});
+      const success = r.ok && r.data?.success === true;
+      return Response.json({ ok: success, status: r.status, data: { success, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Close-all failed") });
     }
 
-    // ── close single position (no dedicated endpoint in contract — use /commands queue) ──
+    // ── close single position: POST /trade/close ──
     if (action === "close") {
-      const cmd = { commandType: "CLOSE_POSITION" };
-      if (params.ticket != null) cmd.brokerTicket = String(params.ticket);
-      const r = await bridgeCall("POST", `${robotPath}/commands`, cmd, { "x-idempotency-key": `close-${robotId}-${params.ticket}-${Date.now()}` });
-      return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
+      const body = {};
+      if (params.ticket != null) body.ticket = Number(params.ticket);
+      const r = await bridgeCall("POST", "/trade/close", body);
+      const success = r.ok && r.data?.success === true;
+      return Response.json({ ok: success, status: r.status, data: { success, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Close failed") });
     }
 
-    // ── buy / sell (market orders — no dedicated endpoint in contract — use /commands queue) ──
+    // ── buy / sell: POST /trade/buy or /trade/sell ──
     if (action === "buy" || action === "sell") {
-      const dir = action === "buy" ? "BUY" : "SELL";
-      const cmd = {
-        commandType: action === "buy" ? "OPEN_BUY" : "OPEN_SELL",
-        direction: dir,
-      };
-      if (params.symbol) cmd.symbol = params.symbol;
-      if (params.volume != null) cmd.lotSize = Number(params.volume);
-      if (params.lot_size != null) cmd.lotSize = Number(params.lot_size);
-      if (params.sl != null) cmd.stopLoss = Number(params.sl);
-      if (params.tp != null) cmd.takeProfit = Number(params.tp);
-      if (params.stop_loss != null) cmd.stopLoss = Number(params.stop_loss);
-      if (params.take_profit != null) cmd.takeProfit = Number(params.take_profit);
-      const r = await bridgeCall("POST", `${robotPath}/commands`, cmd, { "x-idempotency-key": `${dir}-${robotId}-${Date.now()}` });
-      return Response.json({ ok: r.ok, status: r.status, data: { success: r.ok, command: r.data } });
+      const body = {};
+      if (params.symbol) body.symbol = params.symbol;
+      if (params.lot_size != null) body.lot = Number(params.lot_size);
+      if (params.volume != null) body.lot = Number(params.volume);
+      if (params.stop_loss != null) body.sl = Number(params.stop_loss);
+      if (params.take_profit != null) body.tp = Number(params.take_profit);
+      const r = await bridgeCall("POST", `/trade/${action}`, body);
+      const success = r.ok && r.data?.success === true;
+      return Response.json({ ok: success, status: r.status, data: { success, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Trade failed") });
     }
 
     // ── history (closed trades synced by the EA) ──
