@@ -26,8 +26,18 @@ export default function TradingView() {
   const [connection, setConnection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingConn, setSavingConn] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showLiveWarning, setShowLiveWarning] = useState(false);
+  const [showConnForm, setShowConnForm] = useState(false);
+  const [connForm, setConnForm] = useState({
+    provider_name: "",
+    api_base_url: "",
+    account_id: "",
+    encrypted_api_key: "",
+    encrypted_api_secret: "",
+    environment: "test",
+  });
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -56,7 +66,18 @@ export default function TradingView() {
 
       setSettings(tv);
       setSignals(sigList || []);
-      setConnection(connList?.[0] || null);
+      const conn = connList?.[0] || null;
+      setConnection(conn);
+      if (conn) {
+        setConnForm({
+          provider_name: conn.provider_name || "",
+          api_base_url: conn.api_base_url || "",
+          account_id: conn.account_id || "",
+          encrypted_api_key: "",
+          encrypted_api_secret: "",
+          environment: conn.environment || "test",
+        });
+      }
     } catch (err) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -131,6 +152,47 @@ export default function TradingView() {
     });
   };
 
+  const saveConnection = async () => {
+    setSavingConn(true);
+    try {
+      const payload = {
+        provider_name: connForm.provider_name,
+        api_base_url: connForm.api_base_url,
+        account_id: connForm.account_id,
+        environment: connForm.environment,
+        connection_status: "Connected",
+      };
+      if (connForm.encrypted_api_key) payload.encrypted_api_key = connForm.encrypted_api_key;
+      if (connForm.encrypted_api_secret) payload.encrypted_api_secret = connForm.encrypted_api_secret;
+
+      if (connection?.id) {
+        await base44.entities.TradingExecutionConnection.update(connection.id, payload);
+      } else {
+        await base44.entities.TradingExecutionConnection.create(payload);
+      }
+      toast({ title: "Saved", description: "Broker connection updated." });
+      setShowConnForm(false);
+      await loadData();
+    } catch (err) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingConn(false);
+    }
+  };
+
+  const disconnectBroker = async () => {
+    if (!connection?.id) return;
+    try {
+      await base44.entities.TradingExecutionConnection.update(connection.id, {
+        connection_status: "Disconnected",
+      });
+      toast({ title: "Disconnected", description: "Broker connection disconnected." });
+      await loadData();
+    } catch (err) {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleLiveModeClick = () => {
     if (settings.trading_mode === "live") {
       updateField("trading_mode", "test");
@@ -201,7 +263,149 @@ export default function TradingView() {
         </div>
       </GlassCard>
 
-      {/* B. Webhook URL */}
+      {/* B. Execution API / Broker Connection */}
+      <GlassCard className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-heading font-bold text-white/60 uppercase tracking-wider">Execution API</h2>
+          <StatusBadge status={execConnected ? "Connected" : "Disconnected"} />
+        </div>
+
+        {execConnected ? (
+          <div className="bg-black/30 rounded-lg p-3 border border-white/5 space-y-1">
+            <div className="flex justify-between text-[11px]">
+              <span className="text-white/30">Broker</span>
+              <span className="text-white/80 font-bold">{connection?.provider_name || "—"}</span>
+            </div>
+            <div className="flex justify-between text-[11px]">
+              <span className="text-white/30">Account</span>
+              <span className="text-white/60">{connection?.account_id || "—"}</span>
+            </div>
+            <div className="flex justify-between text-[11px]">
+              <span className="text-white/30">Environment</span>
+              <span className="text-white/60">{connection?.environment || "—"}</span>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={() => setShowConnForm(true)}
+                variant="outline"
+                size="sm"
+                className="flex-1 border-white/10 text-white/60"
+              >
+                Edit
+              </Button>
+              <Button
+                onClick={disconnectBroker}
+                variant="outline"
+                size="sm"
+                className="flex-1 border-[#FF3131]/20 text-[#FF3131]/80"
+              >
+                Disconnect
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-[11px] text-white/40">
+              Connect any broker API to execute TradingView signals. Works with OANDA, Alpaca, Tradovate, Interactive Brokers, and more.
+            </p>
+            <Button
+              onClick={() => setShowConnForm(true)}
+              variant="outline"
+              size="sm"
+              className="w-full border-[#00FF41]/30 text-[#00FF41] hover:bg-[#00FF41]/10"
+            >
+              <Wifi className="w-3.5 h-3.5 mr-2" /> Connect Broker
+            </Button>
+          </div>
+        )}
+
+        {showConnForm && (
+          <div className="bg-black/40 rounded-lg p-3 border border-white/5 space-y-3">
+            <div>
+              <Label className="text-[11px] text-white/60 mb-1 block">Broker Name</Label>
+              <Input
+                value={connForm.provider_name}
+                onChange={(e) => setConnForm(prev => ({ ...prev, provider_name: e.target.value }))}
+                placeholder="OANDA, Alpaca, Tradovate..."
+                className="bg-black/40 border-white/10 text-white text-xs h-8"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-white/60 mb-1 block">API Base URL</Label>
+              <Input
+                value={connForm.api_base_url}
+                onChange={(e) => setConnForm(prev => ({ ...prev, api_base_url: e.target.value }))}
+                placeholder="https://api-fxtrade.oanda.com"
+                className="bg-black/40 border-white/10 text-white text-xs h-8"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-white/60 mb-1 block">Account ID</Label>
+              <Input
+                value={connForm.account_id}
+                onChange={(e) => setConnForm(prev => ({ ...prev, account_id: e.target.value }))}
+                placeholder="001-001-1234567-001"
+                className="bg-black/40 border-white/10 text-white text-xs h-8"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-white/60 mb-1 block">API Key</Label>
+              <Input
+                type="password"
+                value={connForm.encrypted_api_key}
+                onChange={(e) => setConnForm(prev => ({ ...prev, encrypted_api_key: e.target.value }))}
+                placeholder={connection?.encrypted_api_key ? "•••••••• (saved)" : "Enter API key"}
+                className="bg-black/40 border-white/10 text-white text-xs h-8"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-white/60 mb-1 block">API Secret</Label>
+              <Input
+                type="password"
+                value={connForm.encrypted_api_secret}
+                onChange={(e) => setConnForm(prev => ({ ...prev, encrypted_api_secret: e.target.value }))}
+                placeholder={connection?.encrypted_api_secret ? "•••••••• (saved)" : "Enter API secret"}
+                className="bg-black/40 border-white/10 text-white text-xs h-8"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-white/60 mb-2 block">Environment</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <ModeButton
+                  active={connForm.environment === "test"}
+                  onClick={() => setConnForm(prev => ({ ...prev, environment: "test" }))}
+                  label="Test"
+                />
+                <ModeButton
+                  active={connForm.environment === "live"}
+                  onClick={() => setConnForm(prev => ({ ...prev, environment: "live" }))}
+                  label="Live"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                onClick={() => setShowConnForm(false)}
+                variant="outline"
+                size="sm"
+                className="flex-1 border-white/10 text-white/60"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={saveConnection}
+                disabled={savingConn || !connForm.provider_name || !connForm.api_base_url}
+                size="sm"
+                className="flex-1 bg-[#FF3131] hover:bg-[#FF3131]/80 text-white"
+              >
+                {savingConn ? "Saving..." : "Save Connection"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </GlassCard>
+
+      {/* C. Webhook URL */}
       <GlassCard className="p-4 space-y-3">
         <h2 className="text-xs font-heading font-bold text-white/60 uppercase tracking-wider mb-2 flex items-center gap-2">
           <Webhook className="w-3.5 h-3.5" /> Webhook URL
@@ -219,7 +423,7 @@ export default function TradingView() {
         </Button>
       </GlassCard>
 
-      {/* C. Settings */}
+      {/* D. Settings */}
       <GlassCard className="p-4 space-y-4">
         <h2 className="text-xs font-heading font-bold text-white/60 uppercase tracking-wider mb-2">Settings</h2>
 
@@ -370,7 +574,7 @@ export default function TradingView() {
         {testing ? "Testing..." : "Test Signal"}
       </Button>
 
-      {/* D. Recent Signals */}
+      {/* E. Recent Signals */}
       <GlassCard className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-heading font-bold text-white/60 uppercase tracking-wider">Recent Signals</h2>

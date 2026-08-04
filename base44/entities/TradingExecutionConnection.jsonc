@@ -4,7 +4,11 @@
   "properties": {
     "provider_name": {
       "type": "string",
-      "description": "Broker or execution provider name (e.g. OANDA, Interactive Brokers)."
+      "description": "Broker or execution provider name (e.g. OANDA, Interactive Brokers, Alpaca, Tradovate)."
+    },
+    "api_base_url": {
+      "type": "string",
+      "description": "Broker REST API base URL (e.g. https://api-fxtrade.oanda.com, https://api.alpaca.markets)."
     },
     "connection_status": {
       "type": "string",

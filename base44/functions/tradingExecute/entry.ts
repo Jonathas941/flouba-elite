@@ -10,11 +10,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // the order to the configured broker API (TRADING_API_URL).
 // ═══════════════════════════════════════════════════════════════
 
-const API_BASE = (() => {
-  let v = (Deno.env.get("TRADING_API_URL") || "").trim().replace(/\/+$/, "");
-  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
-  return v;
-})();
+// No global API base — each user's broker URL is stored in their
+// TradingExecutionConnection.api_base_url, so any broker works.
 
 function isCron(req, body) {
   const secret = Deno.env.get("CRON_SECRET");
@@ -53,8 +50,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Check execution API is configured ──
-    if (!API_BASE) {
+    // ── Load user's execution connection (any broker) ──
+    const connections = await base44.asServiceRole.entities.TradingExecutionConnection.filter(
+      { created_by_id: userId }, "-created_date", 1
+    );
+    const conn = connections?.[0];
+    if (!conn || conn.connection_status !== "Connected" || !conn.encrypted_api_key || !conn.api_base_url) {
       return Response.json({
         success: false,
         status: "error",
@@ -62,18 +63,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Load user's execution connection ──
-    const connections = await base44.asServiceRole.entities.TradingExecutionConnection.filter(
-      { created_by_id: userId }, "-created_date", 1
-    );
-    const conn = connections?.[0];
-    if (!conn || conn.connection_status !== "Connected" || !conn.encrypted_api_key) {
-      return Response.json({
-        success: false,
-        status: "error",
-        message: "Trading execution API disconnected",
-      });
-    }
+    const apiBase = conn.api_base_url.replace(/\/+$/, "");
 
     // ── Map action to broker order type ──
     const orderTypeMap = {
@@ -92,8 +82,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Execute via broker API ──
-    const brokerRes = await fetch(`${API_BASE}/orders`, {
+    // ── Execute via broker API (user's configured broker) ──
+    const brokerRes = await fetch(`${apiBase}/orders`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
