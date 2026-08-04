@@ -512,12 +512,19 @@ Deno.serve(async (req) => {
     const action = body.action || "scan";
 
     // ── Load or create settings ──
-    let settingsList = await base44.asServiceRole.entities.MarketStructureSettings.filter(
-      { created_by_id: userId }, "-created_date", 1
+    // NOTE: asServiceRole sets created_by_id to the service role's ID, not the user's.
+    // So we can't filter by created_by_id. Instead, fetch all settings and find the
+    // one whose created_by_id matches userId (service role can read all records).
+    const allSettings = await base44.asServiceRole.entities.MarketStructureSettings.filter(
+      {}, "-created_date", 50
     ).catch(() => []);
-    let settings = settingsList?.[0];
+    let settings = (allSettings || []).find((s) => s.created_by_id === userId);
     if (!settings) {
-      settings = await base44.asServiceRole.entities.MarketStructureSettings.create({ created_by_id: userId });
+      // Create with the user's client so created_by_id is set to the user's ID
+      settings = await base44.entities.MarketStructureSettings.create({}).catch(async () => {
+        // Fallback to service role if user client fails (e.g. cron mode)
+        return await base44.asServiceRole.entities.MarketStructureSettings.create({ created_by_id: userId });
+      });
     }
     const cfg = settings;
 
