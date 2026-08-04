@@ -7,7 +7,6 @@ import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import RobotStartModal from "@/components/RobotStartModal";
-import FAQ from "@/components/FAQ";
 import HolographicHero from "@/components/dashboard/hud/HolographicHero";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
@@ -602,8 +601,6 @@ export default function Home() {
           <ChevronDown className="w-4 h-4 text-cyan-400/40 rotate-[-90deg]" />
         </button>
 
-        {/* FAQ — frequently asked questions */}
-        <FAQ />
       </div>
 
       <RobotStartModal open={showStartModal} onClose={() => setShowStartModal(false)} onStart={handleLaunchRobot} />

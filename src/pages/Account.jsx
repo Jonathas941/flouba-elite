@@ -4,6 +4,7 @@ import GlassCard from "@/components/GlassCard";
 import { User, Crown, Shield, LogOut, ChevronRight, Settings, Bell, Lock, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import MobileHeader from "@/components/MobileHeader";
+import FAQ from "@/components/FAQ";
 
 export default function Account() {
   const [me, setMe] = useState(null);
@@ -113,6 +114,8 @@ export default function Account() {
           </div>
         </GlassCard>
       )}
+      <FAQ />
+
       </div>
     </div>
   );
