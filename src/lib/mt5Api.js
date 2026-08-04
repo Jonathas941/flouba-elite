@@ -16,6 +16,9 @@ export const mt5Api = {
   /** Live account info: balance, equity, margin, etc. */
   account: () => call("account"),
 
+  /** Auto-detect account info from the EA (broker, login, server) */
+  detect: () => call("detect"),
+
   /** Open positions array */
   positions: () => call("positions"),
 

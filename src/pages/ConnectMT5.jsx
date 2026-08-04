@@ -234,6 +234,7 @@ export default function ConnectMT5() {
   const [status, setStatus]                   = useState("idle");
   const [errorMsg, setErrorMsg]               = useState("");
   const [settingsId, setSettingsId]           = useState(null);
+  const [autoDetected, setAutoDetected]       = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -246,27 +247,54 @@ export default function ConnectMT5() {
           if (list[0].mt5_server)  setServer(list[0].mt5_server);
           if (list[0].mt5_password) setPassword(list[0].mt5_password);
         }
-        // Reflect the live bridge state so the page doesn't always show "Not Connected".
-        const res = await mt5Api.account();
-        const acct = res?.data?.account;
-        if (res?.ok && acct?.balance != null) {
-          setStatus("success");
-          if (list[0] && list[0].connection_status !== "Connected") {
-            await base44.entities.BotSettings.update(list[0].id, { connection_status: "Connected" }).catch(() => {});
+
+        // ── Auto-detect account info from the EA (no manual credentials needed) ──
+        const detectRes = await mt5Api.detect();
+        const d = detectRes?.data;
+        if (detectRes?.ok && d?.connected) {
+          if (d.login)   setLogin(String(d.login));
+          if (d.broker)  setBroker(d.broker);
+          if (d.server)  setServer(d.server);
+          setAutoDetected(true);
+          // If the EA is already connected, reflect that immediately
+          if (list[0]) {
+            await base44.entities.BotSettings.update(list[0].id, {
+              broker_name: d.broker || broker || undefined,
+              mt5_account: d.login ? String(d.login) : list[0].mt5_account || undefined,
+              mt5_server: d.server || undefined,
+              connection_status: "Connected",
+            }).catch(() => {});
           }
-        } else if (list[0] && list[0].connection_status === "Connected") {
-          // Stale record — bridge says disconnected, sync it.
-          await base44.entities.BotSettings.update(list[0].id, { connection_status: "Disconnected" }).catch(() => {});
+          setStatus("success");
+          toast({ title: "MT5 Auto-Detected", description: d.login ? `${d.broker || "Broker"} · ${d.login}` : "EA connected — no credentials needed", duration: 3000 });
+        } else {
+          // Fall back to checking the existing account endpoint
+          const res = await mt5Api.account();
+          const acct = res?.data?.account;
+          if (res?.ok && acct?.balance != null) {
+            setStatus("success");
+            if (list[0] && list[0].connection_status !== "Connected") {
+              await base44.entities.BotSettings.update(list[0].id, { connection_status: "Connected" }).catch(() => {});
+            }
+          } else if (list[0] && list[0].connection_status === "Connected") {
+            await base44.entities.BotSettings.update(list[0].id, { connection_status: "Disconnected" }).catch(() => {});
+          }
         }
       } catch {}
     })();
      
   }, []);
 
-  const isFormValid = broker && login && password && server;
+  const isFormValid = autoDetected || (broker && login && password && server);
 
   const saveToDb = async (connectionStatus) => {
-    const payload = { broker_name: broker, mt5_account: login, mt5_password: password, mt5_server: server, connection_status: connectionStatus };
+    const payload = {
+      broker_name: broker,
+      mt5_account: login,
+      mt5_server: server,
+      connection_status: connectionStatus,
+      ...(password ? { mt5_password: password } : {}),
+    };
     if (settingsId) {
       await base44.entities.BotSettings.update(settingsId, payload);
     } else {
@@ -277,9 +305,9 @@ export default function ConnectMT5() {
     try {
       const existing = await base44.entities.TradingAccount.filter({ account_number: login });
       if (existing?.length) {
-        await base44.entities.TradingAccount.update(existing[0].id, { broker_name: broker, server, password, is_active: true });
+        await base44.entities.TradingAccount.update(existing[0].id, { broker_name: broker, server, ...(password ? { password } : {}), is_active: true });
       } else {
-        await base44.entities.TradingAccount.create({ account_number: login, broker_name: broker, server, password, is_active: true });
+        await base44.entities.TradingAccount.create({ account_number: login, broker_name: broker, server, ...(password ? { password } : {}), is_active: true });
       }
       const all = await base44.entities.TradingAccount.list();
       const others = all.filter((a) => a.account_number !== login);
@@ -315,31 +343,29 @@ export default function ConnectMT5() {
   };
 
   const handleConnect = async () => {
-    if (!isFormValid) { toast({ title: "Fill in all fields to connect.", variant: "destructive" }); return; }
+    if (!isFormValid) { toast({ title: "Fill in all fields or ensure the EA is running.", variant: "destructive" }); return; }
     setStatus("connecting");
     setErrorMsg("");
     try {
-      // Save credentials first so the bridge can authenticate to the user's MT5 account.
-      // "Connecting" is not a valid connection_status enum value — use "Disconnected" until confirmed.
+      // Save whatever we have first so the bridge can authenticate.
       await saveToDb("Disconnected");
-      // The EA connects to MT5 automatically when running. Poll the account endpoint
-      // to confirm live MT5 data is flowing (balance/equity present).
-      // Try up to 6 times with 5s delays (30s total).
+      // The EA connects to MT5 automatically when running. Poll to confirm live data.
       let connected = false;
       let res = null;
       let acct = null;
       for (let attempt = 0; attempt < 6; attempt++) {
-        res = await mt5Api.account();
-        acct = res?.data?.account;
-        connected = res?.ok && acct?.balance != null;
+        res = await mt5Api.detect();
+        acct = res?.data;
+        connected = res?.ok && (acct?.balance != null || acct?.connected === true);
         if (connected) break;
         if (attempt < 5) { await new Promise((r) => setTimeout(r, 5000)); }
       }
       if (connected) {
         setStatus("success");
         await saveToDb("Connected");
-        toast({ title: "MT5 Connected", description: `${broker} · ${login}`, duration: 2000 });
-        logNotification({ type: "connection", title: "MT5 Connected", message: `Account ${login} connected on ${broker}.`, category: "success", meta: { broker, login } });
+        const connLabel = broker || login ? `${broker || "MT5"}${login ? ` · ${login}` : ""}` : "EA connected";
+        toast({ title: "MT5 Connected", description: connLabel, duration: 2000 });
+        logNotification({ type: "connection", title: "MT5 Connected", message: `Account ${login || "auto-detected"} connected${broker ? ` on ${broker}` : ""}.`, category: "success", meta: { broker, login } });
         // Send the EA file to the user's email after successful connection
         base44.functions.invoke("sendEaFile", {}).catch(() => {});
         navigate("/");
@@ -409,7 +435,14 @@ export default function ConnectMT5() {
         {/* ── 3. MT5 CREDENTIALS ── */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
           <GlassCard className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">MT5 Credentials</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">MT5 Credentials</p>
+              {autoDetected && (
+                <span className="text-[9px] font-mono text-green-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> AUTO-DETECTED
+                </span>
+              )}
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-semibold">Login (Account Number)</label>
@@ -420,20 +453,28 @@ export default function ConnectMT5() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground font-semibold">Password</label>
-              <div className="relative">
-                <input
-                  type={showPass ? "text" : "password"} value={password}
-                  onChange={(e) => setPassword(e.target.value)} placeholder="MT5 account password"
-                  className="w-full h-11 px-3 pr-11 glass rounded-xl text-sm text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-red-500/50 bg-transparent"
-                />
-                <button type="button" onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            {!autoDetected && (
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-semibold">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPass ? "text" : "password"} value={password}
+                    onChange={(e) => setPassword(e.target.value)} placeholder="MT5 account password"
+                    className="w-full h-11 px-3 pr-11 glass rounded-xl text-sm text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-red-500/50 bg-transparent"
+                  />
+                  <button type="button" onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {autoDetected && (
+              <p className="text-[11px] text-green-300/70 leading-relaxed">
+                Your broker and account were automatically detected from the EA running on your MetaTrader terminal. No credentials needed — just click Connect below.
+              </p>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-semibold">Server</label>

@@ -208,6 +208,38 @@ Deno.serve(async (req) => {
     // ~20 call sites below.
     const robotPath = "";
 
+    // ── detect: auto-discover the EA's account info (broker, login, server) ──
+    // Works without a stored mt5_account — the JWT scopes the request to the user's EA.
+    if (action === "detect") {
+      const [acctRes, hbRes] = await Promise.all([
+        bridgeCall("GET", `${robotPath}/account`),
+        bridgeCall("GET", `${robotPath}/heartbeat`).catch(() => ({ ok: false, data: null })),
+      ]);
+      const rawAcct = acctRes.data?.account ?? acctRes.data ?? {};
+      const acct = normalizeAccount(acctRes.data);
+      // Heartbeat may carry login/broker/server that the account snapshot doesn't
+      const hbArr = Array.isArray(hbRes.data) ? hbRes.data : [];
+      const hb = hbArr.length > 0 ? hbArr[0] : (hbRes.data || {});
+      const login = acct?.login ?? rawAcct.login ?? rawAcct.accountLogin ?? hb?.accountLogin ?? hb?.login ?? null;
+      const broker = acct?.broker ?? rawAcct.name ?? rawAcct.brokerName ?? hb?.brokerName ?? hb?.broker ?? null;
+      const server = acct?.server ?? rawAcct.server ?? rawAcct.brokerServer ?? hb?.brokerServer ?? hb?.server ?? null;
+      return Response.json({
+        ok: acctRes.ok,
+        status: acctRes.status,
+        data: {
+          connected: acctRes.ok && (acct?.connected === true || acct?.balance != null),
+          login: login != null ? String(login) : null,
+          broker: broker || null,
+          server: server || null,
+          balance: acct?.balance ?? null,
+          equity: acct?.equity ?? null,
+          currency: acct?.currency ?? null,
+          leverage: acct?.leverage ?? null,
+        },
+        error: acctRes.error || null,
+      });
+    }
+
     // ── account ──
     if (action === "account") {
       const r = await bridgeCall("GET", `${robotPath}/account`);
