@@ -8,6 +8,7 @@ import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import RobotStartModal from "@/components/RobotStartModal";
 import HolographicHero from "@/components/dashboard/hud/HolographicHero";
+import TerminalScanner from "@/components/dashboard/TerminalScanner";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
 
@@ -477,20 +478,16 @@ export default function Home() {
           </div>
         </HudPanel>
 
-        {/* ROBOT STATUS */}
+        {/* ROBOT STATUS — Terminal Scanner */}
         <HudPanel label="Robot Status" accent={active ? "#00FF41" : "#FF3131"}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 hud-clip-sm flex items-center justify-center shrink-0 ${active ? "bg-[#00FF41]/12" : "bg-white/5"}`}
-              style={{ border: `1px solid ${active ? "rgba(0,255,65,0.3)" : "rgba(255,255,255,0.1)"}`, boxShadow: active ? "0 0 14px rgba(0,255,65,0.3)" : undefined }}>
-              <motion.div className={`w-2.5 h-2.5 rounded-full ${statusDot}`}
-                animate={active ? { scale: [1, 1.5, 1], opacity: [1, 0.3, 1] } : {}}
-                transition={{ duration: 1.2, repeat: Infinity }} />
-            </div>
-            <div>
-              <p className={`font-mono font-bold text-sm tracking-[0.15em] ${statusColor}`}>{statusLabel}</p>
-              <p className="text-[9px] font-mono text-white/35 mt-0.5">{statusDesc}</p>
-            </div>
-          </div>
+          <TerminalScanner
+            active={active}
+            statusLabel={statusLabel}
+            statusDesc={statusDesc}
+            statusColor={statusColor}
+            statusDot={statusDot}
+            connected={connected}
+          />
         </HudPanel>
 
       </div>
