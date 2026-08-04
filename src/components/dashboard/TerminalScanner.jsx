@@ -68,7 +68,7 @@ export default function TerminalScanner({ active, statusLabel, statusDesc, statu
     // If we have real engine data, build lines from it
     if (engineData) {
       const ind = engineData.indicators || {};
-      const pillars = engineData.pillars || [];
+      const pillars = Array.isArray(engineData.pillars) ? engineData.pillars : [];
       const realLines = [];
 
       realLines.push(`[REG] Market regime: ${engineData.regime || "Unknown"}${engineData.regime_dir ? ` — ${engineData.regime_dir} bias` : ""}`);
