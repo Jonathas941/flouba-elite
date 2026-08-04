@@ -313,6 +313,11 @@ export default function Home() {
   const openPnl = positions.reduce((s, p) => s + (p.profit ?? p.unrealized_pnl ?? 0), 0);
   const dangerMode = botSettings?.hft_mode_enabled === true;
 
+  // Real daily change % from MT5 profit_today vs start-of-day balance
+  const dailyPnl = account?.profit_today ?? null;
+  const startOfDayBalance = dailyPnl != null && account?.balance != null ? account.balance - dailyPnl : null;
+  const changePct = connected && startOfDayBalance != null && startOfDayBalance > 0 ? (dailyPnl / startOfDayBalance) * 100 : null;
+
   const statusLabel = active
     ? (robotStatus === "Running" ? "ROBOT IS RUNNING" : robotStatus.toUpperCase())
     : reconnecting ? "RECONNECTING…"
@@ -470,9 +475,9 @@ export default function Home() {
             </div>
             <div className="text-right">
               <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-[#00FF41]/35">CHANGE</p>
-              <p className={`font-mono font-bold text-sm ${connected ? "text-[#00FF41]" : "text-white/25"}`}
-                style={connected ? { textShadow: "0 0 6px rgba(0,255,65,0.3)" } : {}}>
-                {connected ? "+0.45%" : "--"}
+              <p className={`font-mono font-bold text-sm ${changePct == null ? "text-white/25" : changePct >= 0 ? "text-[#00FF41]" : "text-[#FF3131]"}`}
+                style={changePct != null && changePct >= 0 ? { textShadow: "0 0 6px rgba(0,255,65,0.3)" } : {}}>
+                {changePct == null ? "--" : `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`}
               </p>
             </div>
           </div>
