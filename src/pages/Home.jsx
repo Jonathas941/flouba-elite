@@ -74,7 +74,7 @@ export default function Home() {
       }
       // 3. Verify the link is genuinely restored with a fresh account read
       const verify = await mt5Api.account();
-      if (verify?.ok && verify.data?.account?.balance != null) {
+      if (verify?.ok && verify.data?.account?.connected === true) {
         disconnectCountRef.current = 0;
         setConnected(true);
         setAccount(verify.data.account);
@@ -97,7 +97,7 @@ export default function Home() {
       ]);
       if (acctRes?.ok && acctRes.data?.account) {
         const a = acctRes.data.account;
-        setConnected(a.balance != null);
+        setConnected(a.connected === true);
         setAccount(a);
         disconnectCountRef.current = 0;
       } else {
