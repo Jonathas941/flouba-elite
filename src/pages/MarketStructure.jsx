@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Play, Square, Check, X, Activity, Settings as SettingsIcon, Radar } from "lucide-react";
+import { Play, Square, Check, X, Activity, Settings as SettingsIcon, Radar, Zap } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
@@ -134,6 +134,21 @@ export default function MarketStructure() {
     }
   };
 
+  const handleToggleAutoMode = async () => {
+    if (!settings) return;
+    const newAuto = !settings.auto_execution_enabled;
+    try {
+      const res = await base44.functions.invoke("marketStructureScanner", {
+        action: "settings",
+        update: { auto_execution_enabled: newAuto, execution_mode: newAuto ? "auto" : "manual" },
+      });
+      if (res?.data?.settings) setSettings(res.data.settings);
+      toast({ title: newAuto ? "Auto Mode Enabled" : "Manual Mode Enabled", description: newAuto ? "Orders will be sent automatically when a setup is found." : "You approve every order before it's sent.", duration: 3000 });
+    } catch (e) {
+      toast({ title: "Toggle failed", description: e.message, variant: "destructive" });
+    }
+  };
+
   const handleSettingChange = async (key, value) => {
     if (!settings) return;
     try {
@@ -195,22 +210,38 @@ export default function MarketStructure() {
         </div>
       </HudPanel>
 
-      {/* SCAN BUTTON */}
-      <motion.button
-        onClick={handleScan}
-        disabled={scanning || !cfg.scanner_active}
-        whileTap={{ scale: 0.97 }}
-        className="w-full h-12 rounded-xl flex items-center justify-center gap-2 font-mono font-bold tracking-wider text-sm disabled:opacity-40"
-        style={{
-          background: "rgba(0,255,65,0.07)",
-          color: "#00FF41",
-          border: "1.5px solid rgba(0,255,65,0.4)",
-          boxShadow: "0 0 18px rgba(0,255,65,0.12)",
-        }}
-      >
-        {scanning ? <div className="w-4 h-4 border-2 border-[#00FF41]/30 border-t-[#00FF41] rounded-full animate-spin" /> : <Activity className="w-4 h-4" />}
-        <span>{scanning ? "SCANNING…" : "SCAN NOW"}</span>
-      </motion.button>
+      {/* SCAN + AUTO MODE TOGGLE */}
+      <div className="flex gap-2">
+        <motion.button
+          onClick={handleScan}
+          disabled={scanning || !cfg.scanner_active}
+          whileTap={{ scale: 0.97 }}
+          className="flex-1 h-12 rounded-xl flex items-center justify-center gap-2 font-mono font-bold tracking-wider text-sm disabled:opacity-40"
+          style={{
+            background: "rgba(0,255,65,0.07)",
+            color: "#00FF41",
+            border: "1.5px solid rgba(0,255,65,0.4)",
+            boxShadow: "0 0 18px rgba(0,255,65,0.12)",
+          }}
+        >
+          {scanning ? <div className="w-4 h-4 border-2 border-[#00FF41]/30 border-t-[#00FF41] rounded-full animate-spin" /> : <Activity className="w-4 h-4" />}
+          <span>{scanning ? "SCANNING…" : "SCAN NOW"}</span>
+        </motion.button>
+        <motion.button
+          onClick={handleToggleAutoMode}
+          whileTap={{ scale: 0.97 }}
+          className="h-12 px-4 rounded-xl flex items-center justify-center gap-2 font-mono font-bold tracking-wider text-xs transition-all"
+          style={{
+            background: cfg.auto_execution_enabled ? "rgba(255,49,49,0.10)" : "rgba(255,204,66,0.06)",
+            color: cfg.auto_execution_enabled ? "#FF3131" : "#FFCC42",
+            border: `1.5px solid ${cfg.auto_execution_enabled ? "rgba(255,49,49,0.5)" : "rgba(255,204,66,0.4)"}`,
+            boxShadow: cfg.auto_execution_enabled ? "0 0 14px rgba(255,49,49,0.15)" : "0 0 14px rgba(255,204,66,0.10)",
+          }}
+        >
+          <Zap className={`w-4 h-4 ${cfg.auto_execution_enabled ? "fill-current" : ""}`} />
+          <span>{cfg.auto_execution_enabled ? "AUTO" : "MANUAL"}</span>
+        </motion.button>
+      </div>
 
       {/* B. SCANNER SETTINGS */}
       <HudPanel label="Scanner Settings" accent="#00FF41">
