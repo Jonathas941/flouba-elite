@@ -11,7 +11,7 @@ import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import EaDownloadButton from "@/components/EaDownloadButton";
 import { WifiOff, ShieldCheck, Eye, EyeOff,
-  Loader2, CheckCircle2, Bot,
+  Loader2, CheckCircle2, Bot, Unplug,
 } from "lucide-react";
 
 const BROKER_SERVERS = {
@@ -317,6 +317,26 @@ export default function ConnectMT5() {
     } catch {}
   };
 
+  const handleDisconnect = async () => {
+    setStatus("connecting");
+    setErrorMsg("");
+    try {
+      // Stop the robot if it's running
+      await mt5Api.robotStop().catch(() => {});
+      await saveToDb("Disconnected");
+      setStatus("idle");
+      setAutoDetected(false);
+      setPassword("");
+      toast({ title: "MT5 Disconnected", description: "Your account has been disconnected.", duration: 3000 });
+      logNotification({ type: "connection", title: "MT5 Disconnected", message: `Account ${login || ""} disconnected.`, category: "warning", meta: { broker, login } });
+    } catch (err) {
+      setStatus("error");
+      const msg = err?.message || "Failed to disconnect.";
+      setErrorMsg(msg);
+      toast({ title: "Disconnect Failed", description: msg, variant: "destructive" });
+    }
+  };
+
   const handleTest = async () => {
     if (!isFormValid) return;
     setStatus("testing");
@@ -541,7 +561,13 @@ export default function ConnectMT5() {
               </Button>
             </>
           )}
-          {/* Auto-redirects to home on successful connection */}
+          {status === "success" && (
+            <Button
+              className="w-full h-12 bg-white/10 hover:bg-white/15 text-white font-heading font-bold tracking-widest text-xs uppercase rounded-xl border border-white/20"
+              onClick={handleDisconnect} disabled={status === "connecting"}>
+              {status === "connecting" ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Disconnecting…</> : <><Unplug className="w-4 h-4 mr-2" />Disconnect</>}
+            </Button>
+          )}
         </motion.div>
 
         {/* ── 6. SECURITY NOTE ── */}
