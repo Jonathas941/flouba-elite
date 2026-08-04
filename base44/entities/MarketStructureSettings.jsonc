@@ -1,0 +1,366 @@
+{
+  "name": "MarketStructureSettings",
+  "type": "object",
+  "properties": {
+    "symbols": {
+      "type": "string",
+      "default": "XAUUSD",
+      "description": "Comma-separated list of symbols to scan."
+    },
+    "trend_timeframe": {
+      "type": "string",
+      "enum": [
+        "M15",
+        "M30",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "default": "H1",
+      "description": "Higher timeframe for trend direction."
+    },
+    "structure_timeframe": {
+      "type": "string",
+      "enum": [
+        "M5",
+        "M15",
+        "M30",
+        "H1"
+      ],
+      "default": "M15",
+      "description": "Medium timeframe for structure confirmation."
+    },
+    "entry_timeframe": {
+      "type": "string",
+      "enum": [
+        "M1",
+        "M5",
+        "M15"
+      ],
+      "default": "M5",
+      "description": "Lower timeframe for precise entry."
+    },
+    "risk_percentage": {
+      "type": "number",
+      "default": 1,
+      "description": "Risk per trade as a percentage of account balance."
+    },
+    "lot_size_mode": {
+      "type": "string",
+      "enum": [
+        "Fixed",
+        "Auto Risk"
+      ],
+      "default": "Auto Risk"
+    },
+    "fixed_lot_size": {
+      "type": "number",
+      "default": 0.01
+    },
+    "max_lot_size": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Hard cap on lot size \u2014 never exceeded."
+    },
+    "max_pending_orders": {
+      "type": "number",
+      "default": 3,
+      "description": "Maximum simultaneous pending orders."
+    },
+    "max_open_positions": {
+      "type": "number",
+      "default": 2
+    },
+    "max_trades_per_symbol": {
+      "type": "number",
+      "default": 1
+    },
+    "max_daily_loss": {
+      "type": "number",
+      "default": 50,
+      "description": "Daily loss limit in dollars."
+    },
+    "max_daily_profit": {
+      "type": "number",
+      "default": 200,
+      "description": "Daily profit target in dollars."
+    },
+    "max_spread": {
+      "type": "number",
+      "default": 30,
+      "description": "Maximum allowed spread in points."
+    },
+    "min_rr": {
+      "type": "number",
+      "default": 2,
+      "description": "Minimum risk-to-reward ratio."
+    },
+    "max_sl_distance": {
+      "type": "number",
+      "default": 100,
+      "description": "Maximum stop loss distance in points."
+    },
+    "stop_after_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "entry_method": {
+      "type": "string",
+      "enum": [
+        "order_block_mid",
+        "fvg_mid",
+        "supply_demand_mid",
+        "fib",
+        "breakout_buffer"
+      ],
+      "default": "order_block_mid",
+      "description": "Method for calculating the pending entry price."
+    },
+    "fib_retracement_min": {
+      "type": "number",
+      "default": 50,
+      "description": "Minimum Fibonacci retracement percentage for entry zone."
+    },
+    "fib_retracement_max": {
+      "type": "number",
+      "default": 61.8,
+      "description": "Maximum Fibonacci retracement percentage for entry zone."
+    },
+    "breakout_buffer_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Buffer added beyond breakout level for stop orders."
+    },
+    "sl_buffer_points": {
+      "type": "number",
+      "default": 5,
+      "description": "Safety buffer added beyond the swing low/high for stop loss."
+    },
+    "tp_method": {
+      "type": "string",
+      "enum": [
+        "fixed_rr",
+        "prev_swing",
+        "next_liq",
+        "next_sr",
+        "partial"
+      ],
+      "default": "fixed_rr",
+      "description": "Take profit calculation method."
+    },
+    "default_rr": {
+      "type": "number",
+      "default": 2,
+      "description": "Default risk-to-reward ratio for fixed RR TP method."
+    },
+    "tp1_at_r": {
+      "type": "number",
+      "default": 1,
+      "description": "TP1 distance in R multiples (for partial TP)."
+    },
+    "tp2_at_r": {
+      "type": "number",
+      "default": 2,
+      "description": "TP2 distance in R multiples."
+    },
+    "partial_close_pct": {
+      "type": "number",
+      "default": 50,
+      "description": "Percentage to close at TP1 (for partial TP)."
+    },
+    "min_signal_score": {
+      "type": "number",
+      "default": 70,
+      "description": "Minimum signal quality score (0-100) required to place an order."
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "auto"
+      ],
+      "default": "manual",
+      "description": "manual = wait for user approval; auto = send pending order automatically."
+    },
+    "trading_mode": {
+      "type": "string",
+      "enum": [
+        "demo",
+        "live"
+      ],
+      "default": "demo",
+      "description": "demo = simulate only; live = execute via MT5."
+    },
+    "auto_execution_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Master toggle \u2014 when OFF, no orders are sent to MT5 regardless of execution_mode."
+    },
+    "scanner_active": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the scanner is actively scanning the market."
+    },
+    "london_session": {
+      "type": "boolean",
+      "default": true
+    },
+    "new_york_session": {
+      "type": "boolean",
+      "default": true
+    },
+    "asian_session": {
+      "type": "boolean",
+      "default": false
+    },
+    "spread_filter": {
+      "type": "boolean",
+      "default": true
+    },
+    "volatility_filter": {
+      "type": "boolean",
+      "default": true
+    },
+    "atr_filter": {
+      "type": "boolean",
+      "default": true
+    },
+    "news_filter": {
+      "type": "boolean",
+      "default": true
+    },
+    "min_candle_volume": {
+      "type": "number",
+      "default": 0,
+      "description": "Minimum candle volume for entry confirmation."
+    },
+    "trend_strength_min": {
+      "type": "number",
+      "default": 25,
+      "description": "Minimum ADX value for trend strength confirmation."
+    },
+    "one_trade_per_structure": {
+      "type": "boolean",
+      "default": true,
+      "description": "Only one pending order per detected market structure setup."
+    },
+    "cooldown_minutes": {
+      "type": "number",
+      "default": 30,
+      "description": "Cooldown after a trade before scanning resumes."
+    },
+    "expiration_mode": {
+      "type": "string",
+      "enum": [
+        "candles",
+        "minutes",
+        "session_end",
+        "structure_invalid"
+      ],
+      "default": "candles",
+      "description": "Pending order expiration mode."
+    },
+    "expiration_candles": {
+      "type": "number",
+      "default": 12,
+      "description": "Number of entry-timeframe candles before the pending order expires."
+    },
+    "expiration_minutes": {
+      "type": "number",
+      "default": 720,
+      "description": "Minutes before the pending order expires."
+    },
+    "break_even_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Move stop loss to break-even at 1R."
+    },
+    "break_even_at_r": {
+      "type": "number",
+      "default": 1,
+      "description": "R multiple at which stop loss moves to break-even."
+    },
+    "trailing_stop": {
+      "type": "boolean",
+      "default": false
+    },
+    "partial_profit": {
+      "type": "boolean",
+      "default": true,
+      "description": "Partial close 50% at TP1."
+    },
+    "close_at_opposite_structure": {
+      "type": "boolean",
+      "default": true,
+      "description": "Close position when opposite Break of Structure occurs."
+    },
+    "close_at_session_end": {
+      "type": "boolean",
+      "default": false
+    },
+    "cancel_remaining_after_activation": {
+      "type": "boolean",
+      "default": true,
+      "description": "Cancel all remaining pending orders after one activates."
+    },
+    "last_scan_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_signal_time": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

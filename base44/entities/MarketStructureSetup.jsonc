@@ -1,0 +1,210 @@
+{
+  "name": "MarketStructureSetup",
+  "type": "object",
+  "properties": {
+    "setup_id": {
+      "type": "string",
+      "description": "Unique setup ID: symbol-direction-structureTF-bosTime-entryZone."
+    },
+    "symbol": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "BUY",
+        "SELL"
+      ]
+    },
+    "order_type": {
+      "type": "string",
+      "enum": [
+        "BUY_LIMIT",
+        "SELL_LIMIT",
+        "BUY_STOP",
+        "SELL_STOP"
+      ]
+    },
+    "entry_price": {
+      "type": "number"
+    },
+    "stop_loss": {
+      "type": "number"
+    },
+    "take_profit": {
+      "type": "number"
+    },
+    "tp1": {
+      "type": "number",
+      "description": "Take profit target 1 (for partial TP)."
+    },
+    "tp2": {
+      "type": "number",
+      "description": "Take profit target 2."
+    },
+    "tp3": {
+      "type": "number",
+      "description": "Take profit target 3 (next liquidity zone)."
+    },
+    "signal_score": {
+      "type": "number",
+      "description": "Signal quality score (0-100)."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Scanning",
+        "Signal Found",
+        "Waiting Approval",
+        "Pending Order Placed",
+        "Activated",
+        "Canceled",
+        "Expired",
+        "Rejected",
+        "Closed"
+      ],
+      "default": "Scanning"
+    },
+    "trend_timeframe": {
+      "type": "string"
+    },
+    "structure_timeframe": {
+      "type": "string"
+    },
+    "entry_timeframe": {
+      "type": "string"
+    },
+    "entry_method": {
+      "type": "string"
+    },
+    "risk_reward": {
+      "type": "number"
+    },
+    "lot_size": {
+      "type": "number"
+    },
+    "risk_percent": {
+      "type": "number"
+    },
+    "expiration_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mt5_ticket": {
+      "type": "string",
+      "description": "MT5 order ticket returned by the broker."
+    },
+    "bos_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time of the Break of Structure candle."
+    },
+    "bos_level": {
+      "type": "number"
+    },
+    "choch_level": {
+      "type": "number"
+    },
+    "zone_high": {
+      "type": "number",
+      "description": "Upper edge of the entry zone (order block, FVG, supply/demand)."
+    },
+    "zone_low": {
+      "type": "number",
+      "description": "Lower edge of the entry zone."
+    },
+    "zone_type": {
+      "type": "string",
+      "enum": [
+        "order_block",
+        "fvg",
+        "supply_demand",
+        "fib",
+        "breakout"
+      ],
+      "description": "Type of entry zone detected."
+    },
+    "swing_high": {
+      "type": "number"
+    },
+    "swing_low": {
+      "type": "number"
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Signal scoring breakdown."
+    },
+    "regime": {
+      "type": "string",
+      "description": "Detected market regime at signal time."
+    },
+    "comment": {
+      "type": "string",
+      "default": "Flouba Market Structure"
+    },
+    "close_reason": {
+      "type": "string"
+    },
+    "rejected_reason": {
+      "type": "string",
+      "description": "Reason the setup was rejected (filter failure, score too low, etc.)."
+    }
+  },
+  "required": [
+    "setup_id",
+    "symbol",
+    "direction",
+    "order_type"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

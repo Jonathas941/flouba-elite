@@ -310,6 +310,30 @@ Deno.serve(async (req) => {
       return Response.json({ ok: success, status: r.status, data: { success, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Trade failed") });
     }
 
+    // ── pending_order: POST /trade/pending (BUY_LIMIT, SELL_LIMIT, BUY_STOP, SELL_STOP) ──
+    if (action === "pending_order") {
+      const body = {};
+      if (params.symbol) body.symbol = params.symbol;
+      if (params.order_type) body.order_type = params.order_type;
+      if (params.entry_price != null) body.price = Number(params.entry_price);
+      if (params.lot_size != null) body.lot = Number(params.lot_size);
+      if (params.stop_loss != null) body.sl = Number(params.stop_loss);
+      if (params.take_profit != null) body.tp = Number(params.take_profit);
+      if (params.expiration != null) body.expiration = params.expiration;
+      const r = await bridgeCall("POST", "/trade/pending", body);
+      const success = r.ok && r.data?.success === true;
+      return Response.json({ ok: success, status: r.status, data: { success, ticket: r.data?.ticket || r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Pending order failed") });
+    }
+
+    // ── rates: GET /rates (candle data for market structure analysis) ──
+    if (action === "rates") {
+      const sym = params.symbol || cfg?.active_pair || "XAUUSD";
+      const tf = params.timeframe || "M15";
+      const count = Math.min(Number(params.count) || 100, 500);
+      const r = await bridgeCall("GET", `${robotPath}/rates?symbol=${encodeURIComponent(sym)}&timeframe=${tf}&count=${count}`);
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
     // ── history (closed trades synced by the EA) ──
     if (action === "history") {
       const limit = Math.min(Number(params.limit) || 50, 200);
