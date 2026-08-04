@@ -1,71 +1,124 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import { base44 } from "@/api/base44Client";
 
-const SCAN_LINES = [
-  "[SYS] Initializing Flouba Elite engine v3.2…",
-  "[MKT] Fetching XAUUSD M1 candles…",
-  "[MKT] Fetching XAUUSD M5 candles…",
-  "[MKT] Fetching XAUUSD M15 candles…",
-  "[EMA] EMA20=2341.55 EMA50=2338.12 EMA200=2330.88",
-  "[RSI] RSI(14)=58.3 — neutral-bullish",
-  "[ATR] ATR(14)=2.41 — volatility normal",
-  "[ADX] ADX=24.7 — trend forming",
-  "[MACD] Histogram +0.38 — bullish momentum",
-  "[SMC] Scanning swing highs/lows (lookback 20)…",
-  "[SMC] Checking BOS on M15…",
-  "[SMC] Checking CHOCH on M5…",
+// Generic status messages shown when no real indicator data is available
+const GENERIC_LINES = [
+  "[SYS] Initializing Flouba Elite engine…",
+  "[MKT] Fetching market data from MT5 bridge…",
+  "[SMC] Scanning market structure…",
+  "[SMC] Checking break of structure…",
+  "[SMC] Checking change of character…",
   "[SMC] Scanning liquidity pools…",
-  "[SMC] No sweep detected in current range",
   "[FVG] Scanning fair value gaps…",
-  "[FVG] No active FVG within entry zone",
   "[SND] Checking supply/demand zones…",
-  "[SND] Demand zone @ 2331.40 confirmed",
-  "[LVL] Key resistance: 2345.20",
-  "[LVL] Key support: 2331.40",
-  "[REG] Market regime: Trending — Bullish bias",
-  "[SES] London session: ACTIVE",
-  "[SES] New York session: PENDING",
-  "[NWS] No high-impact news within 60 min",
-  "[SPR] Spread 0.32 — within limit",
-  "[RISK] Equity guard: OK — margin 12.4%",
-  "[RISK] Daily drawdown: 0.8% — within limit",
-  "[CONF] Confluence score: 52/100",
-  "[CONF] Pillar 1 (Structure): PASS",
-  "[CONF] Pillar 2 (Trend): PASS",
-  "[CONF] Pillar 3 (Pullback): WAITING",
-  "[CONF] Pillar 4 (Liquidity): PASS",
-  "[CONF] Pillar 5 (Volatility): PASS",
-  "[CONF] Pillar 6 (Momentum): PASS",
-  "[CONF] Pillar 7 (Session): PASS",
-  "[CONF] Pillar 8 (News): PASS",
+  "[LVL] Mapping key support/resistance levels…",
+  "[SES] Checking trading session status…",
+  "[NWS] Checking news calendar…",
+  "[RISK] Verifying capital protection gates…",
   "[SCAN] No valid signal yet — monitoring…",
-  "[SCAN] Waiting for pullback into EMA20 zone…",
+  "[SCAN] Waiting for confluence alignment…",
   "[SCAN] Retrying scan cycle…",
 ];
 
+function fmtNum(v, digits = 2) {
+  if (v == null || isNaN(v)) return null;
+  return Number(v).toFixed(digits);
+}
+
 export default function TerminalScanner({ active, statusLabel, statusDesc, statusColor, statusDot, connected }) {
   const [lines, setLines] = useState([]);
+  const [engineData, setEngineData] = useState(null);
   const scrollRef = useRef(null);
 
+  // Poll the trade decision engine for real indicator data
+  const fetchEngineData = useCallback(async () => {
+    if (!active || !connected) {
+      setEngineData(null);
+      return;
+    }
+    try {
+      const res = await base44.functions.invoke("tradeDecisionEngine", {});
+      const d = res?.data;
+      if (d?.ok && d.connected) {
+        setEngineData(d);
+      } else {
+        setEngineData(null);
+      }
+    } catch {
+      setEngineData(null);
+    }
+  }, [active, connected]);
+
+  // Refresh engine data every 12s while active
+  useEffect(() => {
+    fetchEngineData();
+    if (!active || !connected) return;
+    const interval = setInterval(fetchEngineData, 12000);
+    return () => clearInterval(interval);
+  }, [fetchEngineData]);
+
+  // Build terminal lines from real data, or cycle generic messages
   useEffect(() => {
     if (!active) {
       setLines([]);
       return;
     }
+
+    // If we have real engine data, build lines from it
+    if (engineData) {
+      const ind = engineData.indicators || {};
+      const pillars = engineData.pillars || [];
+      const realLines = [];
+
+      realLines.push(`[REG] Market regime: ${engineData.regime || "Unknown"}${engineData.regime_dir ? ` — ${engineData.regime_dir} bias` : ""}`);
+
+      if (ind.ema_20 != null) {
+        const parts = [];
+        if (ind.ema_20 != null) parts.push(`EMA20=${fmtNum(ind.ema_20)}`);
+        if (ind.ema_50 != null) parts.push(`EMA50=${fmtNum(ind.ema_50)}`);
+        if (ind.ema_200 != null) parts.push(`EMA200=${fmtNum(ind.ema_200)}`);
+        realLines.push(`[EMA] ${parts.join(" ")}`);
+      }
+      if (ind.rsi != null) realLines.push(`[RSI] RSI(14)=${fmtNum(ind.rsi, 1)} — ${ind.rsi >= 70 ? "overbought" : ind.rsi <= 30 ? "oversold" : ind.rsi >= 50 ? "neutral-bullish" : "neutral-bearish"}`);
+      if (ind.atr != null) realLines.push(`[ATR] ATR(14)=${fmtNum(ind.atr)} — ${ind.atr > 0 ? "volatility normal" : "low volatility"}`);
+      if (ind.adx != null) realLines.push(`[ADX] ADX=${fmtNum(ind.adx, 1)} — ${ind.adx >= 25 ? "trend forming" : "no clear trend"}`);
+      if (ind.spread != null) realLines.push(`[SPR] Spread ${fmtNum(ind.spread)} — within limit`);
+
+      pillars.forEach((p) => {
+        if (p.key === "risk") return; // skip capital protection gate in scanner
+        const status = p.pass ? "PASS" : "WAIT";
+        realLines.push(`[CONF] ${p.label}: ${status}`);
+      });
+
+      realLines.push(`[CONF] Confluence score: ${engineData.score ?? 0}/100`);
+      realLines.push(`[SCAN] ${engineData.decision === "TRADE" ? `Signal ready — ${engineData.direction}` : "No valid signal yet — monitoring…"}`);
+
+      setLines(realLines.map((text, i) => ({
+        ts: new Date().toLocaleTimeString("en-US", { hour12: false }),
+        text,
+        id: `real-${i}`,
+      })));
+      return;
+    }
+
+    // No real data — cycle generic messages (no fabricated numbers)
     let idx = 0;
+    setLines([]);
     const interval = setInterval(() => {
-      if (idx >= SCAN_LINES.length) idx = 0;
-      const line = SCAN_LINES[idx];
+      if (idx >= GENERIC_LINES.length) idx = 0;
+      const line = GENERIC_LINES[idx];
       const ts = new Date().toLocaleTimeString("en-US", { hour12: false });
       setLines((prev) => {
-        const next = [...prev, { ts, text: line, id: idx }];
+        const next = [...prev, { ts, text: line, id: `gen-${idx}-${Date.now()}` }];
         return next.slice(-14);
       });
       idx++;
     }, 650);
     return () => clearInterval(interval);
-  }, [active]);
+  }, [active, engineData]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -124,7 +177,7 @@ export default function TerminalScanner({ active, statusLabel, statusDesc, statu
               "text-white/50";
             return (
               <motion.div
-                key={line.id + "-" + i}
+                key={line.id}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.15 }}
