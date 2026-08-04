@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Radar, BarChart3, Settings, Wallet } from "lucide-react";
+import { LayoutDashboard, Radar, BarChart3, Settings, Wallet, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/statistics",  label: "Statistics", icon: BarChart3 },
   { to: "/settings",    label: "Settings",   icon: Settings },
   { to: "/account",     label: "Account",    icon: Wallet },
+  { to: "/tradingview",  label: "TradingView", icon: LineChart },
 ];
 
 export default function Layout() {
