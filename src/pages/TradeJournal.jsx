@@ -33,7 +33,11 @@ export default function TradeJournal() {
     setSyncing(false);
   }, [load, toast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    // Auto-sync trade history from MT5 on page load
+    sync();
+  }, [load, sync]);
 
   const filtered = filter === "All" ? trades :
     filter === "Wins" ? trades.filter((t) => (t.profit ?? 0) > 0) :
