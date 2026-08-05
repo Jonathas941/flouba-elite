@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Switch } from "@/components/ui/switch";
@@ -30,6 +30,9 @@ export default function TradingView() {
 
   const [showLiveWarning, setShowLiveWarning] = useState(false);
   const [botSettings, setBotSettings] = useState(null);
+
+  // Latches while a settings row is being created, so concurrent loads don't each create one.
+  const creatingSettingsRef = useRef(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
