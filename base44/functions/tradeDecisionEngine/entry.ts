@@ -933,10 +933,17 @@ Deno.serve(async (req) => {
     const globalCooldownUntil = cfg.adaptive_global_cooldown_until;
     const globalCooldownActive = globalCooldownUntil && new Date(globalCooldownUntil).getTime() > Date.now();
 
+    // Resolve effective risk limits. DDT is the hard ceiling: the most conservative
+    // value across DDT / BotSettings / MarketStructureSettings wins. Loaded here rather
+    // than inside checkRisk so the resolved policy can also be surfaced in the response.
+    const ddtRecord = await loadDdt(base44, userId).catch(() => null);
+    const riskPolicy = resolveRiskPolicy(cfg, ddtRecord);
+
     const p7Risk = checkRisk({
       balance, equity, dailyPnL, consecLosses, cfg, positions, tradesToday,
       dailyTargetReached: cfg.adaptive_daily_target_reached === true,
       globalCooldownActive,
+      policy: riskPolicy,
     });
 
     const p8Session = checkSession(cfg);
