@@ -196,19 +196,18 @@ Deno.serve(async (req) => {
     }
 
     const robotId = String(cfg?.mt5_account || "");
-    if (!robotId) {
-      return Response.json({
-        ok: false,
-        status: 200,
-        data: { account: { connected: false }, positions: [], robot: { running: false } },
-        error: "MT5 account not connected — link your account and the EA will register its robot.",
-      }, { status: 200 });
-    }
 
     // Elite Server scopes every call to the slug inside the JWT, so there is no
     // robot segment in the path. Kept as a prefix constant to avoid touching the
     // ~20 call sites below.
     const robotPath = "";
+
+    // NOTE: the "MT5 account not connected" guard used to sit HERE, above `detect`.
+    // That made the auto-detect flow impossible: ConnectMT5 calls detect on page load
+    // precisely BECAUSE mt5_account isn't stored yet, so the guard rejected every
+    // first-time connection attempt and forced manual credential entry. `detect` is
+    // scoped by the JWT and needs no robotId, so it now runs before the guard, which
+    // has moved below to cover only the actions that genuinely require a linked account.
 
     // ── detect: auto-discover the EA's account info (broker, login, server) ──
     // Works without a stored mt5_account — the JWT scopes the request to the user's EA.
@@ -242,11 +241,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Every action below this point addresses a specific linked MT5 account.
+    if (!robotId) {
+      return Response.json({
+        ok: false,
+        status: 200,
+        data: { account: { connected: false }, positions: [], robot: { running: false } },
+        error: "MT5 account not connected — link your account and the EA will register its robot.",
+      }, { status: 200 });
+    }
+
     // ── account ──
     if (action === "account") {
-      const r = await bridgeCall("GET", `${robotPath}/account`);
-      return Response.json({ ok: r.ok, status: r.status, data: { account: normalizeAccount(r.data) }, error: r.error || null });
-    }
 
     // ── positions ──
     if (action === "positions") {
