@@ -36,6 +36,7 @@ import LSR3RWebhook from '@/pages/LSR3RWebhook';
 import TradeJournal from '@/pages/TradeJournal';
 import TradingView from '@/pages/TradingView';
 import MarketStructure from '@/pages/MarketStructure';
+import AIAnalyst from '@/pages/AIAnalyst';
 
 const PageSlide = ({ children }) => (
   <motion.div
@@ -99,6 +100,7 @@ const AuthenticatedApp = () => {
             <Route path="/trade-journal" element={<PageSlide><TradeJournal /></PageSlide>} />
             <Route path="/tradingview" element={<PageSlide><TradingView /></PageSlide>} />
             <Route path="/market-structure" element={<PageSlide><MarketStructure /></PageSlide>} />
+            <Route path="/ai-analyst" element={<PageSlide><AIAnalyst /></PageSlide>} />
           </Route>
         </Route>
         <Route path="*" element={<PageNotFound />} />

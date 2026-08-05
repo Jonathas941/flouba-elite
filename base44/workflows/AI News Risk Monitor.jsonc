@@ -1,0 +1,45 @@
+{
+  "name": "AI News Risk Monitor",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "ai_news_risk_monitor",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "scan_news": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "newsRiskMonitor",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Scan high-impact news",
+            "description": "AI web-search scan for FOMC/NFP/CPI events"
+          }
+        }
+      }
+    ]
+  },
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/30 * * * *",
+      "one_time_date": null,
+      "timezone": "America/Detroit",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "description": "Scans for high-impact financial news every 30 minutes during trading hours. Uses OpenAI with web search to detect events like FOMC, NFP, CPI that could affect the user's active symbol. Auto-adjusts risk settings and sends alerts when high-impact news is imminent."
+}
