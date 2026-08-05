@@ -738,11 +738,31 @@ Deno.serve(async (req) => {
       }
 
       // ── Upsert StrategyMetrics ──
+      // Fetch ALL of this user's metrics, not a 10-row window. There are 9 strategies,
+      // so a limit of 10 left no headroom: a single stray row (e.g. a legacy
+      // strategy_name) pushed a real strategy out of the window, the lookup missed,
+      // and we created a duplicate instead of updating -- which then widened the
+      // window pressure and snowballed on every subsequent run.
       const existingMetrics = await base44.asServiceRole.entities.StrategyMetrics.filter(
-        { created_by_id: userId }, "-created_date", 10
+        { created_by_id: userId }, "created_date", 500
       ).catch(() => []);
+
+      // Key on strategy_key (the stable enum), NOT strategy_name (free text that has
+      // drifted -- e.g. "Grid Trading", "Momentum Scalping" are not valid keys).
+      // Oldest row per key wins as canonical; any extras are duplicates to retire.
       const metricByStrategy = {};
-      for (const m of existingMetrics) metricByStrategy[m.strategy_name] = m;
+      const duplicateMetricIds = [];
+      for (const m of existingMetrics) {
+        const key = m.strategy_key;
+        if (!key) continue;
+        if (metricByStrategy[key]) duplicateMetricIds.push(m.id);
+        else metricByStrategy[key] = m;
+      }
+
+      // Self-heal: retire any duplicates left over from the old code path.
+      for (const dupId of duplicateMetricIds.slice(0, 100)) {
+        await base44.asServiceRole.entities.StrategyMetrics.delete(dupId).catch(() => {});
+      }
 
       for (const k of KEYS) {
         const name = STRATEGY[k];
@@ -771,7 +791,7 @@ Deno.serve(async (req) => {
           profit_today: s.profit_today,
           status_message: s.status_message,
         };
-        const existing = metricByStrategy[name];
+        const existing = metricByStrategy[k];
         if (existing) {
           await base44.asServiceRole.entities.StrategyMetrics.update(existing.id, payload).catch(() => {});
         } else {
