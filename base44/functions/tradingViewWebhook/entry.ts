@@ -223,12 +223,16 @@ Deno.serve(async (req) => {
     let hasMt5 = false;
     let botSettings = null;
     if (execTarget === "auto" || execTarget === "mt5_robot") {
-      // Service role bypasses RLS, so find BotSettings by app_id since
-      // TradingViewSettings may have been auto-created by the service role.
+      // Scope strictly to the OWNER of the settings row this webhook secret resolved to.
+      //
+      // This previously filtered on `app_id`, which is the SAME value for every user of
+      // the app -- so on a multi-user install it could select a different user's
+      // BotSettings and place the order on THEIR MT5 account. Ownership, not app
+      // membership, is what identifies the target account.
       const botList = await base44.asServiceRole.entities.BotSettings.filter(
-        { app_id: settings.app_id }, "-created_date", 10
+        { created_by_id: userId }, "-created_date", 10
       ).catch(() => []);
-      botSettings = botList?.find(b => b.mt5_account) || botList?.[0];
+      botSettings = botList?.find(b => b.mt5_account) || null;
       if (botSettings?.mt5_account) {
         hasMt5 = true;
       }
@@ -236,6 +240,24 @@ Deno.serve(async (req) => {
 
     // ── Route execution ──
     const useMt5 = (execTarget === "mt5_robot") || (execTarget === "auto" && hasMt5);
+
+    // execution_target "mt5_robot" is an explicit instruction, not a preference. If no
+    // MT5 account is linked, fail loudly rather than silently falling through to the
+    // broker API and filling on a venue the user did not choose.
+    if (execTarget === "mt5_robot" && !hasMt5) {
+      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+        status: "Rejected",
+        message: "execution_target is mt5_robot but no MT5 account is linked for this user. " +
+                 "Not falling back to the broker API.",
+        executed_at: new Date().toISOString(),
+      }).catch(() => {});
+      return Response.json({
+        success: false,
+        status: "error",
+        alert_id: alertId,
+        message: "execution_target is mt5_robot but no MT5 account is linked for this user.",
+      }, { status: 409 });
+    }
 
     if (useMt5 && hasMt5) {
       // ═══════════════════════════════════════════════════════════════
