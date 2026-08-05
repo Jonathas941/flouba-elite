@@ -117,37 +117,41 @@ Deno.serve(async (req) => {
     // ── Normalize symbol ──
     const symbol = normalizeSymbol(body.symbol);
     if (!symbol) {
-      return Response.json({ success: false, status: "error", message: "Invalid or missing symbol" }, { status: 400 });
+      return await reject(`Invalid or missing symbol: ${body.symbol}`, 400);
     }
 
     // ── Check allowed symbols ──
     const allowed = (settings.allowed_symbols || "XAUUSD").split(",").map(s => s.trim().toUpperCase());
     if (!allowed.includes(symbol)) {
-      return Response.json({ success: false, status: "error", message: `Symbol ${symbol} not allowed` }, { status: 403 });
+      return await reject(`Symbol ${symbol} not in allowed list (${allowed.join(", ")})`, 403);
     }
 
     // ── Normalize action ──
     const action = normalizeAction(body.action);
     if (!action) {
-      return Response.json({ success: false, status: "error", message: `Invalid action: ${body.action}` }, { status: 400 });
+      return await reject(`Invalid action: ${body.action}`, 400);
     }
 
     // ── Check action permissions ──
     if (action === "BUY" && !settings.allow_buy) {
-      return Response.json({ success: false, status: "error", message: "BUY action not allowed" }, { status: 403 });
+      return await reject("BUY action not allowed", 403);
     }
     if (action === "SELL" && !settings.allow_sell) {
-      return Response.json({ success: false, status: "error", message: "SELL action not allowed" }, { status: 403 });
+      return await reject("SELL action not allowed", 403);
     }
     if (action.startsWith("CLOSE") && !settings.allow_close) {
-      return Response.json({ success: false, status: "error", message: "CLOSE action not allowed" }, { status: 403 });
+      return await reject("CLOSE action not allowed", 403);
     }
 
     // ── Determine quantity ──
     let quantity = num(body.quantity);
     if (settings.use_alert_quantity) {
       if (quantity == null || quantity <= 0) {
-        return Response.json({ success: false, status: "error", message: "Invalid or missing quantity" }, { status: 400 });
+        return await reject(
+          `Invalid or missing quantity (${body.quantity}). ` +
+          `use_alert_quantity is ON, so the alert JSON must supply a positive "quantity".`,
+          400
+        );
       }
     } else {
       quantity = settings.fixed_order_size ?? 0.01;
@@ -156,7 +160,7 @@ Deno.serve(async (req) => {
     // ── Check max order size ──
     const maxSize = settings.max_order_size ?? 0.1;
     if (quantity > maxSize) {
-      return Response.json({ success: false, status: "error", message: `Quantity ${quantity} exceeds max ${maxSize}` }, { status: 403 });
+      return await reject(`Quantity ${quantity} exceeds max_order_size ${maxSize}`, 403);
     }
 
     // ── Dedup: check for existing alert_id ──
