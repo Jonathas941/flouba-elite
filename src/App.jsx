@@ -13,6 +13,7 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import OAuthConsent from '@/pages/OAuthConsent';
 import Splash from '@/pages/Splash';
 import Home from '@/pages/Home';
 import Strategy from '@/pages/Strategy';
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/forgot-password" element={<PageSlide><ForgotPassword /></PageSlide>} />
         <Route path="/reset-password" element={<PageSlide><ResetPassword /></PageSlide>} />
         <Route path="/splash" element={<PageSlide><Splash /></PageSlide>} />
+        <Route path="/oauth/consent" element={<OAuthConsent />} />
         <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
           <Route path="/admin" element={<PageSlide><Admin /></PageSlide>} />
           <Route element={<Layout />}>
