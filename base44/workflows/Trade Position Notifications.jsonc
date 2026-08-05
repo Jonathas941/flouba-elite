@@ -1,0 +1,35 @@
+{
+  "name": "Trade Position Notifications",
+  "description": "Notifies the account owner whenever a Trade is opened or closed.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update"
+      ],
+      "entity_name": "Trade"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "trade_position_notifications",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyTradeEvent",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}

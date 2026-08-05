@@ -1,0 +1,41 @@
+{
+  "name": "HFT Execution Engine",
+  "description": "Runs the HFT execution engine every 5 minutes \u2014 closes any profitable position, escalates lot on wins, opens new scalp trades. Only activates for users with HFT mode enabled.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 5,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-07T07:03:17.167000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "hft_execution_engine",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "hftExecutionEngine",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}

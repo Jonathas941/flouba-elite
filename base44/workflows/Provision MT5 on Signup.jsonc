@@ -1,0 +1,41 @@
+{
+  "name": "Provision MT5 on Signup",
+  "description": "Polls every 5 minutes for users who completed registration but haven't been provisioned yet. Provisions their MT5 bridge account and saves flouba_token, ea_download_url, and slug.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 5,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-05T21:54:13.098000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "provision_mt5_on_signup",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "provisionMT5Account",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}

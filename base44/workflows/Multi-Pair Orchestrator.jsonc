@@ -1,0 +1,41 @@
+{
+  "name": "Multi-Pair Orchestrator",
+  "description": "Scans every 5 minutes for users with multi-pair enabled and a running robot. Auto-selects the best pairs by market signals, evaluates trade direction via AI, and executes trades across multiple pairs simultaneously \u2014 respecting max concurrent trades.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 5,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-10T14:16:48.532000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "multi_pair_orchestrator",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "multiPairOrchestrator",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}

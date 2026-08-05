@@ -1,0 +1,41 @@
+{
+  "name": "DDT Engine \u2014 Evaluate & Auto-Stop",
+  "description": "Evaluates Dynamic Daily Target tiers every 5 minutes for all enabled users \u2014 auto-stops the robot when final target, loss limit, max trades, or consecutive losses are hit. Resets counters at each NY trading day.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 5,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-07T21:52:06.561000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "ddt_engine_evaluate_auto_stop",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "dynamicDailyTargetEngine",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}

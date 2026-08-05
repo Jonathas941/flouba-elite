@@ -1,0 +1,41 @@
+{
+  "name": "Signal Scanner \u2014 Auto Scan",
+  "description": "Automatically scans the market for high-quality AI signals across all strategies for users with Signal Assistant enabled. Generates FloubaSignal records with entry, SL, TP, lot, confidence, and expiration.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 5,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-15T19:35:23.820000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "signal_scanner_auto_scan",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "floubaSignalScanner",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}

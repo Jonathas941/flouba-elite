@@ -1,0 +1,41 @@
+{
+  "name": "Signal Monitor \u2014 Virtual Trigger & Expiry",
+  "description": "Monitors all active signals. In Full Auto + Virtual Trigger mode, executes trades when price reaches the entry level. Expires signals past their expiration timer.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 5,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-15T19:35:23.820000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "signal_monitor_virtual_trigger_expiry",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "floubaSignalMonitor",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}

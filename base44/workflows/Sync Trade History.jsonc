@@ -1,0 +1,41 @@
+{
+  "name": "Sync Trade History",
+  "description": "Syncs closed trades from MT5 into the Trade entity every 5 minutes for all connected users, ensuring every trade is saved in history for daily/monthly/yearly stats.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 5,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-02T22:32:34.071000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "sync_trade_history",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "syncTradeHistory",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}
