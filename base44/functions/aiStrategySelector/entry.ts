@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { callOpenAI } from '../../shared/openaiClient.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -84,9 +85,10 @@ DECISION RULES:
 
 Respond with the single best strategy and a concise reason (1-2 sentences) explaining why it fits the current market conditions.`;
 
-    const llmRes = await base44.integrations.Core.InvokeLLM({
-      prompt,
-      response_json_schema: {
+    const llmRes = await callOpenAI({
+      systemPrompt: "You are an expert forex/CFD trading strategist. Respond only with valid JSON matching the requested schema.",
+      userPrompt: prompt,
+      schema: {
         type: "object",
         properties: {
           strategy: {
@@ -114,6 +116,8 @@ Respond with the single best strategy and a concise reason (1-2 sentences) expla
         },
         required: ["strategy", "reason"],
       },
+      temperature: 0.3,
+      base44Client: base44,
     });
 
     return Response.json({

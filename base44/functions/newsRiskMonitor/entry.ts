@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { callOpenAI } from '../../shared/openaiClient.ts';
 
 // ── AI News Risk Monitor ───────────────────────────────────────────────────
 // Scheduled backend function that uses InvokeLLM with web search to scan for
@@ -54,13 +55,14 @@ async function scanUser(base44, cfg) {
   const symbol = cfg.active_pair || "XAUUSD";
   const symbolLabel = symbol === "XAUUSD" ? "Gold (XAUUSD)" : symbol;
 
-  // Ask LLM with web search to check for high-impact news in the next 60 minutes
-  const res = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are a financial news risk monitor. Check for HIGH-IMPACT economic news events happening RIGHT NOW or within the NEXT 60 MINUTES that could cause significant volatility for ${symbolLabel} (forex/gold/indices).
+  // Ask OpenAI to check for high-impact news in the next 60 minutes
+  const res = await callOpenAI({
+    systemPrompt: "You are a financial news risk monitor. Respond only with valid JSON matching the requested schema.",
+    userPrompt: `You are a financial news risk monitor. Check for HIGH-IMPACT economic news events happening RIGHT NOW or within the NEXT 60 MINUTES that could cause significant volatility for ${symbolLabel} (forex/gold/indices).
 
 High-impact events include: FOMC statements, Fed rate decisions, Non-Farm Payrolls (NFP), CPI data, PPI data, GDP releases, ECB/BOE rate decisions, geopolitical escalations, or major market-moving announcements.
 
-Use real-time web data to determine if any such event is scheduled or currently unfolding.
+Use your knowledge of scheduled economic events (FOMC, NFP, CPI dates are public and predictable) to determine if any such event is scheduled or likely unfolding today.
 
 Respond with:
 - has_high_impact: true only if a high-impact event is happening now or within 60 minutes
@@ -70,9 +72,7 @@ Respond with:
 - severity: "extreme", "high", "moderate", or "low"
 - recommended_action: one of "halt_trading", "reduce_risk", "normal_caution", or "no_action"
 - summary: 1-2 sentence summary of the news situation`,
-    add_context_from_internet: true,
-    model: "gemini_3_flash",
-    response_json_schema: {
+    schema: {
       type: "object",
       properties: {
         has_high_impact: { type: "boolean" },
@@ -85,6 +85,8 @@ Respond with:
       },
       required: ["has_high_impact", "recommended_action", "summary"],
     },
+    temperature: 0.2,
+    base44Client: base44,
   });
 
   const action = res?.recommended_action || "no_action";

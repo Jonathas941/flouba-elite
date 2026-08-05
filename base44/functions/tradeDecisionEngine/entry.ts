@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { aiMarketStructureScan } from '../../shared/aiMarketStructure.ts';
+import { callOpenAI } from '../../shared/openaiClient.ts';
 import { clamp, num, nyParts, sessionInfo } from '../../shared/tradingUtils.ts';
 import { loadDdt, resolveRiskPolicy } from '../../shared/riskPolicy.ts';
 
@@ -435,8 +436,9 @@ async function getAiSlTp(ind, regime, regimeDir, cfg) {
   const userDefaultRr = cfg.swing_min_rr ?? 2;
 
   try {
-    const res = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a risk-adjusted trading analyst. Given the live market data below, determine the optimal Stop Loss (as an ATR multiplier) and Take Profit (as a risk-reward ratio).
+    const res = await callOpenAI({
+      systemPrompt: "You are a risk-adjusted trading analyst. Respond only with valid JSON matching the requested schema.",
+      userPrompt: `You are a risk-adjusted trading analyst. Given the live market data below, determine the optimal Stop Loss (as an ATR multiplier) and Take Profit (as a risk-reward ratio).
 
 Rules:
 - In a strong TRENDING market with high ADX (>30), use a TIGHTER SL (1.0–1.5x ATR) and a WIDER TP (2.5–3.5 RR) to maximize trend capture.
@@ -449,7 +451,7 @@ Live market data:
 ${JSON.stringify(marketContext, null, 2)}
 
 Respond with the optimal sl_atr_multiplier and tp_rr_ratio.`,
-      response_json_schema: {
+      schema: {
         type: "object",
         properties: {
           sl_atr_multiplier: { type: "number", description: "Stop loss as ATR multiplier (1.0–3.0)" },
@@ -458,13 +460,15 @@ Respond with the optimal sl_atr_multiplier and tp_rr_ratio.`,
         },
         required: ["sl_atr_multiplier", "tp_rr_ratio"],
       },
+      temperature: 0.2,
+      base44Client: base44,
     });
 
     const aiSl = clamp(num(res?.sl_atr_multiplier) ?? userDefaultSl, minSlMult, maxSlMult);
     const aiRr = clamp(num(res?.tp_rr_ratio) ?? userDefaultRr, minRr, maxRr);
     return { sl_mult: aiSl, rr: aiRr, reasoning: res?.reasoning || null };
   } catch {
-    // Fallback to user defaults if LLM unavailable
+    // Fallback to user defaults if OpenAI unavailable
     return { sl_mult: userDefaultSl, rr: userDefaultRr, reasoning: null };
   }
 }
@@ -555,12 +559,13 @@ async function aiFallbackTradeDecision(base44, cfg, account, userId) {
   } catch {}
 
   try {
-    const res = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an expert trading analyst. Analyze the LIVE market for ${symbol} (XAUUSD = Gold/USD) right now.
+    const res = await callOpenAI({
+      systemPrompt: "You are an expert trading analyst. Respond only with valid JSON matching the requested schema.",
+      userPrompt: `You are an expert trading analyst. Analyze the LIVE market for ${symbol} (XAUUSD = Gold/USD) right now.
 
-${currentPrice ? `Current bridge price: ${currentPrice}` : "Fetch the current live price from the web."}
+${currentPrice ? `Current bridge price: ${currentPrice}` : "Use your knowledge of recent gold price action to estimate the current price."}
 
-TASK: Perform a full confluence analysis using real-time market data from the web. Evaluate:
+TASK: Perform a full confluence analysis using your market expertise. Evaluate:
 1. Trend direction (EMA alignment, price action)
 2. Market structure (BOS, CHOCH, swing highs/lows)
 3. Momentum (RSI, MACD divergence)
@@ -571,7 +576,6 @@ TASK: Perform a full confluence analysis using real-time market data from the we
 8. Overall trade quality score (0-100)
 
 RULES:
-- Use REAL current market data from the web. Do NOT hallucinate prices.
 - Only return a TRADE signal if confidence >= ${minScore}.
 - Entry price should be the current market price.
 - Stop loss must be beyond the nearest swing (BUY: below swing low; SELL: above swing high).
@@ -579,9 +583,7 @@ RULES:
 - If no valid setup exists, return trade=false with a clear reason.
 
 Respond as JSON.`,
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: {
+      schema: {
         type: "object",
         properties: {
           trade: { type: "boolean", description: "Whether a valid trade signal exists" },
@@ -600,6 +602,8 @@ Respond as JSON.`,
         },
         required: ["trade", "confidence", "reasoning"],
       },
+      temperature: 0.3,
+      base44Client: base44,
     });
 
     if (!res || !res.trade) {
