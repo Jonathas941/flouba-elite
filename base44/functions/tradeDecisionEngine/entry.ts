@@ -1131,9 +1131,9 @@ Deno.serve(async (req) => {
     // ── Dangerous behavior prevention summary ──
     const safety = {
       no_martingale: true,        // Lot never increases after a loss — always computed fresh from risk%
-      no_grid_after_loss: consecLosses < (cfg.stop_after_losses ?? 2), // No new positions during cooldown
-      no_revenge: consecLosses < (cfg.stop_after_losses ?? 2),         // Mandatory cooldown enforced
-      no_overtrading: tradesToday < (cfg.swing_max_trades_per_day ?? cfg.max_daily_trades ?? 3),
+      no_grid_after_loss: consecLosses < riskPolicy.stopAfterLosses, // No new positions during cooldown
+      no_revenge: consecLosses < riskPolicy.stopAfterLosses,          // Mandatory cooldown enforced
+      no_overtrading: tradesToday < riskPolicy.maxDailyTrades,
       no_random_entries: decision === "TRADE" ? qualityScore >= minScore : true,
     };
 
@@ -1164,10 +1164,14 @@ Deno.serve(async (req) => {
         consec_losses: consecLosses,
         trades_today: tradesToday,
         open_positions: positions.length,
-        max_concurrent: cfg.max_concurrent_trades ?? 2,
-        daily_loss_limit: cfg.swing_max_daily_loss_pct ?? 40,
-        daily_profit_target: cfg.daily_profit_target_amount ?? 200,
+        max_concurrent: riskPolicy.maxConcurrentPositions,
+        daily_loss_limit: Math.round(riskPolicy.maxDailyLoss * 100) / 100,
+        daily_profit_target: riskPolicy.dailyProfitTarget ?? (cfg.daily_profit_target_amount ?? 200),
       },
+      // Effective limits after applying the DDT hard ceiling, with provenance so the UI
+      // can show WHICH layer bound each number. `uncapped_risk_percentage` is the one
+      // dimension DDT cannot constrain — it has no risk_percentage field.
+      risk_policy: riskPolicy,
       session: p8Session.sess,
       news_safe: p9News.pass,
       safety,
