@@ -177,6 +177,102 @@ async function scanAndStore(base44, config, user, sa) {
     risk_reward: trade.risk_reward || 2,
   };
 
+  // ── Signal validation gate ────────────────────────────────────────────────
+  // Nothing below writes a signal unless it passes. Rejections are returned, not stored,
+  // so a bad scan leaves no armed CONFIRMED row behind.
+  const rejections = [];
+
+  // (a) Price sanity band. The AI web-scan has previously emitted prices from the wrong
+  //     YEAR (e.g. a XAUUSD entry of 2411 while the live market was ~4078 -- same calendar
+  //     day, 2024 data). Anchor every level to the live broker quote and reject anything
+  //     that drifts more than MAX_PRICE_DEVIATION_PCT away from mid.
+  const MAX_PRICE_DEVIATION_PCT = 5;
+  const bid = Number(decision?.account?.bid);
+  const ask = Number(decision?.account?.ask);
+  const mid = (Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask > 0)
+    ? (bid + ask) / 2
+    : null;
+
+  if (mid === null) {
+    // No live quote to check against -- refuse rather than trust an unanchored price.
+    rejections.push("No live broker bid/ask available to validate signal prices against");
+  } else {
+    for (const [label, value] of [
+      ["entry_price", signalRecord.entry_price],
+      ["stop_loss", signalRecord.stop_loss],
+      ["take_profit", signalRecord.take_profit],
+    ]) {
+      const v = Number(value);
+      if (!Number.isFinite(v) || v <= 0) {
+        rejections.push(`${label} is missing or non-positive (${value})`);
+        continue;
+      }
+      const deviation = Math.abs(v - mid) / mid * 100;
+      if (deviation > MAX_PRICE_DEVIATION_PCT) {
+        rejections.push(
+          `${label} ${v} deviates ${deviation.toFixed(1)}% from live mid ${mid.toFixed(2)} ` +
+          `(max ${MAX_PRICE_DEVIATION_PCT}%) -- likely stale or wrong-period market data`
+        );
+      }
+    }
+
+    // (b) Directional coherence: SL and TP must sit on the correct sides of entry.
+    const e = Number(signalRecord.entry_price);
+    const sl = Number(signalRecord.stop_loss);
+    const tp = Number(signalRecord.take_profit);
+    if (Number.isFinite(e) && Number.isFinite(sl) && Number.isFinite(tp)) {
+      if (signalRecord.direction === "BUY" && !(sl < e && tp > e)) {
+        rejections.push(`BUY requires stop_loss < entry < take_profit (got ${sl}/${e}/${tp})`);
+      }
+      if (signalRecord.direction === "SELL" && !(sl > e && tp < e)) {
+        rejections.push(`SELL requires take_profit < entry < stop_loss (got ${sl}/${e}/${tp})`);
+      }
+    }
+  }
+
+  // (c) strategy_name must be one of the nine canonical strategies. Free-text values such
+  //     as "Grid Trading" and "Momentum Scalping" have leaked in previously; they can never
+  //     be tracked by StrategyMetrics (which keys on the strategy_key enum).
+  const VALID_STRATEGY_NAMES = [
+    "Swing Trend Pullback Continuation 2026",
+    "Liquidity Sweep Scalping",
+    "EMA Trend Progressive Recovery",
+    "Gold Daily Breakout",
+    "Hybrid Confluence Mode",
+    "NQ London Kill Zone Breakout",
+    "Market Structure BOS Retest Scalper",
+    "Orderflow Opening Range Breakout",
+    "Gold Morning Range Breakout",
+  ];
+  if (!VALID_STRATEGY_NAMES.includes(signalRecord.strategy_name)) {
+    rejections.push(
+      `strategy_name "${signalRecord.strategy_name}" is not one of the nine canonical strategies`
+    );
+  }
+
+  if (rejections.length > 0) {
+    console.warn("[floubaSignalScanner] signal rejected by validation gate", {
+      symbol: signalRecord.symbol,
+      direction: signalRecord.direction,
+      live_mid: mid,
+      rejections,
+    });
+    return {
+      signal_created: false,
+      reason: "Signal failed validation",
+      validation_errors: rejections,
+      live_mid: mid,
+      proposed: {
+        entry_price: signalRecord.entry_price,
+        stop_loss: signalRecord.stop_loss,
+        take_profit: signalRecord.take_profit,
+        strategy_name: signalRecord.strategy_name,
+      },
+      score,
+      bestStrategy,
+    };
+  }
+
   const created = await base44.asServiceRole.entities.FloubaSignal.create(signalRecord);
 
   // 6. If broker_pending_order_mode + full_auto, place the pending order now
