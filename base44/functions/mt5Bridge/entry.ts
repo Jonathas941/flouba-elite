@@ -195,19 +195,32 @@ Deno.serve(async (req) => {
       return Response.json({ ok: healthy, status: r.status, data: { healthy, bridge: br }, error: r.error || null, base_set: !!BASE, base_host: host, base_valid_url: schemeOk });
     }
 
-    const robotId = String(cfg?.mt5_account || "");
+    let robotId = String(cfg?.mt5_account || "");
 
     // Elite Server scopes every call to the slug inside the JWT, so there is no
     // robot segment in the path. Kept as a prefix constant to avoid touching the
     // ~20 call sites below.
     const robotPath = "";
 
-    // NOTE: the "MT5 account not connected" guard used to sit HERE, above `detect`.
-    // That made the auto-detect flow impossible: ConnectMT5 calls detect on page load
-    // precisely BECAUSE mt5_account isn't stored yet, so the guard rejected every
-    // first-time connection attempt and forced manual credential entry. `detect` is
-    // scoped by the JWT and needs no robotId, so it now runs before the guard, which
-    // has moved below to cover only the actions that genuinely require a linked account.
+    // ── Auto-detect: if mt5_account is empty, probe the bridge for the EA's login ──
+    // This fixes the #1 cause of "no trades": the user's EA is connected and publishing
+    // indicators, but mt5_account was never saved to BotSettings (e.g. they connected
+    // via auto-detect in ConnectMT5 but the save didn't persist). Without this, the
+    // guard below blocks ALL scanner/account/position calls and the decision engine
+    // falls back to AI web-search (which scores low and never trades).
+    if (!robotId) {
+      const acctRes = await bridgeCall("GET", `${robotPath}/account`).catch(() => null);
+      const rawAcct = acctRes?.data?.account ?? acctRes?.data ?? {};
+      const login = rawAcct.login ?? rawAcct.accountLogin ?? null;
+      if (login != null) {
+        robotId = String(login);
+        await base44.entities.BotSettings.update(cfg.id, {
+          mt5_account: robotId,
+          broker_name: rawAcct.brokerName ?? rawAcct.name ?? cfg?.broker_name ?? null,
+          mt5_server: rawAcct.brokerServer ?? rawAcct.server ?? cfg?.mt5_server ?? null,
+        }).catch(() => {});
+      }
+    }
 
     // ── detect: auto-discover the EA's account info (broker, login, server) ──
     // Works without a stored mt5_account — the JWT scopes the request to the user's EA.

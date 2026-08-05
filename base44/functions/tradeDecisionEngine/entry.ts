@@ -753,77 +753,63 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Bridge auth (shared secret) + robot identity ──
-    // The new command-queue bridge uses ONE shared x-api-key (FLOUBA_BASE44_API_KEY)
-    // for all Base44 calls; per-user identity is the robotId = MT5 account number.
-    if (!BRIDGE) return Response.json({ ok: false, error: "FLOUBA_BACKEND_URL not set" });
-    const robotId = String(cfg.mt5_account);
-    const robotPath = `${B44}/robots/${encodeURIComponent(robotId)}`;
+    // ── Bridge data via mt5Bridge (JWT auth, same path aiStrategySelector uses) ──
+    // The bridge moved from shared x-api-key to JWT auth; direct fetch() calls
+    // with FLOUBA_BASE44_API_KEY return 401 and the engine falls back to AI web-search
+    // (which scores low). Routing through mt5Bridge gives us the same JWT-scoped
+    // scanner_status payload that aiStrategySelector already uses successfully.
     const symbol = cfg.active_pair || "XAUUSD";
-    const b44Headers = () => ({
-      "x-api-key": Deno.env.get("FLOUBA_BASE44_API_KEY") || "",
-      "x-request-id": crypto.randomUUID(),
-      "x-timestamp": new Date().toISOString(),
-      "Content-Type": "application/json",
-    });
-
-    // ── Fetch synced snapshot + EA-published indicators in parallel ──
-    const [indRes, acctRes, posRes, statusRes] = await Promise.all([
-      fetch(`${robotPath}/indicators?symbol=${encodeURIComponent(symbol)}`, { headers: b44Headers() }).catch(() => null),
-      fetch(`${robotPath}/account`, { headers: b44Headers() }).catch(() => null),
-      fetch(`${robotPath}/positions`, { headers: b44Headers() }).catch(() => null),
-      fetch(`${robotPath}/status`, { headers: b44Headers() }).catch(() => null),
+    const [scanRes, acctRes, posRes] = await Promise.all([
+      base44.functions.invoke("mt5Bridge", { action: "scanner_status" }).catch(() => null),
+      base44.functions.invoke("mt5Bridge", { action: "account" }).catch(() => null),
+      base44.functions.invoke("mt5Bridge", { action: "positions" }).catch(() => null),
     ]);
 
-    let ind = null, quote = null, positions = [], account = null, robotRunning = false;
-    if (indRes?.ok) {
-      const j = await indRes.json().catch(() => ({}));
-      const row = j?.data ?? j;
-      if (row) {
-        // Normalize the bridge's indicator row into the field names the pillar
-        // functions already expect, so all downstream logic is unchanged.
-        ind = {
-          ema_20: num(row.ema20 ?? row.ema_20),
-          ema20: num(row.ema20 ?? row.ema_20),
-          ema_50: num(row.ema50 ?? row.ema_50),
-          ema50: num(row.ema50 ?? row.ema_50),
-          ema_200: num(row.ema200 ?? row.ema_200),
-          ema200: num(row.ema200 ?? row.ema_200),
-          ema_50_m15: num(row.ema50M15 ?? row.ema50_m15),
-          rsi: num(row.rsi ?? row.rsi_14),
-          rsi_14: num(row.rsi ?? row.rsi_14),
-          adx: num(row.adx),
-          plus_di: num(row.plusDI),
-          minus_di: num(row.minusDI),
-          atr_14: num(row.atr ?? row.atr_14),
-          atr14: num(row.atr ?? row.atr_14),
-          ema_slope: num(row.emaSlope ?? row.ema_slope),
-          slope: num(row.emaSlope ?? row.ema_slope),
-          liquidity_sweep: row.liquiditySweep === true,
-          sweep: row.liquiditySweep === true,
-          sweep_dir: row.sweepDir || null,
-          sweep_direction: row.sweepDir || null,
-          bos: row.bos === true,
-          break_of_structure: row.bos === true,
-          choch: row.choch === true,
-          change_of_character: row.choch === true,
-          high_impact_news: row.newsHighImpact === true,
-          news_high_impact: row.newsHighImpact === true,
-          news_minutes_until: num(row.newsMinutesUntil),
-          minutes_to_news: num(row.newsMinutesUntil),
-          bid: num(row.bid),
-          ask: num(row.ask),
-          spread_pips: num(row.spread),
-        };
-        const bid = num(row.bid), ask = num(row.ask);
-        if (bid != null) quote = { bid, ask: ask ?? bid, spread: row.spread != null ? Number(row.spread) : ((ask ?? bid) - bid) };
-      }
-    }
-    if (acctRes?.ok) { const j = await acctRes.json().catch(() => ({})); account = (j?.data ?? j?.account ?? j); }
-    if (posRes?.ok) { const j = await posRes.json().catch(() => ({})); positions = Array.isArray(j?.data) ? j.data : (j?.positions || []); }
-    if (statusRes?.ok) { const j = await statusRes.json().catch(() => ({})); const st = j?.data ?? j; robotRunning = st?.status === "ONLINE" || st?.robotRunning === true; }
+    const scanner = scanRes?.data?.data?.scanner || scanRes?.data?.scanner || null;
+    const account = acctRes?.data?.data?.account || acctRes?.data?.account || null;
+    const positions = posRes?.data?.data?.positions || posRes?.data?.positions || [];
+    const robotRunning = scanner?.robot_running === true;
 
-    const connected = account?.balance != null && ind != null;
+    let ind = null, quote = null;
+    if (scanner) {
+      const i = scanner.indicators || {};
+      ind = {
+        ema_20: num(i.ema_20 ?? i.ema20),
+        ema20: num(i.ema_20 ?? i.ema20),
+        ema_50: num(i.ema_50 ?? i.ema50),
+        ema50: num(i.ema_50 ?? i.ema50),
+        ema_200: num(i.ema_200 ?? i.ema200),
+        ema200: num(i.ema_200 ?? i.ema200),
+        rsi: num(i.rsi ?? i.rsi_14),
+        rsi_14: num(i.rsi ?? i.rsi_14),
+        adx: num(i.adx ?? i.adx_14),
+        plus_di: num(i.plus_di ?? i.plusDI),
+        minus_di: num(i.minus_di ?? i.minusDI),
+        atr_14: num(i.atr ?? i.atr_14),
+        atr14: num(i.atr ?? i.atr_14),
+        ema_slope: num(i.ema_slope ?? i.emaSlope),
+        slope: num(i.ema_slope ?? i.emaSlope),
+        liquidity_sweep: i.liquidity_sweep === true,
+        sweep: i.liquidity_sweep === true,
+        sweep_dir: i.sweep_dir || null,
+        sweep_direction: i.sweep_dir || null,
+        bos: i.bos === true,
+        break_of_structure: i.bos === true,
+        choch: i.choch === true,
+        change_of_character: i.choch === true,
+        high_impact_news: i.high_impact_news === true,
+        news_high_impact: i.news_high_impact === true,
+        news_minutes_until: num(i.news_minutes_until),
+        minutes_to_news: num(i.news_minutes_until),
+        bid: num(i.bid),
+        ask: num(i.ask),
+        spread_pips: num(i.spread_pips ?? i.spread),
+      };
+      const bid = num(i.bid), ask = num(i.ask);
+      if (bid != null) quote = { bid, ask: ask ?? bid, spread: i.spread_pips != null ? Number(i.spread_pips) : (i.spread != null ? Number(i.spread) : ((ask ?? bid) - bid)) };
+    }
+
+    const connected = account?.balance != null && ind != null && !scanner?.degraded;
     if (!connected) {
       // ── AI Web-Search Fallback ──
       // EA isn't publishing indicators. Use InvokeLLM with web search to analyze
