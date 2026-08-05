@@ -35,14 +35,21 @@ export default function TradingView() {
     setLoading(true);
     try {
       const [tvList, sigList, connList, botList] = await Promise.all([
-        base44.entities.TradingViewSettings.list(),
+        // Must match the webhook's selection order ("-created_date", newest wins).
+        // Previously this used an unsorted list() and took [0], so the UI could be
+        // editing a DIFFERENT settings row than the one the webhook actually executes
+        // against -- e.g. toggling auto-trading off here while the live row stayed armed.
+        base44.entities.TradingViewSettings.list("-created_date"),
         base44.entities.TradingViewSignal.list("-created_date", 10),
         base44.entities.TradingExecutionConnection.list(),
         base44.entities.BotSettings.list(),
       ]);
 
       let tv = tvList?.[0];
-      if (!tv) {
+      if (!tv && !creatingSettingsRef.current) {
+        // Guard against concurrent loads (StrictMode double-invoke, two open tabs)
+        // both seeing an empty list and each creating a row.
+        creatingSettingsRef.current = true;
         tv = await base44.entities.TradingViewSettings.create({
           auto_trading_enabled: false,
           trading_mode: "test",
@@ -54,7 +61,7 @@ export default function TradingView() {
           allow_buy: true,
           allow_sell: true,
           allow_close: true,
-        });
+        }).finally(() => { creatingSettingsRef.current = false; });
       }
 
       setSettings(tv);
