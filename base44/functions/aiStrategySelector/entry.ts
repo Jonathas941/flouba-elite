@@ -1,7 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const BASE = "https://dazzling-perception-production-8e53.up.railway.app/api";
-
 Deno.serve(async (req) => {
   try {
     const bodyText = await req.text().catch(() => "{}");
@@ -15,63 +13,15 @@ Deno.serve(async (req) => {
     const config = settings?.[0] || {};
     const symbol = config.active_pair ?? "XAUUSD";
 
-    // Use the stored flouba_token (provisioned on signup) directly; fall back to api_key exchange.
-    const provisionSecret = Deno.env.get("PROVISION_SECRET");
-    if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
-    let bridgeToken = user.flouba_token;
-    if (!bridgeToken) {
-      let apiKey = user.mt5_api_key;
-      if (!apiKey) {
-        const provisionRes = await fetch(`${BASE}/provision/user`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
-        });
-        const provisionJson = await provisionRes.json().catch(() => ({}));
-        if (!provisionJson?.success || !provisionJson?.api_key) {
-          return Response.json({ error: "Failed to provision bridge account" }, { status: 500 });
-        }
-        apiKey = provisionJson.api_key;
-        const updateData = { mt5_api_key: apiKey };
-        if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
-        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
-        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
-        await base44.asServiceRole.entities.User.update(user.id, updateData);
-        bridgeToken = provisionJson.user_token || null;
-      }
-      if (!bridgeToken) {
-        const tokenRes = await fetch(`${BASE}/auth/token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: apiKey }),
-        });
-        const tokenJson = await tokenRes.json().catch(() => ({}));
-        if (!tokenJson?.token) {
-          return Response.json({ error: "Failed to authenticate with MT5 bridge" }, { status: 500 });
-        }
-        bridgeToken = tokenJson.token;
-      }
-    }
-
-    const authHeaders = {
-      "Authorization": `Bearer ${bridgeToken}`,
-      "Content-Type": "application/json",
-    };
-    if (config.mt5_account)  authHeaders["X-MT5-Login"] = String(config.mt5_account);
-    if (config.mt5_password) authHeaders["X-MT5-Password"] = config.mt5_password;
-    if (config.mt5_server)   authHeaders["X-MT5-Server"] = config.mt5_server;
-
-    // Fetch scanner indicators + account data in parallel
+    // Route through mt5Bridge (same FLOUBA_BACKEND_URL + token resolution that's already working)
     const [scanRes, acctRes] = await Promise.all([
-      fetch(`${BASE}/scanner/status`, { headers: authHeaders }).catch(() => null),
-      fetch(`${BASE}/account`, { headers: authHeaders }).catch(() => null),
+      base44.functions.invoke("mt5Bridge", { action: "scanner_status" }).catch(() => null),
+      base44.functions.invoke("mt5Bridge", { action: "account" }).catch(() => null),
     ]);
 
-    const scanJson = scanRes?.ok ? await scanRes.json().catch(() => ({})) : {};
-    const acctJson = acctRes?.ok ? await acctRes.json().catch(() => ({})) : {};
-
-    const indicators = scanJson?.indicators || scanJson?.data?.indicators || {};
-    const account = acctJson?.account || acctJson?.data?.account || acctJson?.data || {};
+    const scanner = scanRes?.data?.data?.scanner || scanRes?.data?.scanner || {};
+    const indicators = scanner.indicators || {};
+    const account = acctRes?.data?.data?.account || acctRes?.data?.account || {};
 
     const adx = indicators.adx ?? indicators.adx_14 ?? null;
     const rsi = indicators.rsi ?? indicators.rsi_14 ?? null;
