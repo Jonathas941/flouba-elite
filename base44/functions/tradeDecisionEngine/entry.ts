@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { aiMarketStructureScan } from '../../shared/aiMarketStructure.ts';
 import { clamp, num, nyParts, sessionInfo } from '../../shared/tradingUtils.ts';
+import { loadDdt, resolveRiskPolicy } from '../../shared/riskPolicy.ts';
 
 const BRIDGE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -284,6 +285,10 @@ function checkRisk(args) {
   const isBasic = (cfg.bot_mentality || "Premium") === "Basic";
   const reasons = [];
 
+  // Effective limits, with DynamicDailyTargetSettings acting as the HARD CEILING.
+  // Falls back to BotSettings-only behaviour if no policy was supplied.
+  const policy = args.policy || null;
+
   // 7a. Equity Guard — hard stop
   if (cfg.equity_guard_enabled !== false && balance > 0) {
     const minEqPct = cfg.equity_guard_min_equity_pct ?? 50;
@@ -296,7 +301,9 @@ function checkRisk(args) {
 
   // 7b. Daily loss limit
   const maxDailyLossPct = cfg.swing_max_daily_loss_pct ?? 40;
-  const lossLimit = balance > 0 ? (maxDailyLossPct / 100) * balance : (cfg.daily_loss_limit ?? 50);
+  const lossLimit = policy
+    ? policy.maxDailyLoss
+    : (balance > 0 ? (maxDailyLossPct / 100) * balance : (cfg.daily_loss_limit ?? 50));
   if (dailyPnL <= -lossLimit) {
     reasons.push(`Daily loss $${Math.abs(dailyPnL).toFixed(2)} hit limit $${lossLimit.toFixed(2)} — trading stopped for today.`);
     return { pass: false, score: 0, reasons, block: true };
@@ -310,7 +317,7 @@ function checkRisk(args) {
   }
 
   // 7d. Consecutive losses → mandatory cooldown (no revenge)
-  const stopAfter = cfg.stop_after_losses ?? 2;
+  const stopAfter = policy ? policy.stopAfterLosses : (cfg.stop_after_losses ?? 2);
   if (consecLosses >= stopAfter) {
     reasons.push(isBasic
       ? `${consecLosses} consecutive losses — cooling down. No revenge trade.`
@@ -331,14 +338,16 @@ function checkRisk(args) {
   }
 
   // 7g. Max concurrent positions (no overtrading / no grid stacking)
-  const maxConcurrent = cfg.max_concurrent_trades ?? 2;
+  const maxConcurrent = policy ? policy.maxConcurrentPositions : (cfg.max_concurrent_trades ?? 2);
   if (positions.length >= maxConcurrent) {
     reasons.push(`${positions.length}/${maxConcurrent} positions open — max concurrent reached. No new entries (no grid stacking).`);
     return { pass: false, score: 0, reasons, block: false };
   }
 
   // 7h. Max trades per day (no overtrading)
-  const maxDailyTrades = cfg.swing_max_trades_per_day ?? cfg.max_daily_trades ?? 3;
+  const maxDailyTrades = policy
+    ? policy.maxDailyTrades
+    : (cfg.swing_max_trades_per_day ?? cfg.max_daily_trades ?? 3);
   if (tradesToday >= maxDailyTrades) {
     reasons.push(`${tradesToday}/${maxDailyTrades} trades today — daily trade cap reached. No overtrading.`);
     return { pass: false, score: 0, reasons, block: false };
