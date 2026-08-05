@@ -705,16 +705,30 @@ Deno.serve(async (req) => {
     // NOTE: asServiceRole sets created_by_id to the service role's ID, not the user's.
     // So we can't filter by created_by_id. Instead, fetch all settings and find the
     // one whose created_by_id matches userId (service role can read all records).
+    // Sort oldest-first and widen the window: the canonical (user-owned) row is the
+    // OLDEST one, so "-created_date" with a small limit would eventually push it out
+    // of view once duplicates accumulated, and we'd create yet another one.
     const allSettings = await base44.asServiceRole.entities.MarketStructureSettings.filter(
-      {}, "-created_date", 50
+      {}, "created_date", 500
     ).catch(() => []);
     let settings = (allSettings || []).find((s) => s.created_by_id === userId);
     if (!settings) {
-      // Create with the user's client so created_by_id is set to the user's ID
-      settings = await base44.entities.MarketStructureSettings.create({}).catch(async () => {
-        // Fallback to service role if user client fails (e.g. cron mode)
-        return await base44.asServiceRole.entities.MarketStructureSettings.create({ created_by_id: userId });
-      });
+      // Create ONLY with the user's client, so created_by_id is genuinely the user's ID
+      // and this record is findable on the next run.
+      //
+      // The old service-role fallback was the duplicate factory: asServiceRole overwrites
+      // created_by_id with the service role's own ID, so the record it created could never
+      // match `s.created_by_id === userId` -- meaning every single cron invocation created
+      // another orphaned default row. Fail loudly instead of writing an unreachable record.
+      settings = await base44.entities.MarketStructureSettings.create({}).catch(() => null);
+      if (!settings) {
+        return Response.json({
+          error: "No MarketStructureSettings found for this user and none could be created " +
+                 "under the user's identity. Open the Market Structure page once while signed " +
+                 "in to initialise settings.",
+ came: "scanner",
+        }, { status: 409 });
+      }
     }
     const cfg = settings;
 
