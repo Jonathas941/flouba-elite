@@ -759,9 +759,19 @@ Deno.serve(async (req) => {
         else metricByStrategy[key] = m;
       }
 
-      // Self-heal: retire any duplicates left over from the old code path.
-      for (const dupId of duplicateMetricIds.slice(0, 100)) {
-        await base44.asServiceRole.entities.StrategyMetrics.delete(dupId).catch(() => {});
+      // Self-heal: retire duplicates left over from the old code path. There is a large
+      // historical backlog (tens of thousands of rows), so drain in parallel chunks under
+      // a hard time budget -- this must never delay or time out the trading cycle.
+      const DUP_TIME_BUDGET_MS = 20000;
+      const DUP_CHUNK = 25;
+      const dupDeadline = Date.now() + DUP_TIME_BUDGET_MS;
+      for (let i = 0; i < duplicateMetricIds.length; i += DUP_CHUNK) {
+        if (Date.now() > dupDeadline) break;
+        await Promise.all(
+          duplicateMetricIds.slice(i, i + DUP_CHUNK).map((dupId) =>
+            base44.asServiceRole.entities.StrategyMetrics.delete(dupId).catch(() => {})
+          )
+        );
       }
 
       for (const k of KEYS) {
