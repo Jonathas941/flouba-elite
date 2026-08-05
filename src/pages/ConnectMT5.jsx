@@ -295,8 +295,19 @@ export default function ConnectMT5() {
       connection_status: connectionStatus,
       ...(password ? { mt5_password: password } : {}),
     };
-    if (settingsId) {
-      await base44.entities.BotSettings.update(settingsId, payload);
+    // Re-resolve the target row immediately before writing instead of trusting
+    // `settingsId` from state. If the initial load hadn't resolved yet, settingsId is
+    // still null and we would CREATE a second BotSettings row -- and because every
+    // backend function reads the NEWEST row per user, that credential-less duplicate
+    // would immediately shadow the account we just connected, silently breaking MT5.
+    let targetId = settingsId;
+    if (!targetId) {
+      const existing = await base44.entities.BotSettings.list("-created_date", 1).catch(() => []);
+      targetId = existing?.[0]?.id || null;
+    }
+    if (targetId) {
+      await base44.entities.BotSettings.update(targetId, payload);
+      setSettingsId(targetId);
     } else {
       const created = await base44.entities.BotSettings.create(payload);
       setSettingsId(created.id);
