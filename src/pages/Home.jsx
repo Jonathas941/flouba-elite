@@ -63,18 +63,16 @@ export default function Home() {
     reconnectingRef.current = true;
     setReconnecting(true);
     try {
-      // 1. Check bridge status
-      await mt5Api.connect();
-      // 2. Try restarting the robot loop in case the EA is alive but idle
-      if (botSettings?.active_pair) {
-        await mt5Api.robotStart(botSettings.active_pair, {
-          lot_size: botSettings.lot_size ?? 0.01,
-          strategy: botSettings.trading_mode ?? "Balanced",
-        }).catch(() => {});
-      }
-      // 3. Verify the link is genuinely restored with a fresh account read
+      // Verify the link with a fresh account read (also confirms bridge liveness)
       const verify = await mt5Api.account();
       if (verify?.ok && verify.data?.account?.connected === true) {
+        // Robot loop may have stalled — restart it if we have a configured pair
+        if (botSettings?.active_pair) {
+          await mt5Api.robotStart(botSettings.active_pair, {
+            lot_size: botSettings.lot_size ?? 0.01,
+            strategy: botSettings.trading_mode ?? "Balanced",
+          }).catch(() => {});
+        }
         disconnectCountRef.current = 0;
         setConnected(true);
         setAccount(verify.data.account);
@@ -149,8 +147,8 @@ export default function Home() {
 
   useEffect(() => {
     loadAll();
-    pollRef.current = setInterval(loadFast, 8000);
-    slowPollRef.current = setInterval(loadSlow, 60000);
+    pollRef.current = setInterval(loadFast, 15000);
+    slowPollRef.current = setInterval(loadSlow, 90000);
     const onVisibility = () => { if (document.visibilityState === "visible") loadAll(); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
