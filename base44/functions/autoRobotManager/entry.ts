@@ -163,8 +163,40 @@ Deno.serve(async (req) => {
     if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
 
     // Get ALL BotSettings — each user has their own MT5 account credentials
-    const allSettings = await base44.asServiceRole.entities.BotSettings.list();
-    if (!allSettings?.length) return Response.json({ ok: true, message: "No BotSettings found" });
+    const allSettingsRaw = await base44.asServiceRole.entities.BotSettings.list("-created_date");
+    if (!allSettingsRaw?.length) return Response.json({ ok: true, message: "No BotSettings found" });
+
+    // ── Collapse to ONE active config per user ──────────────────────────────
+    // The bridge JWT is scoped per USER, not per MT5 account, so every config
+    // belonging to one user addresses the SAME EA/robot. Iterating over all of a
+    // user's rows therefore pushed several conflicting configurations at the same
+    // robot on every 5-minute cycle -- different accounts, lot sizes, risk levels and
+    // opposing auto_start flags -- which is what made the connection and robot state
+    // flap. Every other function in the codebase already resolves a single config via
+    // filter({created_by_id}, "-created_date", 1); this now matches that behaviour.
+    //
+    // Newest row per user wins. Account switching is expressed through
+    // TradingAccount.is_active, not by keeping multiple BotSettings rows alive.
+    const newestByUser = new Map();
+    const supersededByUser = new Map();
+    for (const s of allSettingsRaw) {
+      const owner = s.created_by_id;
+      if (!owner) continue;
+      if (!newestByUser.has(owner)) {
+        newestByUser.set(owner, s);
+      } else {
+        supersededByUser.set(owner, (supersededByUser.get(owner) || 0) + 1);
+      }
+    }
+    const allSettings = [...newestByUser.values()];
+
+    for (const [owner, count] of supersededByUser) {
+      console.warn(
+        `[autoRobotManager] user ${owner} has ${count} superseded BotSettings row(s); ` +
+        `using the newest only. Duplicate rows should be removed -- they are the cause ` +
+        `of conflicting start/stop commands to a single robot.`
+      );
+    }
 
     // Fetch all users to get their bridge API keys for JWT exchange
     const allUsers = await base44.asServiceRole.entities.User.list();
