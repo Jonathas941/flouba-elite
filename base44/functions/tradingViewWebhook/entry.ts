@@ -70,14 +70,48 @@ Deno.serve(async (req) => {
     );
     let settings = settingsList?.[0];
     if (!settings) {
+      // Cannot attribute this to a user, so nothing can be persisted. Log it so a
+      // mismatched secret is at least visible in function logs rather than silent.
+      console.warn("[tradingViewWebhook] rejected: no TradingViewSettings matches the supplied webhook secret");
       return Response.json({ success: false, status: "error", message: "Invalid webhook secret" }, { status: 403 });
     }
 
     const userId = settings.created_by_id;
 
+    // Identify the alert up front so REJECTIONS can be persisted too. Previously every
+    // validation failure returned before any TradingViewSignal row was written, so a
+    // misconfigured alert produced zero records and left nothing to debug.
+    const alertId = body.alert_id || `tv-${Date.now()}`;
+    const mode = settings.trading_mode || "test";
+    const price = num(body.price);
+    const positionSize = num(body.position_size || body.strategy_position);
+    const rawPayloadBase = { ...body };
+    delete rawPayloadBase.secret;
+
+    // Persist a Rejected row, then return the error response.
+    const reject = async (message, status = 400, extra = {}) => {
+      await base44.asServiceRole.entities.TradingViewSignal.create({
+        created_by_id: userId,
+        alert_id: alertId,
+        symbol: normalizeSymbol(body.symbol) || String(body.symbol || "UNKNOWN").slice(0, 32),
+        action: normalizeAction(body.action) || "BUY",
+        quantity: num(body.quantity),
+        price,
+        position_size: positionSize,
+        mode,
+        status: "Rejected",
+        message,
+        raw_payload: rawPayloadBase,
+        received_at: new Date().toISOString(),
+        ...extra,
+      }).catch(() => {});
+      console.warn("[tradingViewWebhook] rejected", { alert_id: alertId, message });
+      return Response.json({ success: false, status: "error", alert_id: alertId, message }, { status });
+    };
+
     // ── Check auto trading ──
     if (!settings.auto_trading_enabled) {
-      return Response.json({ success: false, status: "error", message: "Auto trading is OFF" }, { status: 403 });
+      return await reject("Auto trading is OFF for the settings row matching this webhook secret", 403);
     }
 
     // ── Normalize symbol ──
