@@ -726,7 +726,7 @@ Deno.serve(async (req) => {
           error: "No MarketStructureSettings found for this user and none could be created " +
                  "under the user's identity. Open the Market Structure page once while signed " +
                  "in to initialise settings.",
- came: "scanner",
+          source: "marketStructureScanner",
         }, { status: 409 });
       }
     }
