@@ -139,7 +139,9 @@ function normalizeAccount(a) {
     terminal_connected: a.terminalConnected,
     broker_connected: a.brokerConnected,
     last_sync: a.lastSyncedAt,
-    connected: a.connected === false ? false : (a.terminalConnected === true || a.balance != null),
+    // Strict connection gate: only trust explicit bridge confirmation.
+    // Stale balance from a previous EA sync must NOT count as "connected".
+    connected: a.connected === true || a.terminalConnected === true || a.brokerConnected === true,
   };
 }
 
