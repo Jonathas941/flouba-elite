@@ -159,11 +159,6 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, status: "error", message: `Quantity ${quantity} exceeds max ${maxSize}` }, { status: 403 });
     }
 
-    const alertId = body.alert_id || `tv-${Date.now()}`;
-    const mode = settings.trading_mode || "test";
-    const price = num(body.price);
-    const positionSize = num(body.position_size || body.strategy_position);
-
     // ── Dedup: check for existing alert_id ──
     const existing = await base44.asServiceRole.entities.TradingViewSignal.filter(
       { created_by_id: userId, alert_id: alertId }, "-created_date", 1
