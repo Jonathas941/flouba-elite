@@ -253,6 +253,9 @@ Deno.serve(async (req) => {
 
     // ── account ──
     if (action === "account") {
+      const r = await bridgeCall("GET", `${robotPath}/account`);
+      return Response.json({ ok: r.ok, status: r.status, data: { account: normalizeAccount(r.data) }, error: r.error || null });
+    }
 
     // ── positions ──
     if (action === "positions") {
