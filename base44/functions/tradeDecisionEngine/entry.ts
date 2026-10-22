@@ -1,6 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { aiMarketStructureScan } from '../../shared/aiMarketStructure.ts';
-import { callOpenAI } from '../../shared/openaiClient.ts';
 import { clamp, num, nyParts, sessionInfo } from '../../shared/tradingUtils.ts';
 import { loadDdt, resolveRiskPolicy } from '../../shared/riskPolicy.ts';
 
@@ -42,8 +40,19 @@ function consecutiveLossesCount(closedTrades) {
 // Combines EA-provided boolean flags with LLM-powered Smart Money Concepts
 // analysis (BOS, CHOCH, liquidity sweep, FVG, market bias) for deeper accuracy.
 async function checkStructure(ind, regime, dir, cfg, base44Client) {
-  // Call AI market structure scanner for deeper SMC analysis
-  const ai = await aiMarketStructureScan(ind, regime, dir, cfg, base44Client);
+  // EA-provided structure flags (AI SMC analysis removed — external server handles it)
+  const ai = {
+    bos: ind?.bos === true || ind?.break_of_structure === true,
+    choch: ind?.choch === true || ind?.change_of_character === true,
+    liquidity_sweep: ind?.liquidity_sweep === true || ind?.sweep === true,
+    sweep_dir: ind?.sweep_dir || ind?.sweep_direction || null,
+    fvg_detected: false,
+    market_bias: dir === "Bullish" ? "bullish" : dir === "Bearish" ? "bearish" : "neutral",
+    confidence: 50,
+    key_levels: null,
+    reasoning: null,
+    setup_quality: "None",
+  };
 
   const bos = ai.bos || ind?.bos === true || ind?.break_of_structure === true;
   const choch = ai.choch || ind?.choch === true || ind?.change_of_character === true;
@@ -435,42 +444,8 @@ async function getAiSlTp(ind, regime, regimeDir, cfg) {
   const userDefaultSl = cfg.swing_atr_sl_multiplier ?? 1.5;
   const userDefaultRr = cfg.swing_min_rr ?? 2;
 
-  try {
-    const res = await callOpenAI({
-      systemPrompt: "You are a risk-adjusted trading analyst. Respond only with valid JSON matching the requested schema.",
-      userPrompt: `You are a risk-adjusted trading analyst. Given the live market data below, determine the optimal Stop Loss (as an ATR multiplier) and Take Profit (as a risk-reward ratio).
-
-Rules:
-- In a strong TRENDING market with high ADX (>30), use a TIGHTER SL (1.0–1.5x ATR) and a WIDER TP (2.5–3.5 RR) to maximize trend capture.
-- In a LIQUIDITY SWEEP / reversal setup, use a WIDER SL (1.8–2.5x ATR) to survive wick retests, and moderate TP (2.0–2.5 RR).
-- In choppy/range conditions, favor a balanced SL (1.5x ATR) and conservative TP (1.5–2.0 RR).
-- If RSI is overbought (>70) for a BUY or oversold (<30) for a SELL, widen SL slightly to avoid premature stop-out.
-- Never suggest SL < 1.0x ATR or > 3.0x ATR. Never suggest RR < 1.0 or > 4.0.
-
-Live market data:
-${JSON.stringify(marketContext, null, 2)}
-
-Respond with the optimal sl_atr_multiplier and tp_rr_ratio.`,
-      schema: {
-        type: "object",
-        properties: {
-          sl_atr_multiplier: { type: "number", description: "Stop loss as ATR multiplier (1.0–3.0)" },
-          tp_rr_ratio: { type: "number", description: "Take profit as risk-reward ratio (1.0–4.0)" },
-          reasoning: { type: "string" },
-        },
-        required: ["sl_atr_multiplier", "tp_rr_ratio"],
-      },
-      temperature: 0.2,
-      base44Client: base44,
-    });
-
-    const aiSl = clamp(num(res?.sl_atr_multiplier) ?? userDefaultSl, minSlMult, maxSlMult);
-    const aiRr = clamp(num(res?.tp_rr_ratio) ?? userDefaultRr, minRr, maxRr);
-    return { sl_mult: aiSl, rr: aiRr, reasoning: res?.reasoning || null };
-  } catch {
-    // Fallback to user defaults if OpenAI unavailable
-    return { sl_mult: userDefaultSl, rr: userDefaultRr, reasoning: null };
-  }
+  // AI SL/TP removed — external server handles analysis. Use user-configured defaults.
+  return { sl_mult: userDefaultSl, rr: userDefaultRr, reasoning: null };
 }
 
 // ── SL / TP / Lot calculation ─────────────────────────────────────────────
@@ -527,191 +502,20 @@ function computeTradeParams(args) {
   };
 }
 
-// ── AI Web-Search Fallback ──────────────────────────────────────────────
-// When the EA isn't publishing indicator data, use InvokeLLM with web search
-// (gemini_3_flash) to analyze live market structure and generate a trade signal.
+// ── AI Fallback (external server handles market analysis) ──────────────
 async function aiFallbackTradeDecision(base44, cfg, account, userId) {
-  const symbol = cfg.active_pair || "XAUUSD";
   const balance = account?.balance ?? 0;
   const equity = account?.equity ?? balance;
-  const mode = cfg.trading_mode || "Balanced";
-  const minScore = cfg.ai_auto_execute_min_score ?? 70;
-
-  // Try to fetch live price from bridge symbols endpoint
-  let currentPrice = null;
-  try {
-    const symRes = await fetch(`${B44}/robots/${encodeURIComponent(String(cfg.mt5_account))}/symbols`, {
-      headers: {
-        "x-api-key": Deno.env.get("FLOUBA_BASE44_API_KEY") || "",
-        "x-request-id": crypto.randomUUID(),
-        "x-timestamp": new Date().toISOString(),
-      },
-    }).catch(() => null);
-    if (symRes?.ok) {
-      const j = await symRes.json().catch(() => ({}));
-      const syms = j?.data ?? j?.symbols ?? (Array.isArray(j) ? j : []);
-      const sym = Array.isArray(syms) ? syms.find(s => (s.symbol || s.name) === symbol) : null;
-      if (sym) {
-        const bid = num(sym.bid), ask = num(sym.ask);
-        if (bid != null) currentPrice = (bid + (ask ?? bid)) / 2;
-      }
-    }
-  } catch {}
-
-  try {
-    const res = await callOpenAI({
-      systemPrompt: "You are an expert trading analyst. Respond only with valid JSON matching the requested schema.",
-      userPrompt: `You are an expert trading analyst. Analyze the LIVE market for ${symbol} (XAUUSD = Gold/USD) right now.
-
-${currentPrice ? `Current bridge price: ${currentPrice}` : "Use your knowledge of recent gold price action to estimate the current price."}
-
-TASK: Perform a full confluence analysis using your market expertise. Evaluate:
-1. Trend direction (EMA alignment, price action)
-2. Market structure (BOS, CHOCH, swing highs/lows)
-3. Momentum (RSI, MACD divergence)
-4. Volatility (ATR level — is the market moving enough?)
-5. Liquidity (recent sweeps, equal highs/lows)
-6. Support/Resistance zones
-7. Session timing (is a high-activity session open?)
-8. Overall trade quality score (0-100)
-
-RULES:
-- Only return a TRADE signal if confidence >= ${minScore}.
-- Entry price should be the current market price.
-- Stop loss must be beyond the nearest swing (BUY: below swing low; SELL: above swing high).
-- Take profit must achieve at least 2:1 risk-reward.
-- If no valid setup exists, return trade=false with a clear reason.
-
-Respond as JSON.`,
-      schema: {
-        type: "object",
-        properties: {
-          trade: { type: "boolean", description: "Whether a valid trade signal exists" },
-          direction: { type: "string", enum: ["BUY", "SELL"] },
-          entry_price: { type: "number", description: "Entry price (current market)" },
-          stop_loss: { type: "number", description: "Stop loss price" },
-          take_profit: { type: "number", description: "Take profit price" },
-          confidence: { type: "number", description: "Trade quality score 0-100" },
-          regime: { type: "string", description: "Market regime (Trending, Range, Liquidity Sweep)" },
-          reasoning: { type: "string", description: "Detailed analysis" },
-          pillars: {
-            type: "object",
-            additionalProperties: true,
-            description: "Score breakdown by pillar",
-          },
-        },
-        required: ["trade", "confidence", "reasoning"],
-      },
-      temperature: 0.3,
-      base44Client: base44,
-    });
-
-    if (!res || !res.trade) {
-      return {
-        ok: true,
-        connected: true,
-        ai_fallback: true,
-        decision: "NO_TRADE",
-        reason: res?.reasoning || "AI scan found no valid trade setup.",
-        score: res?.confidence ?? 0,
-        min_score: minScore,
-        regime: res?.regime || "AI Scan",
-        pillars: [],
-        account: { balance, equity },
-      };
-    }
-
-    const score = Math.min(100, Math.max(0, Math.round(res.confidence || 0)));
-    if (score < minScore) {
-      return {
-        ok: true,
-        connected: true,
-        ai_fallback: true,
-        decision: "NO_TRADE",
-        reason: `AI score ${score}/${minScore} — below ${mode} minimum. ${res.reasoning || ""}`.trim(),
-        score,
-        min_score: minScore,
-        regime: res?.regime || "AI Scan",
-        pillars: [],
-        account: { balance, equity },
-      };
-    }
-
-    const direction = res.direction;
-    const entry = res.entry_price || currentPrice;
-    const sl = res.stop_loss;
-    const tp = res.take_profit;
-    if (!direction || !entry || !sl || !tp) {
-      return {
-        ok: true,
-        connected: true,
-        ai_fallback: true,
-        decision: "NO_TRADE",
-        reason: "AI returned incomplete trade parameters.",
-        score,
-        min_score: minScore,
-        account: { balance, equity },
-      };
-    }
-
-    // Lot sizing
-    const slDist = Math.abs(entry - sl);
-    const baseLot = cfg.lot_size ?? 0.01;
-    let lot = baseLot;
-    if (cfg.lot_size_mode === "Auto Risk" && balance > 0 && slDist > 0) {
-      const riskPct = cfg.risk_percentage ?? 1;
-      const riskAmount = balance * (riskPct / 100);
-      const dollarsPerLotPerPrice = symbol === "XAUUSD" ? 100 : (symbol === "NAS100" || symbol === "US30" ? 1 : 10);
-      const riskPerLot = slDist * dollarsPerLotPerPrice;
-      lot = riskPerLot > 0 ? riskAmount / riskPerLot : baseLot;
-      lot = Math.max(0.01, Math.round(lot * 100) / 100);
-    }
-    const maxLot = baseLot * (cfg.max_concurrent_trades ?? 2);
-    lot = Math.min(lot, maxLot);
-
-    const rr = slDist > 0 ? Math.abs(tp - entry) / slDist : 2;
-
-    return {
-      ok: true,
-      connected: true,
-      ai_fallback: true,
-      decision: "TRADE",
-      reason: `AI Web-Scan — ${direction} ${symbol}, score ${score}/100. ${res.reasoning || ""}`.trim(),
-      score,
-      min_score: minScore,
-      trading_mode: mode,
-      regime: res?.regime || "AI Scan",
-      regime_dir: direction === "BUY" ? "Bullish" : "Bearish",
-      direction,
-      pillars: res.pillars || [],
-      trade: {
-        direction,
-        entry: Math.round(entry * 100000) / 100000,
-        stop_loss: Math.round(sl * 100000) / 100000,
-        take_profit: Math.round(tp * 100000) / 100000,
-        sl_distance: Math.round(slDist * 100000) / 100000,
-        tp_distance: Math.round(Math.abs(tp - entry) * 100000) / 100000,
-        risk_reward: Math.round(rr * 100) / 100,
-        lot_size: lot,
-      },
-      account: {
-        balance: Math.round(balance * 100) / 100,
-        equity: Math.round(equity * 100) / 100,
-      },
-      checked_at: new Date().toISOString(),
-    };
-  } catch (e) {
-    return {
-      ok: true,
-      connected: true,
-      ai_fallback: true,
-      decision: "NO_TRADE",
-      reason: `AI fallback scan failed — ${e.message}. Start the EA so it syncs indicators to the bridge.`,
-      score: 0,
-      min_score: minScore,
-      account: { balance, equity },
-    };
-  }
+  return {
+    ok: true,
+    connected: true,
+    ai_fallback: true,
+    decision: "NO_TRADE",
+    reason: "No live indicator data — EA is not publishing to the bridge. Market analysis is handled by the external server.",
+    score: 0,
+    min_score: cfg.ai_auto_execute_min_score ?? 70,
+    account: { balance, equity },
+  };
 }
 
 Deno.serve(async (req) => {

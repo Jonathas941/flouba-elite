@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { callOpenAI } from '../../shared/openaiClient.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -85,46 +84,44 @@ DECISION RULES:
 
 Respond with the single best strategy and a concise reason (1-2 sentences) explaining why it fits the current market conditions.`;
 
-    const llmRes = await callOpenAI({
-      systemPrompt: "You are an expert forex/CFD trading strategist. Respond only with valid JSON matching the requested schema.",
-      userPrompt: prompt,
-      schema: {
-        type: "object",
-        properties: {
-          strategy: {
-            type: "string",
-            enum: [
-              "Momentum Scalping",
-              "Range Breakout",
-              "Volatility Spike",
-              "HFT Scalper",
-              "Grid Trading",
-              "Liquidity Sweep Scalping",
-              "Hedge Scalper",
-              "Swing Trend Pullback Continuation 2026",
-              "EMA Trend Progressive Recovery",
-              "Hybrid Confluence Mode",
-              "NQ London Kill Zone Breakout",
-              "Market Structure BOS Retest Scalper",
-              "Orderflow Opening Range Breakout",
-              "Gold Morning Range Breakout",
-              "Gold Daily Breakout",
-            ],
-          },
-          reason: { type: "string" },
-          confidence: { type: "number" },
-        },
-        required: ["strategy", "reason"],
-      },
-      temperature: 0.3,
-      base44Client: base44,
-    });
+    // Rule-based strategy selection (AI removed — external server handles analysis)
+    let strategy = "Swing Trend Pullback Continuation 2026";
+    let reason = "Default trend-following strategy.";
+    let confidence = 50;
+
+    if (trending && bullishEma) {
+      strategy = "Swing Trend Pullback Continuation 2026";
+      reason = `ADX ${adx ?? "N/A"} > 25 with bullish EMA alignment — trend-following pullback strategy.`;
+      confidence = 80;
+    } else if (trending && !bullishEma) {
+      strategy = "Momentum Scalping";
+      reason = `ADX ${adx ?? "N/A"} > 25 with bearish EMA — momentum scalp in trend direction.`;
+      confidence = 75;
+    } else if (!trending && (overbought || oversold)) {
+      strategy = "Liquidity Sweep Scalping";
+      reason = `ADX < 25 with RSI ${overbought ? "overbought" : "oversold"} — potential liquidity sweep reversal.`;
+      confidence = 65;
+    } else if (!trending) {
+      strategy = "Grid Trading";
+      reason = `ADX ${adx ?? "N/A"} < 25 — ranging market, grid strategy for oscillation.`;
+      confidence = 55;
+    } else if (highVolatility) {
+      strategy = "Volatility Spike";
+      reason = `ATR high — volatility spike strategy for sharp directional moves.`;
+      confidence = 60;
+    }
+
+    if (highSpread) {
+      strategy = "Hedge Scalper";
+      reason = `Spread ${spread} > 5 pips — hedge scalper for high-cost conditions.`;
+      confidence = 50;
+    }
 
     return Response.json({
       ok: true,
-      strategy: llmRes.strategy,
-      reason: llmRes.reason,
-      confidence: llmRes.confidence ?? null,
+      strategy,
+      reason,
+      confidence,
       marketSnapshot: {
         symbol,
         adx,

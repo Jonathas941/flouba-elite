@@ -1,0 +1,103 @@
+{
+  "name": "AnalysisRequest",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading symbol (e.g. XAUUSD)."
+    },
+    "timeframe": {
+      "type": "string",
+      "description": "Analysis timeframe (e.g. M15, H1, H4)."
+    },
+    "request_type": {
+      "type": "string",
+      "enum": [
+        "performance",
+        "market_analysis",
+        "strategy_review",
+        "risk_assessment",
+        "general"
+      ],
+      "default": "general",
+      "description": "Type of analysis requested."
+    },
+    "context": {
+      "type": "string",
+      "description": "User's question or context text for the analysis."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "done",
+        "error"
+      ],
+      "default": "pending",
+      "description": "Processing status. External server polls pending records, processes them, and updates to done/error."
+    },
+    "result": {
+      "type": "string",
+      "description": "Analysis result text (Markdown). Populated by the external server when status is done."
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message if status is error."
+    }
+  },
+  "required": [
+    "request_type",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

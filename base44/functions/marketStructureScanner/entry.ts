@@ -283,8 +283,9 @@ async function scanSymbol(symbol, cfg, base44, userId) {
   }
 
   if (!trendCandles || trendCandles.length < 30 || !structCandles || structCandles.length < 30 || !entryCandles || entryCandles.length < 20) {
-    // ── AI Fallback: candle data unavailable — use LLM web search to analyze live structure ──
-    return aiScanFallback(symbol, cfg, base44, userId, quote);
+    // Candle data unavailable — external server handles AI market analysis
+    result.reason = `${symbol}: Candle data unavailable from bridge. Market analysis is handled by the external server.`;
+    return result;
   }
 
   const currentPrice = quote.price;

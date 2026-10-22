@@ -90,57 +90,14 @@ Deno.serve(async (req) => {
       return Response.json({ ok: false, error: "No live pair quotes available", pairs: [] });
     }
 
-    // ── Ask AI to rank pairs for trading suitability ──
-    const sessionInfo = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York", hour12: false, weekday: "short", hour: "2-digit", minute: "2-digit",
-    }).format(new Date());
-
-    const llmRes = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a multi-pair trading analyst. Below are live MT5 quotes at ${sessionInfo} (NY time).
-
-Rank the top ${count} pairs best suited for trading RIGHT NOW. Consider:
-- Spread (lower = cheaper = better)
-- Pair liquidity and trend potential during the current session
-- XAUUSD (Gold) excels during London/NY overlap
-- EURUSD/GBPUSD strong during London/NY
-- USDJPY active during Asian/London
-- NAS100/US30 active during NY
-- BTCUSD is 24/7 but volatile
-
-Live quotes (symbol, spread):
-${JSON.stringify(pairData.map((p) => ({ symbol: p.symbol, spread: p.spread })), null, 2)}
-
-Return the top ${count} pair symbols as a JSON array of strings, best first.`,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          pairs: { type: "array", items: { type: "string" } },
-          reasoning: { type: "string" },
-        },
-        required: ["pairs"],
-      },
-    });
-
-    // Filter AI picks to valid known pairs
-    let selected = (Array.isArray(llmRes?.pairs) ? llmRes.pairs : [])
-      .filter((p) => KNOWN_PAIRS.some((kp) => p.toUpperCase().startsWith(kp.toUpperCase())))
-      .map((p) => p.toUpperCase());
-
-    // Fallback: fill remaining slots by lowest spread
-    if (selected.length < count) {
-      const bySpread = [...pairData].sort((a, b) => (a.spread ?? 999) - (b.spread ?? 999));
-      for (const p of bySpread) {
-        if (selected.includes(p.symbol)) continue;
-        selected.push(p.symbol);
-        if (selected.length >= count) break;
-      }
-    }
-    selected = selected.slice(0, count);
+    // AI removed — rank by lowest spread (external server handles analysis)
+    const bySpread = [...pairData].sort((a, b) => (a.spread ?? 999) - (b.spread ?? 999));
+    const selected = bySpread.slice(0, count).map((p) => p.symbol);
 
     return Response.json({
       ok: true,
       pairs: selected,
-      reasoning: llmRes?.reasoning || null,
+      reasoning: "Ranked by lowest spread (AI removed — external server handles analysis).",
       count,
       available: pairData.length,
     });

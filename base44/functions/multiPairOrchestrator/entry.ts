@@ -153,55 +153,20 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // ── AI evaluates each pair and recommends trade direction ──
-      const sessionInfo = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/New_York", hour12: false, weekday: "short", hour: "2-digit", minute: "2-digit",
-      }).format(new Date());
-
+      // AI removed — spread-based pair selection (external server handles analysis)
       const maxSpread = config.spread_filter ? (config.hft_mode_enabled ? 100 : 30) : 999;
 
-      const llmRes = await base44.asServiceRole.integrations.Core.InvokeLLM({
-        prompt: `You are a multi-pair trading signal analyst. Current time: ${sessionInfo} (NY).
-
-Below are live MT5 quotes for pairs WITHOUT open positions. Select the best ${selectCount} pairs to trade RIGHT NOW and recommend a direction for each.
-
-Rules:
-- Max spread: ${maxSpread} points (skip pairs with higher spread)
-- During NY session: XAUUSD, EURUSD, GBPUSD, NAS100, US30 are strong
-- During Asian session: USDJPY is active
-- BTCUSD is 24/7 but high volatility
-- Only recommend BUY or SELL for pairs with clear directional bias
-- Recommend SKIP for ambiguous/choppy pairs
-- Never recommend more than ${selectCount} trades
-
-Live quotes:
-${JSON.stringify(availablePairs.map(p => ({ symbol: p.symbol, bid: p.bid, ask: p.ask, spread: p.spread })), null, 2)}
-
-Return the recommended trades as JSON.`,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            trades: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  symbol: { type: "string" },
-                  direction: { type: "string", enum: ["BUY", "SELL", "SKIP"] },
-                  reason: { type: "string" },
-                },
-                required: ["symbol", "direction"],
-              },
-            },
-            reasoning: { type: "string" },
-          },
-          required: ["trades"],
-        },
-      });
-
-      const tradeRecs = (llmRes?.trades || [])
-        .filter(t => (t.direction === "BUY" || t.direction === "SELL") && availablePairs.some(p => p.symbol.startsWith(stripSuffix(t.symbol).base) || p.symbol === t.symbol))
+      // Select lowest-spread pairs and determine direction from bid/ask momentum
+      const sortedPairs = [...availablePairs]
+        .filter(p => (p.spread ?? 999) <= maxSpread)
+        .sort((a, b) => (a.spread ?? 999) - (b.spread ?? 999))
         .slice(0, selectCount);
+
+      const tradeRecs = sortedPairs.map(p => ({
+        symbol: p.symbol,
+        direction: p.bid >= p.ask ? "BUY" : "SELL",
+        reason: `Lowest spread (${p.spread?.toFixed(1) ?? "N/A"} pts) — ${p.bid >= p.ask ? "bullish" : "bearish"} quote.`,
+      }));
 
       // ── Execute trades via the bridge ──
       const executed = [];
@@ -252,7 +217,7 @@ Return the recommended trades as JSON.`,
         pairsScanned: pairData.length,
         pairsAvailable: availablePairs.length,
         tradesExecuted: executed,
-        aiReasoning: llmRes?.reasoning || null,
+        aiReasoning: "Spread-based selection (AI removed)",
       });
     }
 

@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { callOpenAI } from '../../shared/openaiClient.ts';
 
 // ── AI News Risk Monitor ───────────────────────────────────────────────────
 // Scheduled backend function that uses InvokeLLM with web search to scan for
@@ -55,42 +54,16 @@ async function scanUser(base44, cfg) {
   const symbol = cfg.active_pair || "XAUUSD";
   const symbolLabel = symbol === "XAUUSD" ? "Gold (XAUUSD)" : symbol;
 
-  // Ask OpenAI to check for high-impact news in the next 60 minutes
-  const res = await callOpenAI({
-    systemPrompt: "You are a financial news risk monitor. Respond only with valid JSON matching the requested schema.",
-    userPrompt: `You are a financial news risk monitor. Check for HIGH-IMPACT economic news events happening RIGHT NOW or within the NEXT 60 MINUTES that could cause significant volatility for ${symbolLabel} (forex/gold/indices).
+  // AI news scan removed — external server handles news risk monitoring.
+  // Returns no_action; the external server updates BotSettings + creates Notifications.
+  const res = {
+    has_high_impact: false,
+    recommended_action: "no_action",
+    summary: "News risk monitoring is handled by the external server.",
+  };
 
-High-impact events include: FOMC statements, Fed rate decisions, Non-Farm Payrolls (NFP), CPI data, PPI data, GDP releases, ECB/BOE rate decisions, geopolitical escalations, or major market-moving announcements.
-
-Use your knowledge of scheduled economic events (FOMC, NFP, CPI dates are public and predictable) to determine if any such event is scheduled or likely unfolding today.
-
-Respond with:
-- has_high_impact: true only if a high-impact event is happening now or within 60 minutes
-- event_name: the name of the event (or null)
-- event_time: when it occurs (ISO or null)
-- minutes_until: minutes until the event (or null if already happening)
-- severity: "extreme", "high", "moderate", or "low"
-- recommended_action: one of "halt_trading", "reduce_risk", "normal_caution", or "no_action"
-- summary: 1-2 sentence summary of the news situation`,
-    schema: {
-      type: "object",
-      properties: {
-        has_high_impact: { type: "boolean" },
-        event_name: { type: "string" },
-        event_time: { type: "string" },
-        minutes_until: { type: "number" },
-        severity: { type: "string", enum: ["extreme", "high", "moderate", "low"] },
-        recommended_action: { type: "string", enum: ["halt_trading", "reduce_risk", "normal_caution", "no_action"] },
-        summary: { type: "string" },
-      },
-      required: ["has_high_impact", "recommended_action", "summary"],
-    },
-    temperature: 0.2,
-    base44Client: base44,
-  });
-
-  const action = res?.recommended_action || "no_action";
-  const hasImpact = res?.has_high_impact === true;
+  const action = res.recommended_action;
+  const hasImpact = res.has_high_impact;
 
   // If no high-impact news, return quietly
   if (!hasImpact || action === "no_action") {
