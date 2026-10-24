@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
+import { setVisibleInterval, POLL_MS } from "@/lib/visibleInterval";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WifiOff, Activity, BarChart3, Shield, RefreshCw, Stethoscope, Clock } from "lucide-react";
@@ -105,8 +106,8 @@ export default function Statistics() {
   useEffect(() => {
     load();
     // Poll open trades every 5 seconds when connected
-    tickRef.current = setInterval(load, 5000);
-    return () => clearInterval(tickRef.current);
+    const stop = setVisibleInterval(load, POLL_MS.statistics);
+    return stop;
   }, [load]);
 
   // Equity Guard: hard-stop — force close all + pause robot if equity falls below % of balance
