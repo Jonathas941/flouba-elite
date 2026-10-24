@@ -8,11 +8,11 @@ export const BRIDGE = (() => {
   return v;
 })();
 
-export const B44 = `${BRIDGE}/api/base44`;
+export const B44 = `${BRIDGE}/api`;
 
 export function bridgeHeaders(robotId) {
   return {
-    "x-api-key": Deno.env.get("FLOUBA_BASE44_API_KEY") || "",
+    "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || "",
     "x-request-id": crypto.randomUUID(),
     "x-timestamp": new Date().toISOString(),
     "Content-Type": "application/json",
@@ -20,13 +20,35 @@ export function bridgeHeaders(robotId) {
   };
 }
 
+// postCommand now sends trades directly to the Replit Elite Server routes
+// (POST /api/trade/buy, /api/trade/sell, /api/trade/close, /api/trade/close-all)
+// instead of the old command-queue path (/api/base44/robots/:id/commands).
 export async function postCommand(robotId, command, idemKey) {
   if (!BRIDGE) return { ok: false, error: "FLOUBA_BACKEND_URL not set" };
   try {
-    const res = await fetch(`${B44}/robots/${encodeURIComponent(String(robotId))}/commands`, {
+    const action = (command?.action || "").toLowerCase();
+    const routeMap = {
+      buy: "/trade/buy",
+      sell: "/trade/sell",
+      close: "/trade/close",
+      close_all: "/trade/close-all",
+      closeall: "/trade/close-all",
+    };
+    const route = routeMap[action];
+    if (!route) return { ok: false, error: `Unknown trade action: ${action}` };
+
+    const body = {};
+    if (command.symbol) body.symbol = command.symbol;
+    if (command.volume != null) body.lot = Number(command.volume);
+    if (command.lot != null) body.lot = Number(command.lot);
+    if (command.sl != null) body.sl = Number(command.sl);
+    if (command.tp != null) body.tp = Number(command.tp);
+    if (command.ticket != null) body.ticket = Number(command.ticket);
+
+    const res = await fetch(`${B44}${route}`, {
       method: "POST",
       headers: { ...bridgeHeaders(robotId), "x-idempotency-key": idemKey },
-      body: JSON.stringify(command),
+      body: JSON.stringify(body),
     });
     const raw = await res.text();
     let json; try { json = JSON.parse(raw); } catch { json = { raw }; }

@@ -621,6 +621,39 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── tv_feed: TradingView signal feed from the Replit server ──
+    if (action === "tv_feed") {
+      const [histRes, statusRes] = await Promise.all([
+        bridgeCall("GET", "/tradingview/history?limit=50"),
+        bridgeCall("GET", "/tradingview/status"),
+      ]);
+      const history = histRes.ok
+        ? (Array.isArray(histRes.data) ? histRes.data : (histRes.data?.signals || histRes.data?.items || []))
+        : [];
+      const status = statusRes.ok ? (statusRes.data || {}) : {};
+      const bridgeOnline = statusRes.ok && (status.connected === true || status.online === true);
+      const today = new Date().toISOString().slice(0, 10);
+      const todaySignals = history.filter((s) => {
+        const ts = s.received_at || s.timestamp || s.time || s.created_at;
+        return ts && String(ts).slice(0, 10) === today;
+      });
+      const todayAccepted = todaySignals.filter((s) => s.accepted !== false && s.status !== "rejected").length;
+      const todayRejected = todaySignals.filter((s) => s.accepted === false || s.status === "rejected").length;
+      return Response.json({
+        ok: histRes.ok || statusRes.ok,
+        status: histRes.status,
+        data: {
+          signals: history,
+          bridge_online: bridgeOnline,
+          today_total: todaySignals.length,
+          today_accepted: todayAccepted,
+          today_rejected: todayRejected,
+          status,
+        },
+        error: (!histRes.ok && !statusRes.ok) ? (histRes.error || statusRes.error || "TradingView feed unavailable") : null,
+      });
+    }
+
     return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

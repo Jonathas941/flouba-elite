@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
+import TradingViewSignals from "@/components/dashboard/TradingViewSignals";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { logNotification } from "@/lib/notifications";
@@ -331,6 +332,9 @@ export default function AISignals() {
           </GlassCard>
         </div>
       )}
+
+      {/* TradingView Signal Feed */}
+      <TradingViewSignals />
     </div>
   );
 }

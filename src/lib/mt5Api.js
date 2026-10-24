@@ -57,4 +57,7 @@ export const mt5Api = {
 
   /** Scanner status */
   scannerStatus: () => call("scanner_status"),
+
+  /** TradingView signal feed from the Replit server */
+  tvFeed: () => call("tv_feed"),
 };

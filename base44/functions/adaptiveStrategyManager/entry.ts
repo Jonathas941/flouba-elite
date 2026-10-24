@@ -1,6 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const BASE = "https://dazzling-perception-production-8e53.up.railway.app/api";
+const BASE = (() => {
+  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
+  if (!v) return "";
+  if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+  v = v.replace(/\/api$/i, "");
+  return v + "/api";
+})();
 
 const STRATEGY = {
   swing: "Swing Trend Pullback Continuation 2026",
@@ -245,10 +251,7 @@ function scoreStrategy(key, stats, regime, cfg) {
 }
 
 function buildHeaders(token, config) {
-  const h = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-  if (config.mt5_account) h["X-MT5-Login"] = String(config.mt5_account);
-  if (config.mt5_password) h["X-MT5-Password"] = config.mt5_password;
-  if (config.mt5_server) h["X-MT5-Server"] = config.mt5_server;
+  const h = { "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || token || "", "Content-Type": "application/json" };
   return h;
 }
 

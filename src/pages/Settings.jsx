@@ -19,6 +19,7 @@ import StrategyTimeframePanel from "@/components/dashboard/StrategyTimeframePane
 import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel";
 import CooldownBanner from "@/components/dashboard/CooldownBanner";
 import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
+import TradeManagerCard from "@/components/dashboard/TradeManagerCard";
 
 export default function Settings() {
   const [s, setS] = useState(null);
@@ -168,6 +169,9 @@ export default function Settings() {
           {num("daily_profit_target", "Profit Target $")}
           {num("daily_loss_limit", "Loss Limit $")}
         </GlassCard>
+
+        {/* Trade Manager (read-only info) */}
+        <TradeManagerCard />
 
         {/* Risk Management Toggles */}
         <GlassCard>
