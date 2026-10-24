@@ -1598,6 +1598,57 @@
       "type": "number",
       "default": 1,
       "description": "TradingView signals — max simultaneously open signal groups (3 trades = 1 group)."
+    },
+    "trail_mode": {
+      "type": "string",
+      "enum": [
+        "atr",
+        "fixed",
+        "off"
+      ],
+      "default": "atr",
+      "description": "Trailing Stop — trail mode. atr = ATR-based, fixed = fixed price distance, off = disabled."
+    },
+    "trail_start": {
+      "type": "string",
+      "enum": [
+        "after_tp1",
+        "immediately"
+      ],
+      "default": "after_tp1",
+      "description": "Trailing Stop — when trailing begins. after_tp1 = start after TP1 is hit, immediately = trail from entry."
+    },
+    "trail_atr_multiplier": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Trailing Stop — ATR multiplier for the trailing distance."
+    },
+    "trail_atr_timeframe": {
+      "type": "string",
+      "enum": [
+        "M1",
+        "M5",
+        "M15",
+        "M30",
+        "H1"
+      ],
+      "default": "M5",
+      "description": "Trailing Stop — timeframe used for ATR calculation."
+    },
+    "trail_fixed_distance": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Trailing Stop — fixed trailing distance in price (used when trail_mode is fixed)."
+    },
+    "trail_min_step": {
+      "type": "number",
+      "default": 0.1,
+      "description": "Trailing Stop — minimum price improvement before the stop loss moves."
+    },
+    "breakeven_offset": {
+      "type": "number",
+      "default": 0.1,
+      "description": "Trailing Stop — offset from entry price for break-even placement."
     }
   },
   "required": [],
