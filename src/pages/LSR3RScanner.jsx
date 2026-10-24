@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import SetupStatusBadge from "@/components/lsr3r/SetupStatusBadge";
 import LSR3RChart from "@/components/lsr3r/LSR3RChart";
+import { setVisibleInterval, POLL_MS } from "@/lib/visibleInterval";
 
 const SYMBOLS = ["XAUUSD", "EURUSD", "GBPUSD"];
 
@@ -33,11 +34,11 @@ export default function LSR3RScanner() {
     setLoading(false);
   }, [symbol, toast]);
 
-  // Poll every 15 seconds
+  // Poll (pauses while tab is hidden — each scan invokes a backend function)
   useEffect(() => {
     scan(true);
-    const interval = setInterval(() => scan(true), 15000);
-    return () => clearInterval(interval);
+    const stop = setVisibleInterval(() => scan(true), POLL_MS.lsr3rScanner);
+    return stop;
   }, [symbol, scan]);
 
   // Countdown timer for signal expiry
