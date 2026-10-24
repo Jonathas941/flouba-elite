@@ -7,6 +7,7 @@ import { mt5Api } from "@/lib/mt5Api";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import MarketStructureSettingsEditor from "@/components/scanner/MarketStructureSettingsEditor";
 import MarketStructurePresetsBar from "@/components/scanner/MarketStructurePresetsBar";
+import { setVisibleInterval, POLL_MS } from "@/lib/visibleInterval";
 
 const STATUS_COLORS = {
   "Scanning": "text-cyan-400",
@@ -59,8 +60,8 @@ export default function MarketStructure() {
   useEffect(() => {
     loadData();
     checkConnection();
-    const poll = setInterval(() => { loadData(); checkConnection(); }, 15000);
-    return () => clearInterval(poll);
+    const stop = setVisibleInterval(() => { loadData(); checkConnection(); }, POLL_MS.marketStructure);
+    return stop;
   }, [loadData, checkConnection]);
 
   const handleScan = async () => {
