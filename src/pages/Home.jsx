@@ -150,12 +150,10 @@ export default function Home() {
     loadAll();
     const stopFast = setVisibleInterval(loadFast, POLL_MS.homeFast);
     const stopSlow = setVisibleInterval(loadSlow, 90000);
-    const onVisibility = () => { if (document.visibilityState === "visible") loadAll(); };
-    document.addEventListener("visibilitychange", onVisibility);
+    // setVisibleInterval already refreshes both when the tab becomes visible again
     return () => {
       stopFast();
       stopSlow();
-      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [loadAll, loadFast, loadSlow]);
 
