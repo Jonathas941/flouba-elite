@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Send, Bot, ArrowLeft, Sparkles } from "lucide-react";
+import { Send, Bot, ArrowLeft, Sparkles, Clock, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import ReactMarkdown from "react-markdown";
@@ -15,60 +15,94 @@ const SUGGESTIONS = [
 
 export default function AIAnalyst() {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "Hello. I'm your Flouba Elite AI Analyst. I can analyze your trade history, explain why signals were filtered, and suggest improvements to your strategy configuration. What would you like to know?" },
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [conversation, setConversation] = useState(null);
   const scrollRef = useRef(null);
-  const initRef = useRef(false);
-
-  // Create or resume conversation on mount
-  const initConversation = useCallback(async () => {
-    if (initRef.current) return;
-    initRef.current = true;
-    try {
-      const convs = await base44.agents.listConversations({ agent_name: "aiAnalyst" });
-      let conv = convs?.[0];
-      if (!conv) {
-        conv = await base44.agents.createConversation({
-          agent_name: "aiAnalyst",
-          metadata: { name: "Flouba AI Analyst", description: "Trading performance analysis" },
-        });
-      }
-      setConversation(conv);
-      if (conv.messages?.length > 0) setMessages(conv.messages);
-      else setMessages([{ role: "assistant", content: "Hello. I'm your Flouba Elite AI Analyst. I can analyze your trade history, explain why signals were filtered, and suggest improvements to your strategy configuration. What would you like to know?" }]);
-    } catch (e) {
-      setMessages([{ role: "assistant", content: "I couldn't initialize the analyst session. Please try again." }]);
-    }
-  }, []);
-
-  useEffect(() => { initConversation(); }, [initConversation]);
-
-  // Subscribe to conversation updates
-  useEffect(() => {
-    if (!conversation?.id) return;
-    const unsub = base44.agents.subscribeToConversation(conversation.id, (data) => {
-      setMessages(data.messages || []);
-    });
-    return () => unsub();
-  }, [conversation?.id]);
+  const pollingRef = useRef(null);
 
   // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+  }, [messages, loading]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, []);
 
   const send = async (text) => {
     const msg = text || input.trim();
-    if (!msg || !conversation || loading) return;
+    if (!msg || loading) return;
     setInput("");
     setLoading(true);
+
+    // Add user message immediately
+    const userMsg = { role: "user", content: msg };
+    const pendingId = `pending-${Date.now()}`;
+    const placeholderMsg = { role: "assistant", content: "⏳ Analyzing your data… (request sent to AI server)", _pending: true, _id: pendingId };
+    setMessages((prev) => [...prev, userMsg, placeholderMsg]);
+
     try {
-      await base44.agents.addMessage(conversation, { role: "user", content: msg });
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "Connection error — please try again." }]);
-    } finally {
+      // Create an AnalysisRequest — the external Replit server polls these
+      const req = await base44.entities.AnalysisRequest.create({
+        request_type: "general",
+        context: msg,
+        status: "pending",
+      });
+
+      if (!req || !req.id) {
+        setMessages((prev) => prev.map((m) => m._id === pendingId
+          ? { ...m, content: "Failed to create analysis request. Please try again.", _pending: false }
+          : m));
+        setLoading(false);
+        return;
+      }
+
+      // Poll for the result (every 5s, up to ~2 minutes)
+      let attempts = 0;
+      const maxAttempts = 24;
+
+      const poll = async () => {
+        attempts++;
+        try {
+          const record = await base44.entities.AnalysisRequest.get(req.id);
+          if (!record) return;
+
+          if (record.status === "done") {
+            if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+            setMessages((prev) => prev.map((m) => m._id === pendingId
+              ? { ...m, content: record.result || "Analysis completed (no result text).", _pending: false }
+              : m));
+            setLoading(false);
+          } else if (record.status === "error") {
+            if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+            setMessages((prev) => prev.map((m) => m._id === pendingId
+              ? { ...m, content: `Analysis error: ${record.error_message || "Unknown error"}`, _pending: false }
+              : m));
+            setLoading(false);
+          } else if (attempts >= maxAttempts) {
+            if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+            setMessages((prev) => prev.map((m) => m._id === pendingId
+              ? { ...m, content: "Analysis timed out — the AI server may be busy. Please try again in a moment.", _pending: false }
+              : m));
+            setLoading(false);
+          }
+        } catch (e) {
+          // Network blip — keep polling
+        }
+      };
+
+      await poll(); // immediate first check
+      if (loading) {
+        pollingRef.current = setInterval(poll, 5000);
+      }
+    } catch (e) {
+      setMessages((prev) => prev.map((m) => m._id === pendingId
+        ? { ...m, content: "Connection error — please try again.", _pending: false }
+        : m));
       setLoading(false);
     }
   };
@@ -110,13 +144,6 @@ export default function AIAnalyst() {
               {m.role === "user"
                 ? <p className="text-white/90 text-sm">{m.content}</p>
                 : <ReactMarkdown className="text-sm text-white/80 prose prose-sm prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>li]:my-0.5">{m.content}</ReactMarkdown>}
-              {m.tool_calls?.map((tc, j) => (
-                <div key={j} className="mt-1.5 text-[9px] font-mono text-[#00FF41]/40 flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  <span>{tc.name}</span>
-                  <span className={tc.status === "completed" || tc.status === "success" ? "text-[#00FF41]/50" : "text-amber-400/60"}>· {tc.status}</span>
-                </div>
-              ))}
             </div>
           </motion.div>
         ))}
@@ -126,7 +153,7 @@ export default function AIAnalyst() {
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <motion.span className="w-1.5 h-1.5 rounded-full bg-[#00FF41]"
                 animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity }} />
-              <span className="text-[10px] font-mono text-[#00FF41]/40">Analyzing your data…</span>
+              <span className="text-[10px] font-mono text-[#00FF41]/40">Waiting for AI server…</span>
             </div>
           </div>
         )}

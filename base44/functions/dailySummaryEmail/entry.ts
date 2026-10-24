@@ -123,11 +123,16 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-      await base44.asServiceRole.integrations.Core.SendEmail({
-        to: user.email,
-        subject: `Flouba Elite — Daily Summary (${dateLabel})`,
-        body: html,
-      });
+      // SendEmail removed — create in-app Notification (external server handles email/Telegram delivery)
+      await base44.asServiceRole.entities.Notification.create({
+        type: "system",
+        title: `Daily Summary — ${dateLabel}`,
+        message: `Trades: ${todayTrades.length} | Net: ${profitSign}$${totalProfit.toFixed(2)} | Drawdown: $${drawdown.toFixed(2)}${drawdownPct !== null ? ` (${drawdownPct.toFixed(1)}%)` : ""}`,
+        category: totalProfit >= 0 ? "success" : "warning",
+        read: false,
+        meta: { date: dateLabel, trades: todayTrades.length, profit: totalProfit, drawdown, drawdown_pct: drawdownPct },
+        created_by_id: user.id,
+      }).catch(() => {});
       emailsSent++;
     }
 

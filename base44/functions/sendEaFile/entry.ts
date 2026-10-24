@@ -69,8 +69,11 @@ Deno.serve(async (req) => {
     let setUrl = null;
     try {
       const setFile = new File([setContent], setFileName, { type: "text/plain" });
-      const uploadRes = await base44.integrations.Core.UploadFile({ file: setFile });
-      setUrl = uploadRes?.file_url || null;
+      const uploadRes = await base44.integrations.Core.UploadPrivateFile({ file: setFile });
+      if (uploadRes?.file_uri) {
+        const signed = await base44.integrations.Core.CreateFileSignedUrl({ file_uri: uploadRes.file_uri, expires_in: 86400 });
+        setUrl = signed?.signed_url || null;
+      }
     } catch (e) {
       console.log("EA preset upload failed:", e?.message);
     }
@@ -187,11 +190,15 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-    await base44.integrations.Core.SendEmail({
-      to: email,
-      subject: "Flouba Elite — Your EA File & Preset",
-      body: htmlBody,
-    });
+    // SendEmail removed — create in-app Notification (external server handles email/Telegram delivery)
+    await base44.entities.Notification.create({
+      type: "system",
+      title: "EA File & Preset Ready",
+      message: `Your Flouba Elite EA and preset are ready. EA URL: ${eaUrl}${setUrl ? ` | Preset: ${setUrl}` : ""} | Robot_Id: ${robotId}`,
+      category: "info",
+      read: false,
+      meta: { ea_url: eaUrl, set_url: setUrl, robot_id: robotId },
+    }).catch(() => {});
 
     return Response.json({ ok: true, sent: true, email, set_url: setUrl, robot_id: robotId });
   } catch (err) {

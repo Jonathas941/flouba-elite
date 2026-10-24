@@ -78,8 +78,16 @@ async function fetchAccount(base44) {
 
 // ── AI Fallback: When candle data is unavailable (bridge /rates returns 404),
 //    use LLM with web search to analyze live market structure and generate a setup.
-//    Uses gemini_3_flash (only model supporting add_context_from_internet). ──
+// AI scan fallback removed — external Replit server handles market analysis via AnalysisRequest entity.
 async function aiScanFallback(symbol, cfg, base44, userId, quote) {
+  const result = { symbol, found: false, setup: null, score: 0, reason: "" };
+  result.reason = `${symbol}: AI scan fallback disabled — external server handles analysis.`;
+  return result;
+}
+
+// ── DEAD CODE BELOW (kept for reference, never called) ──
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _aiScanFallback_DISABLED(symbol, cfg, base44, userId, quote) {
   const result = { symbol, found: false, setup: null, score: 0, reason: "" };
   const currentPrice = quote?.price;
   if (!currentPrice) {
@@ -88,69 +96,14 @@ async function aiScanFallback(symbol, cfg, base44, userId, quote) {
   }
 
   const sess = sessionInfo(cfg);
-  // Session filter still applies
   if (!sess.open) {
     result.reason = `${symbol}: ${sess.name} — ${sess.reason}.`;
     return result;
   }
 
   try {
-    const res = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an expert Smart Money Concepts (SMC) trading analyst. Analyze the LIVE market structure for ${symbol} (XAUUSD = Gold/USD) right now.
-
-Current price: ${currentPrice}
-Spread: ${quote.spread}
-Timeframe context: Trend=${cfg.trend_timeframe}, Structure=${cfg.structure_timeframe}, Entry=${cfg.entry_timeframe}
-
-TASK: Perform a full SMC market structure analysis using current live market data from the web. Identify:
-1. Break of Structure (BOS) — has price broken a prior swing high/low in the trend direction?
-2. Change of Character (CHOCH) — has the trend shifted, indicating a potential reversal?
-3. Liquidity Sweep — has price swept a liquidity pool (stop hunt) and reversed?
-4. Fair Value Gap (FVG) — is there a visible imbalance zone nearby?
-5. Order Block — is there a valid order block (last opposite candle before impulsive move)?
-6. Market Bias — bullish, bearish, or neutral?
-7. Entry Zone — where is the optimal entry price (order block mid, FVG mid, or key level)?
-8. Stop Loss — where should the stop loss go (below/above the swing low/high)?
-9. Take Profit — where should TP go (next liquidity zone or 2R minimum)?
-10. Confidence score (0-100) — how confident are you in this setup?
-
-RULES:
-- Use REAL current market data from the web. Do NOT hallucinate prices.
-- Entry must be at a valid SMC zone (order block, FVG, supply/demand, or key level).
-- Stop loss must be beyond the swing low (BUY) or swing high (SELL).
-- Risk-to-reward must be at least ${cfg.min_rr || 2}:1.
-- Only return a setup if confidence >= ${cfg.min_signal_score || 70}.
-- If no valid setup exists, return found=false with a clear reason.
-
-Respond with your analysis as JSON.`,
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: {
-        type: "object",
-        properties: {
-          found: { type: "boolean", description: "Whether a valid setup was found" },
-          direction: { type: "string", enum: ["BUY", "SELL"], description: "Trade direction" },
-          entry_price: { type: "number", description: "Entry price" },
-          stop_loss: { type: "number", description: "Stop loss price" },
-          take_profit: { type: "number", description: "Take profit price" },
-          order_type: { type: "string", enum: ["BUY_LIMIT", "SELL_LIMIT", "BUY_STOP", "SELL_STOP"], description: "MT5 order type" },
-          bos: { type: "boolean", description: "Break of Structure detected" },
-          choch: { type: "boolean", description: "Change of Character detected" },
-          liquidity_sweep: { type: "boolean", description: "Liquidity sweep detected" },
-          fvg: { type: "boolean", description: "Fair Value Gap detected" },
-          order_block: { type: "boolean", description: "Order block detected" },
-          market_bias: { type: "string", enum: ["bullish", "bearish", "neutral"] },
-          confidence: { type: "number", description: "Confidence score 0-100" },
-          zone_high: { type: "number", description: "Upper edge of entry zone" },
-          zone_low: { type: "number", description: "Lower edge of entry zone" },
-          zone_type: { type: "string", enum: ["order_block", "fvg", "supply_demand", "fib", "breakout"] },
-          swing_high: { type: "number", description: "Recent swing high" },
-          swing_low: { type: "number", description: "Recent swing low" },
-          reasoning: { type: "string", description: "Detailed SMC reasoning" },
-        },
-        required: ["found", "confidence", "market_bias", "reasoning"],
-      },
-    });
+    // InvokeLLM removed — external Replit server handles AI analysis via AnalysisRequest entity
+    const res = null;
 
     if (!res || !res.found) {
       result.reason = `${symbol}: AI scan — no valid setup found. ${res?.reasoning || "Market conditions not optimal."}`;

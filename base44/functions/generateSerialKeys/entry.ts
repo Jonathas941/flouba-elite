@@ -98,11 +98,15 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-      await base44.integrations.Core.SendEmail({
-        to: email,
-        subject: `Flouba Elite — Your ${plan} Serial Key`,
-        body: html,
-      }).catch((e) => console.log("serial email failed:", e?.message));
+      // SendEmail removed — create in-app Notification (external server handles email/Telegram delivery)
+      await base44.asServiceRole.entities.Notification.create({
+        type: "system",
+        title: `Your ${plan} Serial Key`,
+        message: `Keys: ${codes.join(", ")} | Plan: ${plan} (${durationDays} days). Redeem under Subscription > Redeem Key.`,
+        category: "info",
+        read: false,
+        meta: { keys: codes, plan, duration_days: durationDays },
+      }).catch((e) => console.log("serial notification failed:", e?.message));
     }
 
     return Response.json({ success: true, plan, duration_days: durationDays, count, keys: codes });
