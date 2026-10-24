@@ -85,6 +85,10 @@ Deno.serve(async (req) => {
     const mode = settings.trading_mode || "test";
     const price = num(body.price);
     const positionSize = num(body.position_size || body.strategy_position);
+    const sl = num(body.sl);
+    const tp1 = num(body.tp1);
+    const tp2 = num(body.tp2);
+    const tp3 = num(body.tp3);
     const rawPayloadBase = { ...body };
     delete rawPayloadBase.secret;
 
@@ -98,6 +102,7 @@ Deno.serve(async (req) => {
         quantity: num(body.quantity),
         price,
         position_size: positionSize,
+        sl, tp1, tp2, tp3,
         mode,
         status: "Rejected",
         message,
@@ -188,6 +193,7 @@ Deno.serve(async (req) => {
       quantity,
       price,
       position_size: positionSize,
+      sl, tp1, tp2, tp3,
       mode,
       status: "Validated",
       message: "Signal validated",
@@ -274,11 +280,16 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, status: "error", alert_id: alertId, message: `Unsupported action for MT5: ${action}` });
       }
 
+      // tp sent to MT5 = tp3 (fallback tp2 → tp1 → body.tp). The EA trade manager
+      // on the VPS handles TP1/TP2 partial closes and trailing, so only one TP goes to MT5.
+      const mt5Tp = tp3 ?? tp2 ?? tp1 ?? num(body.tp);
+
       const command = {
-        commandType,
-        direction: action,
+        action,
         symbol,
-        lotSize: Number(quantity),
+        lot: Number(quantity),
+        sl: sl != null ? Number(sl) : undefined,
+        tp: mt5Tp != null ? Number(mt5Tp) : undefined,
       };
 
       const idemKey = `tv-${commandType}-${robotId}-${symbol}-${alertId}`;

@@ -140,10 +140,12 @@ export default function TradingViewSignals() {
                       <span className="text-[9px] text-white/30">{formatTime(sig.received_at || sig.timestamp || sig.time)}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-[9px] text-white/40">
+                  <div className="flex items-center gap-3 text-[9px] text-white/40 flex-wrap">
                     <span>Lot: <span className="text-white/70 font-semibold">{sig.lot ?? sig.volume ?? "--"}</span></span>
                     <span>SL: <span className="text-white/70 font-semibold">{sig.sl ?? sig.stop_loss ?? "--"}</span></span>
-                    <span>TP: <span className="text-white/70 font-semibold">{sig.tp ?? sig.take_profit ?? "--"}</span></span>
+                    <span>TP1: <span className="text-white/70 font-semibold">{sig.tp1 ?? "--"}</span></span>
+                    <span>TP2: <span className="text-white/70 font-semibold">{sig.tp2 ?? "--"}</span></span>
+                    <span>TP3: <span className="text-white/70 font-semibold">{sig.tp3 ?? "--"}</span></span>
                     {sig.strategy && <span>Strat: <span className="text-white/70 font-semibold truncate">{sig.strategy}</span></span>}
                   </div>
                   {rejected && sig.rejection_reason && (

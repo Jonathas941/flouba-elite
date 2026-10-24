@@ -29,6 +29,22 @@
       "type": "number",
       "description": "TradingView strategy_position_size value at alert time."
     },
+    "sl": {
+      "type": "number",
+      "description": "Stop loss price from the TradingView alert."
+    },
+    "tp1": {
+      "type": "number",
+      "description": "Take profit target 1 from the TradingView alert."
+    },
+    "tp2": {
+      "type": "number",
+      "description": "Take profit target 2 from the TradingView alert."
+    },
+    "tp3": {
+      "type": "number",
+      "description": "Take profit target 3 from the TradingView alert. This is the TP sent to MT5."
+    },
     "mode": {
       "type": "string",
       "enum": [
