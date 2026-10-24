@@ -26,9 +26,9 @@ const BASE = (() => {
 // The server moved to Clerk sessions and no longer issues JWTs (/auth/token is
 // gone), so Base44 now authenticates server-to-server with the account's
 // X-Api-Key, which the server maps to the account slug.
-// Order: user's stored key -> FLOUBA_ACCOUNT_API_KEY secret -> provision.
+// Order: FLOUBA_ACCOUNT_API_KEY secret (explicit override) -> user's stored key -> provision.
 async function resolveBridgeToken(base44, user) {
-  let apiKey = user?.mt5_api_key || Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || null;
+  let apiKey = Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || user?.mt5_api_key || null;
 
   if (!apiKey) {
     const provisionSecret = Deno.env.get("PROVISION_SECRET");
