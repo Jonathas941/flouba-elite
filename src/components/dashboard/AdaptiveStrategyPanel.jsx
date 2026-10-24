@@ -43,9 +43,9 @@ function countdown(iso) {
   return `${h}h ${m}m`;
 }
 
-export default function AdaptiveStrategyPanel({ connected }) {
+export default function AdaptiveStrategyPanel({ connected, settings: propSettings }) {
   const { toast } = useToast();
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState(propSettings || null);
   const [metrics, setMetrics] = useState({ swing: null, smc: null, tpr: null, gdb: null, hybrid: null, nqkz: null, msbos: null, ofor: null, gmr: null });
   const [lastSwitch, setLastSwitch] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
@@ -54,12 +54,11 @@ export default function AdaptiveStrategyPanel({ connected }) {
 
   const load = useCallback(async () => {
     try {
-      const [stg, mtr, sw] = await Promise.all([
-        base44.entities.BotSettings.list("-created_date", 1).catch(() => []),
+      const [mtr, sw] = await Promise.all([
         base44.entities.StrategyMetrics.list("-created_date", 50).catch(() => []),
         base44.entities.StrategySwitchLog.list("-created_date", 1).catch(() => []),
       ]);
-      setSettings(stg?.[0] || null);
+      setSettings(prev => prev || propSettings || null);
       const map = { swing: null, smc: null, tpr: null, gdb: null, hybrid: null, nqkz: null, msbos: null, ofor: null, gmr: null };
       for (const m of mtr || []) {
         if (map[m.strategy_key] !== undefined) map[m.strategy_key] = m;
@@ -67,7 +66,7 @@ export default function AdaptiveStrategyPanel({ connected }) {
       setMetrics(map);
       setLastSwitch(sw?.[0] || null);
     } catch { /* ignore */ }
-  }, []);
+  }, [propSettings]);
 
   useEffect(() => {
     load();

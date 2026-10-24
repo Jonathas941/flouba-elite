@@ -22,13 +22,15 @@ const BASE = (() => {
   return v + "/api";
 })();
 
-// Exchange the user's api_key for a 90-day JWT. The server scopes every call to
-// the slug embedded in that token; there is no account id in any path or query.
+// Resolve the account API key used to call the Replit Elite Server.
+// The server moved to Clerk sessions and no longer issues JWTs (/auth/token is
+// gone), so Base44 now authenticates server-to-server with the account's
+// X-Api-Key, which the server maps to the account slug.
+// Order: user's stored key -> FLOUBA_ACCOUNT_API_KEY secret -> provision.
 async function resolveBridgeToken(base44, user) {
-  let token = user?.flouba_token;
-  let apiKey = user?.mt5_api_key;
+  let apiKey = user?.mt5_api_key || Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || null;
 
-  if (!token && !apiKey) {
+  if (!apiKey) {
     const provisionSecret = Deno.env.get("PROVISION_SECRET");
     if (!provisionSecret) return null;
     const pr = await fetch(`${BASE}/provision/user`, {
@@ -39,33 +41,21 @@ async function resolveBridgeToken(base44, user) {
     const pj = pr ? await pr.json().catch(() => ({})) : {};
     if (!pj?.success || !pj?.api_key) return null;
     apiKey = pj.api_key;
-    token = pj.user_token || null;
-    const upd = { mt5_api_key: apiKey };
-    if (pj.user_token) upd.flouba_token = pj.user_token;
-    await base44.auth.updateMe(upd).catch(() => {});
+    await base44.auth.updateMe({ mt5_api_key: apiKey }).catch(() => {});
   }
-
-  if (!token && apiKey) {
-    const tr = await fetch(`${BASE}/auth/token`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: apiKey }),
-    }).catch(() => null);
-    const tj = tr ? await tr.json().catch(() => ({})) : {};
-    token = tj?.token || null;
-  }
-  return token;
+  return apiKey;
 }
 
 // Per-request transport. The token is captured in a closure rather than kept in
 // module scope on purpose: Deno reuses an isolate across concurrent requests, so
 // a shared mutable token could leak one user's account data into another's reply.
-function makeBridgeCall(token) {
+function makeBridgeCall(apiKey) {
   return async function bridgeCall(method, path, body, extraHeaders) {
     if (!BASE) return { ok: false, status: 503, data: null, error: "FLOUBA_BACKEND_URL not set" };
     const auth = {
       "Content-Type": "application/json",
       "x-request-id": crypto.randomUUID(),
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...(apiKey ? { "X-Api-Key": apiKey } : {}),
     };
     let res = null;
     let lastErr = null;

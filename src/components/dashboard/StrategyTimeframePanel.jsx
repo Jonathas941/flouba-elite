@@ -26,7 +26,7 @@ function Chip({ label, value, tone = "neutral" }) {
   );
 }
 
-export default function StrategyTimeframePanel() {
+export default function StrategyTimeframePanel({ settings: propSettings }) {
   const [strategy, setStrategy] = useState(null);
   const [symbol, setSymbol] = useState(null);
   const [chartTf, setChartTf] = useState(null);
@@ -36,10 +36,9 @@ export default function StrategyTimeframePanel() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [robotRes, scanRes, stgRes] = await Promise.all([
+        const [robotRes, scanRes] = await Promise.all([
           mt5Api.robotStatus().catch(() => null),
           mt5Api.scannerStatus().catch(() => null),
-          base44.entities.BotSettings.list("-created_date", 1).catch(() => []),
         ]);
         if (robotRes?.ok && robotRes.data?.robot) {
           const r = robotRes.data.robot;

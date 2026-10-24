@@ -65,13 +65,7 @@ export default function SignalAssistantPanel({ connected }) {
     } catch {}
   }, []);
 
-  useEffect(() => { loadData(); const t = setInterval(loadData, 10000); return () => clearInterval(t); }, [loadData]);
-
-  // Subscribe to signal changes
-  useEffect(() => {
-    const unsub = base44.entities.FloubaSignal.subscribe(() => loadData());
-    return unsub;
-  }, [loadData]);
+  useEffect(() => { loadData(); const t = setInterval(loadData, 30000); return () => clearInterval(t); }, [loadData]);
 
   const scanMarket = useCallback(async () => {
     if (!connected) { navigate("/connect-mt5"); return; }

@@ -207,10 +207,10 @@ export default function Settings() {
         <StrategyControlCard />
 
         {/* Strategy Timeframe Engine */}
-        <StrategyTimeframePanel />
+        <StrategyTimeframePanel settings={botSettings} />
 
         {/* Adaptive Strategy Manager */}
-        <AdaptiveStrategyPanel connected={connected} />
+        <AdaptiveStrategyPanel connected={connected} settings={botSettings} />
 
         {/* ── Tools & Resources (moved from Home) ── */}
         <GlassCard className="p-0 overflow-hidden">
