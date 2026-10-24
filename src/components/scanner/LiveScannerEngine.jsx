@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import GlassCard from "@/components/GlassCard";
 import { mt5Api } from "@/lib/mt5Api";
+import { setVisibleInterval, POLL_MS } from "@/lib/visibleInterval";
 import {
   TrendingUp, TrendingDown, Zap, Radio, WifiOff,
   Target, AlertTriangle, Brain, CheckCircle, XCircle,
@@ -103,8 +104,8 @@ export default function LiveScannerEngine({ onScanUpdate }) {
 
   useEffect(() => {
     poll();
-    pollRef.current = setInterval(poll, 2000);
-    return () => clearInterval(pollRef.current);
+    const stop = setVisibleInterval(poll, POLL_MS.liveScanner);
+    return stop;
   }, [poll]);
 
   if (loading) return (
