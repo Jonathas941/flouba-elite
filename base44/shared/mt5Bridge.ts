@@ -68,6 +68,7 @@ export async function postCommand(robotId, command, idemKey) {
     if (command.sl != null) body.sl = Number(command.sl);
     if (command.tp != null) body.tp = Number(command.tp);
     if (command.ticket != null) body.ticket = Number(command.ticket);
+    if (command.comment) body.comment = String(command.comment).slice(0, 31);
 
     const res = await fetch(`${B44}${route}`, {
       method: "POST",

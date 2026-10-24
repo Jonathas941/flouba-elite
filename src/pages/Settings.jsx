@@ -170,6 +170,17 @@ export default function Settings() {
           {num("daily_loss_limit", "Loss Limit $")}
         </GlassCard>
 
+        {/* TradingView Signal Execution */}
+        <GlassCard className="grid grid-cols-2 gap-3">
+          {num("tv_risk_percent", "TV Risk %")}
+          {num("tv_max_total_lot", "TV Max Total Lot")}
+          {num("tv_contract_size", "TV Contract Size")}
+          {num("tv_max_open_signal_groups", "TV Max Open Groups")}
+          {num("tv_tp_split_1", "TP1 Split %")}
+          {num("tv_tp_split_2", "TP2 Split %")}
+          {num("tv_tp_split_3", "TP3 Split %")}
+        </GlassCard>
+
         {/* Trade Manager (read-only info) */}
         <TradeManagerCard />
 

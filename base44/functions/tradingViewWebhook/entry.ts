@@ -1,17 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { postCommand } from '../../shared/mt5Bridge.ts';
+import { postCommand, getAccount } from '../../shared/mt5Bridge.ts';
 
 // ═══════════════════════════════════════════════════════════════
-// TradingView Webhook Receiver — Hybrid Auto Execution
+// TradingView Webhook Receiver — 3-Trade Split Execution
 // POST /api/functions/tradingViewWebhook
 //
-// Flow: TradingView alert → webhook → validate → execute via
-// MT5 robot bridge OR broker API (OANDA/cTrader) → save → display.
+// Flow: TradingView alert → webhook → validate → calculate lot from
+// balance → split into 3 legs (TP1/TP2/TP3) → execute via Replit
+// server → save → display.
 //
-// execution_target:
-//   auto       → MT5 robot if BotSettings.mt5_account set, else broker API
-//   mt5_robot  → force MT5 bridge (Flouba Lite command queue)
-//   broker_api → force OANDA/cTrader via tradingExecute
+// The EA trade manager on the VPS handles TP1/TP2 partial closes
+// and trailing, so only one TP goes to MT5 per leg.
 // ═══════════════════════════════════════════════════════════════
 
 function normalizeSymbol(raw) {
@@ -41,13 +40,15 @@ function normalizeAction(raw) {
 
 function num(v) { return v == null || v === "" ? null : Number(v); }
 
-// Map TradingView actions to MT5 bridge command types
-const MT5_COMMAND_MAP = {
-  BUY: "OPEN_BUY",
-  SELL: "OPEN_SELL",
-  CLOSE: "CLOSE_ALL",
-  CLOSE_BUY: "CLOSE_BUY",
-  CLOSE_SELL: "CLOSE_SELL",
+function floorLot(v) { return Math.floor(v * 100) / 100; }
+
+// Map TradingView actions to Replit trade routes
+const ROUTE_MAP = {
+  BUY: "buy",
+  SELL: "sell",
+  CLOSE: "close-all",
+  CLOSE_BUY: "close",
+  CLOSE_SELL: "close",
 };
 
 Deno.serve(async (req) => {
@@ -70,17 +71,13 @@ Deno.serve(async (req) => {
     );
     let settings = settingsList?.[0];
     if (!settings) {
-      // Cannot attribute this to a user, so nothing can be persisted. Log it so a
-      // mismatched secret is at least visible in function logs rather than silent.
       console.warn("[tradingViewWebhook] rejected: no TradingViewSettings matches the supplied webhook secret");
       return Response.json({ success: false, status: "error", message: "Invalid webhook secret" }, { status: 403 });
     }
 
     const userId = settings.created_by_id;
 
-    // Identify the alert up front so REJECTIONS can be persisted too. Previously every
-    // validation failure returned before any TradingViewSignal row was written, so a
-    // misconfigured alert produced zero records and left nothing to debug.
+    // ── Parse fields ──
     const alertId = body.alert_id || `tv-${Date.now()}`;
     const mode = settings.trading_mode || "test";
     const price = num(body.price);
@@ -148,27 +145,7 @@ Deno.serve(async (req) => {
       return await reject("CLOSE action not allowed", 403);
     }
 
-    // ── Determine quantity ──
-    let quantity = num(body.quantity);
-    if (settings.use_alert_quantity) {
-      if (quantity == null || quantity <= 0) {
-        return await reject(
-          `Invalid or missing quantity (${body.quantity}). ` +
-          `use_alert_quantity is ON, so the alert JSON must supply a positive "quantity".`,
-          400
-        );
-      }
-    } else {
-      quantity = settings.fixed_order_size ?? 0.01;
-    }
-
-    // ── Check max order size ──
-    const maxSize = settings.max_order_size ?? 0.1;
-    if (quantity > maxSize) {
-      return await reject(`Quantity ${quantity} exceeds max_order_size ${maxSize}`, 403);
-    }
-
-    // ── Dedup: check for existing alert_id ──
+    // ── Dedup by alert_id ──
     const existing = await base44.asServiceRole.entities.TradingViewSignal.filter(
       { created_by_id: userId, alert_id: alertId }, "-created_date", 1
     );
@@ -181,7 +158,178 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Save received signal ──
+    // ═══════════════════════════════════════════════════════════════
+    // CLOSE actions — no lot calculation needed
+    // ═══════════════════════════════════════════════════════════════
+    if (action === "CLOSE" || action === "CLOSE_BUY" || action === "CLOSE_SELL") {
+      const rawPayload = { ...body };
+      delete rawPayload.secret;
+
+      const signal = await base44.asServiceRole.entities.TradingViewSignal.create({
+        created_by_id: userId,
+        alert_id: alertId,
+        symbol,
+        action,
+        quantity: num(body.quantity),
+        price,
+        position_size: positionSize,
+        sl, tp1, tp2, tp3,
+        mode,
+        status: "Validated",
+        message: "Close signal validated",
+        raw_payload: rawPayload,
+        received_at: new Date().toISOString(),
+      });
+
+      if (mode === "test") {
+        await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+          status: "Simulated",
+          message: "Test mode — close simulated.",
+          executed_at: new Date().toISOString(),
+        });
+        return Response.json({ success: true, status: "simulated", alert_id: alertId, message: "Test mode — close simulated" });
+      }
+
+      // Execute close via Replit
+      const route = ROUTE_MAP[action];
+      const execRes = await postCommand("", { action: route === "close-all" ? "close_all" : "close", symbol }, `tv-close-${alertId}`);
+
+      if (execRes.ok) {
+        const orderId = execRes?.data?.commandId || execRes?.data?.id || `tv-close-${alertId}`;
+        await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+          status: "Executed",
+          order_id: String(orderId),
+          message: `Close executed — ${action}`,
+          executed_at: new Date().toISOString(),
+        });
+        await base44.asServiceRole.entities.Notification.create({
+          created_by_id: userId,
+          type: "trade", title: "Position Closed (TV Signal)",
+          message: `${action} ${symbol}`,
+          category: "info", read: false,
+          meta: { source: "tradingview_webhook", alert_id: alertId, symbol, action },
+        }).catch(() => {});
+        return Response.json({ success: true, status: "executed", alert_id: alertId, order_id: String(orderId), message: "Close executed" });
+      }
+
+      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
+        status: "Error",
+        message: `Close failed: ${execRes.error}`,
+        executed_at: new Date().toISOString(),
+      });
+      return Response.json({ success: false, status: "error", alert_id: alertId, message: `Close failed: ${execRes.error}` });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // BUY / SELL — 3-trade split execution
+    // ═══════════════════════════════════════════════════════════════
+
+    // ── Validate SL and TP fields ──
+    if (sl == null) return await reject("Missing 'sl' (stop loss) in alert JSON", 400);
+    if (tp1 == null) return await reject("Missing 'tp1' in alert JSON", 400);
+    if (tp2 == null) return await reject("Missing 'tp2' in alert JSON", 400);
+    if (tp3 == null) return await reject("Missing 'tp3' in alert JSON", 400);
+
+    // ── Validate SL/TP are on the correct side of entry ──
+    // BUY:  sl < entry < tp1 < tp2 < tp3
+    // SELL: sl > entry > tp1 > tp2 > tp3
+    const entry = price ?? positionSize;
+    if (entry == null) return await reject("Missing 'price' (entry) in alert JSON", 400);
+
+    if (action === "BUY") {
+      if (!(sl < entry && entry < tp1 && tp1 < tp2 && tp2 < tp3)) {
+        return await reject(`Invalid SL/TP order for BUY: need sl < entry < tp1 < tp2 < tp3. Got sl=${sl}, entry=${entry}, tp1=${tp1}, tp2=${tp2}, tp3=${tp3}`, 400);
+      }
+    } else {
+      if (!(sl > entry && entry > tp1 && tp1 > tp2 && tp2 > tp3)) {
+        return await reject(`Invalid SL/TP order for SELL: need sl > entry > tp1 > tp2 > tp3. Got sl=${sl}, entry=${entry}, tp1=${tp1}, tp2=${tp2}, tp3=${tp3}`, 400);
+      }
+    }
+
+    // ── Load BotSettings for lot calculation ──
+    const botList = await base44.asServiceRole.entities.BotSettings.filter(
+      { created_by_id: userId }, "-created_date", 1
+    ).catch(() => []);
+    const bot = botList?.[0] || {};
+    const robotId = String(bot.mt5_account || "");
+
+    if (!robotId && mode === "live") {
+      return await reject("No MT5 account linked — cannot execute live trade", 403);
+    }
+
+    const riskPercent = bot.tv_risk_percent ?? 1.0;
+    const maxTotalLot = bot.tv_max_total_lot ?? 1.0;
+    const contractSize = bot.tv_contract_size ?? 100;
+    const tpSplit1 = bot.tv_tp_split_1 ?? 40;
+    const tpSplit2 = bot.tv_tp_split_2 ?? 30;
+    const tpSplit3 = bot.tv_tp_split_3 ?? 30;
+    const maxOpenGroups = bot.tv_max_open_signal_groups ?? 1;
+
+    // ── Get live balance from Replit server ──
+    const acctRes = await getAccount(robotId);
+    const balance = acctRes?.balance;
+    if (!acctRes?.ok || balance == null || balance <= 0) {
+      return await reject(`Cannot get live account balance: ${acctRes?.error || "balance unavailable"}`, 503);
+    }
+
+    // ── Calculate total_lot ──
+    const slDistance = Math.abs(entry - sl);
+    if (slDistance <= 0) return await reject("SL distance is zero — cannot calculate lot size", 400);
+
+    const riskAmount = balance * (riskPercent / 100);
+    let totalLot = riskAmount / (slDistance * contractSize);
+    totalLot = Math.floor(totalLot * 100) / 100; // round DOWN to 0.01
+    if (totalLot > maxTotalLot) totalLot = maxTotalLot;
+    if (totalLot < 0.01) totalLot = 0.01; // minimum, but see small-account logic below
+
+    // ── Split into 3 legs ──
+    let leg1Lot = Math.floor((totalLot * tpSplit1 / 100) * 100) / 100;
+    let leg2Lot = Math.floor((totalLot * tpSplit2 / 100) * 100) / 100;
+    let leg3Lot = Math.floor((totalLot * tpSplit3 / 100) * 100) / 100;
+
+    // ── Small account: only open legs that reach 0.01 ──
+    const legs = [
+      { lot: leg1Lot, tp: tp1, label: "TP1" },
+      { lot: leg2Lot, tp: tp2, label: "TP2" },
+      { lot: leg3Lot, tp: tp3, label: "TP3" },
+    ].filter(l => l.lot >= 0.01);
+
+    // If no legs reach 0.01, try opening ONE trade of 0.01 with tp = tp2
+    if (legs.length === 0) {
+      // Check if real risk with 0.01 lot is within risk_percent × 1.5
+      const realRisk = 0.01 * slDistance * contractSize;
+      if (realRisk <= riskAmount * 1.5) {
+        legs.length = 0;
+        legs.push({ lot: 0.01, tp: tp2, label: "TP2" });
+      } else {
+        return await reject(
+          `lot below minimum — calculated total_lot ${totalLot.toFixed(2)} would risk $${realRisk.toFixed(2)} (limit $${(riskAmount * 1.5).toFixed(2)})`,
+          400
+        );
+      }
+    }
+
+    // ── Check max open signal groups ──
+    const openSignals = await base44.asServiceRole.entities.TradingViewSignal.filter(
+      { created_by_id: userId, status: { $in: ["Executed", "Partial"] } }, "-created_date", 50
+    ).catch(() => []);
+
+    // Count distinct alert_ids that have executed legs (each alert = 1 group)
+    const openGroups = new Set();
+    for (const s of openSignals) {
+      const sLegs = s.legs;
+      if (Array.isArray(sLegs) && sLegs.some(l => l.status === "opened")) {
+        openGroups.add(s.alert_id);
+      }
+    }
+    if (openGroups.size >= maxOpenGroups) {
+      return await reject(
+        `Max ${maxOpenGroups} open signal group(s) reached — ${openGroups.size} currently active`,
+        403
+      );
+    }
+
+    // ── Save validated signal ──
     const rawPayload = { ...body };
     delete rawPayload.secret;
 
@@ -190,234 +338,121 @@ Deno.serve(async (req) => {
       alert_id: alertId,
       symbol,
       action,
-      quantity,
+      quantity: num(body.quantity),
       price,
       position_size: positionSize,
       sl, tp1, tp2, tp3,
+      total_lot: totalLot,
       mode,
       status: "Validated",
-      message: "Signal validated",
+      message: `Validated — ${legs.length} leg(s), total ${legs.reduce((s, l) => s + l.lot, 0).toFixed(2)} lot`,
       raw_payload: rawPayload,
       received_at: new Date().toISOString(),
     });
 
-    // ── TEST MODE: simulate, don't execute ──
+    // ── TEST MODE: simulate ──
     if (mode === "test") {
+      const simLegs = legs.map(l => ({ ...l, status: "simulated", order_id: null, error: null }));
       await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
         status: "Simulated",
-        message: "Test mode — order simulated. No live execution.",
+        legs: simLegs,
+        message: `Test mode — ${simLegs.length} leg(s) simulated. Balance $${balance.toFixed(2)}, total_lot ${totalLot.toFixed(2)}.`,
         executed_at: new Date().toISOString(),
       });
-
       return Response.json({
         success: true,
         status: "simulated",
         alert_id: alertId,
-        symbol,
-        action,
-        quantity,
-        message: "Test mode — order simulated successfully",
+        symbol, action,
+        total_lot: totalLot,
+        legs: simLegs,
+        balance,
+        message: "Test mode — order simulated",
       });
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LIVE MODE — Hybrid Auto Execution
+    // LIVE MODE — Execute 3 legs via Replit server
     // ═══════════════════════════════════════════════════════════════
-    const execTarget = settings.execution_target || "auto";
+    const route = ROUTE_MAP[action]; // "buy" or "sell"
+    const shortId = alertId.slice(-8);
+    const executedLegs = [];
+    let anyFailed = false;
 
-    // ── Check if MT5 robot is available ──
-    let hasMt5 = false;
-    let botSettings = null;
-    if (execTarget === "auto" || execTarget === "mt5_robot") {
-      // Scope strictly to the OWNER of the settings row this webhook secret resolved to.
-      //
-      // This previously filtered on `app_id`, which is the SAME value for every user of
-      // the app -- so on a multi-user install it could select a different user's
-      // BotSettings and place the order on THEIR MT5 account. Ownership, not app
-      // membership, is what identifies the target account.
-      const botList = await base44.asServiceRole.entities.BotSettings.filter(
-        { created_by_id: userId }, "-created_date", 10
-      ).catch(() => []);
-      botSettings = botList?.find(b => b.mt5_account) || null;
-      if (botSettings?.mt5_account) {
-        hasMt5 = true;
-      }
-    }
-
-    // ── Route execution ──
-    const useMt5 = (execTarget === "mt5_robot") || (execTarget === "auto" && hasMt5);
-
-    // execution_target "mt5_robot" is an explicit instruction, not a preference. If no
-    // MT5 account is linked, fail loudly rather than silently falling through to the
-    // broker API and filling on a venue the user did not choose.
-    if (execTarget === "mt5_robot" && !hasMt5) {
-      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
-        status: "Rejected",
-        message: "execution_target is mt5_robot but no MT5 account is linked for this user. " +
-                 "Not falling back to the broker API.",
-        executed_at: new Date().toISOString(),
-      }).catch(() => {});
-      return Response.json({
-        success: false,
-        status: "error",
-        alert_id: alertId,
-        message: "execution_target is mt5_robot but no MT5 account is linked for this user.",
-      }, { status: 409 });
-    }
-
-    if (useMt5 && hasMt5) {
-      // ═══════════════════════════════════════════════════════════════
-      // MT5 Robot Bridge Execution (Flouba Lite command queue)
-      // ═══════════════════════════════════════════════════════════════
-      const robotId = String(botSettings.mt5_account);
-      const commandType = MT5_COMMAND_MAP[action];
-      if (!commandType) {
-        await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
-          status: "Rejected",
-          message: `Unsupported action for MT5: ${action}`,
-          executed_at: new Date().toISOString(),
-        });
-        return Response.json({ success: false, status: "error", alert_id: alertId, message: `Unsupported action for MT5: ${action}` });
-      }
-
-      // tp sent to MT5 = tp3 (fallback tp2 → tp1 → body.tp). The EA trade manager
-      // on the VPS handles TP1/TP2 partial closes and trailing, so only one TP goes to MT5.
-      const mt5Tp = tp3 ?? tp2 ?? tp1 ?? num(body.tp);
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i];
+      const comment = `FGS|${shortId}|${leg.label}`.slice(0, 31);
+      const idemKey = `tv-${route}-${robotId}-${symbol}-${alertId}-${leg.label}`;
 
       const command = {
-        action,
+        action: route,
         symbol,
-        lot: Number(quantity),
+        lot: leg.lot,
         sl: sl != null ? Number(sl) : undefined,
-        tp: mt5Tp != null ? Number(mt5Tp) : undefined,
+        tp: leg.tp != null ? Number(leg.tp) : undefined,
+        comment,
       };
 
-      const idemKey = `tv-${commandType}-${robotId}-${symbol}-${alertId}`;
       const execRes = await postCommand(robotId, command, idemKey);
 
       if (execRes.ok) {
         const orderId = execRes?.data?.commandId || execRes?.data?.id || idemKey;
-        await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
-          status: "Executed",
-          order_id: String(orderId),
-          message: `MT5 robot executed — command ${commandType} queued for robot ${robotId}`,
-          executed_at: new Date().toISOString(),
-        });
-
-        // ── Send notification ──
-        await base44.asServiceRole.entities.Notification.create({
-          created_by_id: userId,
-          type: "trade",
-          title: "Trade Executed (MT5 Robot)",
-          message: `${action} ${symbol} • ${quantity} lot • Robot ${robotId}`,
-          category: "success",
-          read: false,
-          meta: {
-            source: "tradingview_webhook",
-            execution_path: "mt5_robot",
-            alert_id: alertId,
-            order_id: String(orderId),
-            symbol,
-            action,
-            quantity,
-          },
-        }).catch(() => {});
-
-        return Response.json({
-          success: true,
-          status: "executed",
-          alert_id: alertId,
-          order_id: String(orderId),
-          execution_path: "mt5_robot",
-          symbol,
-          action,
-          quantity,
-          message: "MT5 robot executed the order successfully",
-        });
+        executedLegs.push({ ...leg, status: "opened", order_id: String(orderId), error: null });
+      } else {
+        executedLegs.push({ ...leg, status: "failed", order_id: null, error: execRes.error || "Unknown error" });
+        anyFailed = true;
       }
-
-      // ── MT5 execution failed ──
-      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
-        status: "Error",
-        message: `MT5 bridge error: ${execRes.error}`,
-        executed_at: new Date().toISOString(),
-      });
-
-      return Response.json({
-        success: false,
-        status: "error",
-        alert_id: alertId,
-        execution_path: "mt5_robot",
-        message: `MT5 bridge error: ${execRes.error}`,
-      });
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Broker API Execution (OANDA / cTrader via tradingExecute)
-    // ═══════════════════════════════════════════════════════════════
-    const execRes = await base44.asServiceRole.functions.invoke("tradingExecute", {
-      user_id: userId,
-      alert_id: alertId,
-      symbol,
-      action,
-      quantity,
-      price,
-      mode: "live",
-    }).catch((e) => ({ data: { success: false, status: "error", message: e.message } }));
+    // ── Update signal record ──
+    const openedCount = executedLegs.filter(l => l.status === "opened").length;
+    const failedCount = executedLegs.filter(l => l.status === "failed").length;
+    const finalStatus = openedCount === 0 ? "Error" : (failedCount > 0 ? "Partial" : "Executed");
 
-    const exec = execRes?.data || execRes;
-
-    if (exec?.success && exec?.order_id) {
-      await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
-        status: "Executed",
-        order_id: exec.order_id,
-        message: `Broker API executed — order ID ${exec.order_id}`,
-        executed_at: new Date().toISOString(),
-      });
-
-      await base44.asServiceRole.entities.Notification.create({
-        created_by_id: userId,
-        type: "trade",
-        title: "Trade Executed (Broker API)",
-        message: `${action} ${symbol} • ${quantity} lot • Order ${exec.order_id}`,
-        category: "success",
-        read: false,
-        meta: {
-          source: "tradingview_webhook",
-          execution_path: "broker_api",
-          alert_id: alertId,
-          order_id: exec.order_id,
-          symbol,
-          action,
-          quantity,
-        },
-      }).catch(() => {});
-
-      return Response.json({
-        success: true,
-        status: "executed",
-        alert_id: alertId,
-        order_id: exec.order_id,
-        execution_path: "broker_api",
-        symbol,
-        action,
-        quantity,
-        message: "Order executed successfully via broker API",
-      });
-    }
-
-    // ── Execution failed ──
     await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
-      status: "Error",
-      message: exec?.message || "Execution API returned an error",
+      status: finalStatus,
+      legs: executedLegs,
+      message: `${openedCount}/${executedLegs.length} leg(s) opened${failedCount > 0 ? ` — ${failedCount} failed` : ""}`,
       executed_at: new Date().toISOString(),
     });
 
+    // ── Notification ──
+    const notifCategory = openedCount === 0 ? "danger" : (failedCount > 0 ? "warning" : "success");
+    const notifTitle = openedCount === 0
+      ? "Trade Failed (TV Signal)"
+      : failedCount > 0
+        ? "Partial Execution (TV Signal)"
+        : "Trade Executed (TV Signal)";
+
+    const legSummary = executedLegs.map(l =>
+      `${l.label}: ${l.lot} lot ${l.status}${l.error ? ` (${l.error})` : ""}`
+    ).join(" | ");
+
+    await base44.asServiceRole.entities.Notification.create({
+      created_by_id: userId,
+      type: "trade",
+      title: notifTitle,
+      message: `${action} ${symbol} • ${legSummary}`,
+      category: notifCategory,
+      read: false,
+      meta: {
+        source: "tradingview_webhook",
+        alert_id: alertId,
+        symbol, action,
+        total_lot: totalLot,
+        legs: executedLegs,
+      },
+    }).catch(() => {});
+
     return Response.json({
-      success: false,
-      status: "error",
+      success: openedCount > 0,
+      status: finalStatus.toLowerCase(),
       alert_id: alertId,
-      message: exec?.message || "Execution API error",
+      symbol, action,
+      total_lot: totalLot,
+      legs: executedLegs,
+      balance,
+      message: `${openedCount}/${executedLegs.length} leg(s) opened successfully`,
     });
   } catch (err) {
     return Response.json({ success: false, status: "error", message: err.message }, { status: 500 });
