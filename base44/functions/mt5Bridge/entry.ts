@@ -159,7 +159,12 @@ Deno.serve(async (req) => {
     const bodyText = await req.text().catch(() => "{}");
     const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
     const base44 = createClientFromRequest(headersReq);
-    const user = await base44.auth.me();
+    let user;
+    try {
+      user = await base44.auth.me();
+    } catch {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     // Load the user's MT5 account → robotId. There is no per-user provisioning
@@ -244,6 +249,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── account ── (allowed without a stored mt5_account — the X-Api-Key scopes the call)
+    if (action === "account") {
+      const r = await bridgeCall("GET", `${robotPath}/account`);
+      return Response.json({ ok: r.ok, status: r.status, data: { account: normalizeAccount(r.data) }, error: r.error || null });
+    }
+
+    // ── positions ── (allowed without a stored mt5_account — the X-Api-Key scopes the call)
+    if (action === "positions") {
+      const r = await bridgeCall("GET", `${robotPath}/positions`);
+      const rows = Array.isArray(r.data) ? r.data : (r.data?.positions || []);
+      const positions = rows.map(normalizePosition);
+      return Response.json({ ok: r.ok, status: r.status, data: { positions } });
+    }
+
     // Every action below this point addresses a specific linked MT5 account.
     if (!robotId) {
       return Response.json({
@@ -252,20 +271,6 @@ Deno.serve(async (req) => {
         data: { account: { connected: false }, positions: [], robot: { running: false } },
         error: "MT5 account not connected — link your account and the EA will register its robot.",
       }, { status: 200 });
-    }
-
-    // ── account ──
-    if (action === "account") {
-      const r = await bridgeCall("GET", `${robotPath}/account`);
-      return Response.json({ ok: r.ok, status: r.status, data: { account: normalizeAccount(r.data) }, error: r.error || null });
-    }
-
-    // ── positions ──
-    if (action === "positions") {
-      const r = await bridgeCall("GET", `${robotPath}/positions`);
-      const rows = Array.isArray(r.data) ? r.data : (r.data?.positions || []);
-      const positions = rows.map(normalizePosition);
-      return Response.json({ ok: r.ok, status: r.status, data: { positions } });
     }
 
     // ── robot_status (EA connection + trading engine state) ──
