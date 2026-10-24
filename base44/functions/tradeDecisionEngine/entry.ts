@@ -2,13 +2,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { clamp, num, nyParts, sessionInfo } from '../../shared/tradingUtils.ts';
 import { loadDdt, resolveRiskPolicy } from '../../shared/riskPolicy.ts';
 
-const BRIDGE = (() => {
-  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
-  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
-  return v;
-})();
-const B44 = `${BRIDGE}/api/base44`;
-
 function nyDateKey(d) {
   const p = nyParts(d);
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -17,14 +10,6 @@ function nyDateKey(d) {
   }).formatToParts(d);
   const get = (t) => parts.find((x) => x.type === t)?.value;
   return `${get("year")}-${get("month")}-${get("day")}`;
-}
-
-function buildHeaders(token, config) {
-  const h = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-  if (config.mt5_account) h["X-MT5-Login"] = String(config.mt5_account);
-  if (config.mt5_password) h["X-MT5-Password"] = config.mt5_password;
-  if (config.mt5_server) h["X-MT5-Server"] = config.mt5_server;
-  return h;
 }
 
 function consecutiveLossesCount(closedTrades) {
