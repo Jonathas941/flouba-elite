@@ -11,6 +11,7 @@ import HolographicHero from "@/components/dashboard/hud/HolographicHero";
 import TerminalScanner from "@/components/dashboard/TerminalScanner";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
 import { getStrategyTimeframes } from "@/lib/strategyTimeframes";
+import { setVisibleInterval, POLL_MS } from "@/lib/visibleInterval";
 
 const PAIR_META = {
   XAUUSD:   { label: "Gold / US Dollar",       icon: "🥇" },
@@ -147,13 +148,13 @@ export default function Home() {
 
   useEffect(() => {
     loadAll();
-    pollRef.current = setInterval(loadFast, 15000);
-    slowPollRef.current = setInterval(loadSlow, 90000);
+    const stopFast = setVisibleInterval(loadFast, POLL_MS.homeFast);
+    const stopSlow = setVisibleInterval(loadSlow, 90000);
     const onVisibility = () => { if (document.visibilityState === "visible") loadAll(); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      clearInterval(pollRef.current);
-      clearInterval(slowPollRef.current);
+      stopFast();
+      stopSlow();
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [loadAll, loadFast, loadSlow]);
