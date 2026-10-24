@@ -1,17 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-
-const BASE = (() => {
-  let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
-  if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
-  return v;
-})();
-
-function bridgeHeaders() {
-  return {
-    "x-api-key": Deno.env.get("FLOUBA_BASE44_API_KEY") || "",
-    "Content-Type": "application/json",
-  };
-}
+import { postCommand } from '../../shared/mt5Bridge.ts';
 
 // ── Strip broker suffix so the bridge accepts the base symbol ──
 const KNOWN_BASES = ["XAUUSD","XAUEUR","EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","NAS100","US30","US500","US2000","UK100","GER40","GER30","FRA40","JPN225","AUS200","HK50","CHINA50","SWI20","USOIL","UKOIL","NATGAS","BTCUSD","ETHUSD","LTCUSD","XRPUSD","BCHUSD","ADAUSD","DOTUSD","SOLUSD","DOGUSD","BNBUSD"];
@@ -177,25 +165,19 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
     };
   }
 
-  const commandType = trade.direction === "BUY" ? "OPEN_BUY" : "OPEN_SELL";
-  const cmdBody = {
-    commandType,
-    symbol,
-    lotSize: Number(trade.lot_size),
-    stopLoss: trade.stop_loss != null ? Number(trade.stop_loss) : undefined,
-    takeProfit: trade.take_profit != null ? Number(trade.take_profit) : undefined,
-  };
-
+  const commandType = trade.direction === "BUY" ? "buy" : "sell";
   const idemKey = `${commandType}-${robotId}-${Date.now()}`;
-  const tradeRes = await fetch(`${BASE}/api/base44/robots/${encodeURIComponent(robotId)}/commands`, {
-    method: "POST",
-    headers: { ...bridgeHeaders(), "x-idempotency-key": idemKey },
-    body: JSON.stringify(cmdBody),
-  }).catch(() => null);
+  const tradeRes = await postCommand(robotId, {
+    action: commandType,
+    symbol,
+    volume: Number(trade.lot_size),
+    sl: trade.stop_loss != null ? Number(trade.stop_loss) : undefined,
+    tp: trade.take_profit != null ? Number(trade.take_profit) : undefined,
+    comment: bestStrategy ? String(bestStrategy).slice(0, 31) : undefined,
+  }, idemKey);
 
-  const tradeJson = tradeRes?.ok ? await tradeRes.json().catch(() => ({})) : {};
-  const cmdData = tradeJson?.data ?? tradeJson;
-  const execSuccess = !!tradeRes?.ok && (tradeJson?.success === true || !!cmdData?.commandId || !!cmdData?.id);
+  const cmdData = tradeRes?.data ?? {};
+  const execSuccess = !!tradeRes?.ok;
 
   // ── 5. Log the trade to the Trade entity for journaling ──
   if (execSuccess) {
@@ -210,7 +192,7 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
         status: "Open",
         pattern: bestStrategy,
         opened_at: new Date().toISOString(),
-        ticket_id: cmdData?.commandId || cmdData?.id || String(Date.now()),
+        ticket_id: cmdData?.commandId || cmdData?.id || cmdData?.ticket || String(Date.now()),
       });
     } catch {}
   }
@@ -237,8 +219,8 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
     execution: {
       action: commandType,
       sent: execSuccess,
-      bridge_response: tradeJson?.message || tradeJson?.error || (tradeRes ? `HTTP ${tradeRes.status}` : "no response"),
-      ticket: cmdData?.commandId || cmdData?.id || null,
+      bridge_response: tradeRes?.error || (tradeRes?.ok ? (cmdData?.message || "OK") : "no response"),
+      ticket: cmdData?.commandId || cmdData?.id || cmdData?.ticket || null,
     },
     pillars: decision?.pillars || [],
     regime: decision?.regime,

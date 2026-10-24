@@ -17,13 +17,7 @@ function stripSuffix(sym) {
   return { base: sym, suffix: "" };
 }
 
-function buildHeaders(token, config) {
-  const h = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-  if (config?.mt5_account) h["X-MT5-Login"] = String(config.mt5_account);
-  if (config?.mt5_password) h["X-MT5-Password"] = config.mt5_password;
-  if (config?.mt5_server) h["X-MT5-Server"] = config.mt5_server;
-  return h;
-}
+import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -277,37 +271,34 @@ async function scanAndStore(base44, config, user, sa) {
 
   // 6. If broker_pending_order_mode + full_auto, place the pending order now
   if (entryStyle === "broker_pending" && sa.execution_mode === "full_auto" && sa.auto_trading_enabled) {
-    const bridgeToken = user.flouba_token;
-    if (bridgeToken) {
-      const authHeaders = buildHeaders(bridgeToken, config);
-      const { base: baseSym, suffix } = stripSuffix(symbol);
-      const orderType = determinePendingOrderType(trade.direction, trade.entry, decision?.account?.bid, decision?.account?.ask);
-      const pendingBody = {
-        symbol: baseSym,
-        order_type: orderType,
-        volume: trade.lot_size,
-        price: trade.entry,
-        sl: trade.stop_loss,
-        tp: trade.take_profit,
-        magic: sa.magic_number ?? 20260001,
-        comment: sa.trade_comment || "Flouba Gold HFT",
-        expiration: expirationTime,
-      };
-      if (suffix) { pendingBody.broker_symbol = symbol; pendingBody.symbol_suffix = suffix; }
+    const authHeaders = bridgeHeaders(config?.mt5_account);
+    const { base: baseSym, suffix } = stripSuffix(symbol);
+    const orderType = determinePendingOrderType(trade.direction, trade.entry, decision?.account?.bid, decision?.account?.ask);
+    const pendingBody = {
+      symbol: baseSym,
+      order_type: orderType,
+      volume: trade.lot_size,
+      price: trade.entry,
+      sl: trade.stop_loss,
+      tp: trade.take_profit,
+      magic: sa.magic_number ?? 20260001,
+      comment: sa.trade_comment || "Flouba Gold HFT",
+      expiration: expirationTime,
+    };
+    if (suffix) { pendingBody.broker_symbol = symbol; pendingBody.symbol_suffix = suffix; }
 
-      const pendingRes = await fetch(`${BASE}/trade/pending`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify(pendingBody),
-      }).catch(() => null);
+    const pendingRes = await fetch(`${BASE}/trade/pending`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify(pendingBody),
+    }).catch(() => null);
 
-      const pendingJson = pendingRes?.ok ? await pendingRes.json().catch(() => ({})) : {};
-      if (pendingJson?.success || pendingRes?.ok) {
-        await base44.asServiceRole.entities.FloubaSignal.update(created.id, {
-          status: "CONFIRMED",
-          ticket_id: pendingJson?.ticket || pendingJson?.order || null,
-        });
-      }
+    const pendingJson = pendingRes?.ok ? await pendingRes.json().catch(() => ({})) : {};
+    if (pendingJson?.success || pendingRes?.ok) {
+      await base44.asServiceRole.entities.FloubaSignal.update(created.id, {
+        status: "CONFIRMED",
+        ticket_id: pendingJson?.ticket || pendingJson?.order || null,
+      });
     }
   }
 

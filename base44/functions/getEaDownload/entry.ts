@@ -24,9 +24,9 @@ Deno.serve(async (req) => {
     const eaUrl = Deno.env.get("EA_FILE_URL");
     if (!eaUrl) return Response.json({ error: "EA_FILE_URL secret not set" }, { status: 500 });
 
-    const robotApiKey = Deno.env.get("MT5_ROBOT_API_KEY");
+    const robotApiKey = Deno.env.get("FLOUBA_ACCOUNT_API_KEY");
     if (!BRIDGE_BASE_URL) return Response.json({ error: "FLOUBA_BACKEND_URL secret not set" }, { status: 500 });
-    if (!robotApiKey) return Response.json({ error: "MT5_ROBOT_API_KEY secret not set" }, { status: 500 });
+    if (!robotApiKey) return Response.json({ error: "FLOUBA_ACCOUNT_API_KEY secret not set" }, { status: 500 });
 
     // Resolve Robot_Id: passed in body (current login field) > saved BotSettings
     const settingsRecords = await base44.entities.BotSettings.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);

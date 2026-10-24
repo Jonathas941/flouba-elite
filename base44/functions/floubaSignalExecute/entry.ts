@@ -17,13 +17,7 @@ function stripSuffix(sym) {
   return { base: sym, suffix: "" };
 }
 
-function buildHeaders(token, config) {
-  const h = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-  if (config?.mt5_account) h["X-MT5-Login"] = String(config.mt5_account);
-  if (config?.mt5_password) h["X-MT5-Password"] = config.mt5_password;
-  if (config?.mt5_server) h["X-MT5-Server"] = config.mt5_server;
-  return h;
-}
+import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -57,10 +51,7 @@ Deno.serve(async (req) => {
     const config = settings?.[0];
     if (!config) return Response.json({ error: "No BotSettings found" }, { status: 400 });
 
-    const bridgeToken = user.flouba_token;
-    if (!bridgeToken) return Response.json({ error: "No bridge token" }, { status: 400 });
-
-    const authHeaders = buildHeaders(bridgeToken, config);
+    const authHeaders = bridgeHeaders(config?.mt5_account);
     const { base: baseSym, suffix } = stripSuffix(signal.symbol);
 
     // ═══ CANCEL ═══

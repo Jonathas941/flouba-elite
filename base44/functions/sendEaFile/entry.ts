@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
     const eaUrl = Deno.env.get("EA_FILE_URL");
     if (!eaUrl) return Response.json({ error: "EA_FILE_URL secret not set" }, { status: 500 });
 
-    const robotApiKey = Deno.env.get("MT5_ROBOT_API_KEY");
-    if (!robotApiKey) return Response.json({ error: "MT5_ROBOT_API_KEY secret not set" }, { status: 500 });
+    const robotApiKey = Deno.env.get("FLOUBA_ACCOUNT_API_KEY");
+    if (!robotApiKey) return Response.json({ error: "FLOUBA_ACCOUNT_API_KEY secret not set" }, { status: 500 });
     if (!BRIDGE_BASE_URL) return Response.json({ error: "FLOUBA_BACKEND_URL secret not set" }, { status: 500 });
 
     // ── Resolve the user's Robot_Id (MT5 account number) ──

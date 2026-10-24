@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
+
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
   if (!v) return "";
@@ -57,62 +59,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    const provisionSecret = Deno.env.get("PROVISION_SECRET");
-    if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
     if (!targetConfigs.length) return Response.json({ success: true, synced: 0, users: 0 });
-
-    // Fetch all users to map created_by_id → mt5_api_key for JWT exchange
-    const allUsers = await base44.asServiceRole.entities.User.list().catch(() => []);
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-
-    // Use the stored flouba_token (provisioned on signup) directly; fall back to api_key exchange.
-    async function getJwt(userId, email, name) {
-      const u = userMap.get(userId);
-      if (u?.flouba_token) return u.flouba_token;
-      let apiKey = u?.mt5_api_key;
-      if (!apiKey) {
-        const provisionRes = await fetch(`${BASE}/provision/user`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ base44_user_id: userId, email, name: name || email }),
-        });
-        const provisionJson = await provisionRes.json().catch(() => ({}));
-        if (!provisionJson?.success || !provisionJson?.api_key) return null;
-        apiKey = provisionJson.api_key;
-        const updateData = { mt5_api_key: apiKey };
-        if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
-        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
-        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
-        await base44.asServiceRole.entities.User.update(userId, updateData);
-        userMap.set(userId, { ...u, ...updateData });
-        if (provisionJson.user_token) return provisionJson.user_token;
-      }
-      const tokenRes = await fetch(`${BASE}/auth/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ api_key: apiKey }),
-      });
-      const tokenJson = await tokenRes.json().catch(() => ({}));
-      return tokenJson?.token || null;
-    }
 
     let totalSynced = 0;
     let totalProcessed = 0;
 
     for (const config of targetConfigs) {
-      const userId = useServiceRole ? config.created_by_id : config._userId;
-      if (!userId) continue;
-
-      const userData = useServiceRole ? userMap.get(userId) : currentUser;
-      const jwt = await getJwt(userId, userData?.email, userData?.full_name);
-      if (!jwt) continue;
-      const authHeaders = {
-        "Authorization": `Bearer ${jwt}`,
-        "Content-Type": "application/json",
-        "X-MT5-Login": String(config.mt5_account),
-        "X-MT5-Password": config.mt5_password,
-        "X-MT5-Server": config.mt5_server,
-      };
+      const authHeaders = bridgeHeaders(config?.mt5_account);
 
       // Fetch closed trade history from MT5
       let mt5Trades = [];

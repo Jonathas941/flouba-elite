@@ -17,13 +17,7 @@ function stripSuffix(sym) {
   return { base: sym, suffix: "" };
 }
 
-function buildHeaders(token, config) {
-  const h = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-  if (config?.mt5_account) h["X-MT5-Login"] = String(config.mt5_account);
-  if (config?.mt5_password) h["X-MT5-Password"] = config.mt5_password;
-  if (config?.mt5_server) h["X-MT5-Server"] = config.mt5_server;
-  return h;
-}
+import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -124,7 +118,7 @@ async function monitorSignal(base44, signal, config, user) {
   if (signal.execution_mode !== "full_auto") return null;
 
   // 3. Fetch live quotes
-  const authHeaders = buildHeaders(user.flouba_token, config);
+  const authHeaders = bridgeHeaders(config?.mt5_account);
   const quotesRes = await fetch(`${BASE}/symbols`, { headers: authHeaders }).catch(() => null);
   if (!quotesRes?.ok) return null;
   const quotesJson = await quotesRes.json().catch(() => ({}));
