@@ -20,6 +20,30 @@ export function bridgeHeaders(robotId) {
   };
 }
 
+// Get the live account balance from the Replit server.
+export async function getAccount(robotId) {
+  if (!BRIDGE) return { ok: false, error: "FLOUBA_BACKEND_URL not set" };
+  try {
+    const res = await fetch(`${B44}/account`, {
+      method: "GET",
+      headers: bridgeHeaders(robotId),
+    });
+    const raw = await res.text();
+    let json; try { json = JSON.parse(raw); } catch { json = { raw }; }
+    if (!res.ok) return { ok: false, error: json?.error?.message || json?.error || `HTTP ${res.status}` };
+    const acct = json?.data?.account ?? json?.account ?? json?.data ?? {};
+    return {
+      ok: true,
+      balance: acct.balance ?? acct.Balance ?? null,
+      equity: acct.equity ?? acct.Equity ?? null,
+      login: acct.login ?? acct.accountLogin ?? null,
+      connected: acct.connected === true || acct.terminalConnected === true,
+    };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // postCommand now sends trades directly to the Replit Elite Server routes
 // (POST /api/trade/buy, /api/trade/sell, /api/trade/close, /api/trade/close-all)
 // instead of the old command-queue path (/api/base44/robots/:id/commands).

@@ -43,7 +43,16 @@
     },
     "tp3": {
       "type": "number",
-      "description": "Take profit target 3 from the TradingView alert. This is the TP sent to MT5."
+      "description": "Take profit target 3 from the TradingView alert."
+    },
+    "total_lot": {
+      "type": "number",
+      "description": "Base44-calculated total lot size across all 3 legs."
+    },
+    "legs": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Per-leg execution details: [{lot, tp, status, order_id, error}, ...]"
     },
     "mode": {
       "type": "string",
@@ -62,7 +71,8 @@
         "Rejected",
         "Duplicate",
         "Error",
-        "Simulated"
+        "Simulated",
+        "Partial"
       ],
       "default": "Received"
     },
