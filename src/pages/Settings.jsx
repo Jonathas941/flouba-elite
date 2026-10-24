@@ -20,6 +20,7 @@ import AdaptiveStrategyPanel from "@/components/dashboard/AdaptiveStrategyPanel"
 import CooldownBanner from "@/components/dashboard/CooldownBanner";
 import AccountSwitcher from "@/components/dashboard/AccountSwitcher";
 import TradeManagerCard from "@/components/dashboard/TradeManagerCard";
+import TrailingStopSettings from "@/components/settings/TrailingStopSettings";
 
 export default function Settings() {
   const [s, setS] = useState(null);
@@ -180,6 +181,9 @@ export default function Settings() {
           {num("tv_tp_split_2", "TP2 Split %")}
           {num("tv_tp_split_3", "TP3 Split %")}
         </GlassCard>
+
+        {/* Trailing Stop Settings */}
+        <TrailingStopSettings s={s} set={set} />
 
         {/* Trade Manager (read-only info) */}
         <TradeManagerCard />

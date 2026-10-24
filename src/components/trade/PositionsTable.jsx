@@ -12,9 +12,37 @@ function normPos(p) {
     lot: p.volume ?? p.lot ?? "--",
     entry: p.openPrice ?? p.open_price ?? p.entry_price ?? null,
     current: p.currentPrice ?? p.current_price ?? null,
+    sl: p.sl ?? p.stop_loss ?? p.stopLoss ?? null,
+    tp: p.tp ?? p.take_profit ?? p.takeProfit ?? null,
     profit: p.profit ?? p.unrealized_pnl ?? 0,
     openedAt: p.openTime ?? p.open_time ?? p.opened_at ?? null,
   };
+}
+
+function SlBadge({ pos, breakevenOffset = 0.1 }) {
+  const { sl, entry, direction } = pos;
+  if (sl == null || entry == null) return null;
+  const isBuy = direction === "Buy";
+  const offset = Math.abs(breakevenOffset);
+
+  // Break-even: SL is within offset of entry price
+  const distFromEntry = Math.abs(sl - entry);
+  const isBreakeven = distFromEntry <= offset;
+
+  // Trailing: SL is beyond break-even in the profit direction
+  const isTrailing = isBuy ? sl > entry + offset : sl < entry - offset;
+
+  let label = "Initial SL";
+  let color = "#8c8c8c";
+  if (isTrailing) { label = "Trailing"; color = "#00FF41"; }
+  else if (isBreakeven) { label = "Break-even"; color = "#FFCC42"; }
+
+  return (
+    <span className="px-1 py-0.5 rounded text-[8px] font-heading font-bold tracking-wide whitespace-nowrap"
+      style={{ background: `${color}15`, border: `1px solid ${color}40`, color }}>
+      {label}
+    </span>
+  );
 }
 
 export default function PositionsTable({ positions = [], onClose }) {
@@ -81,6 +109,17 @@ export default function PositionsTable({ positions = [], onClose }) {
                   <span className="text-[9px] text-white/30">→ {p.current}</span>
                 )}
               </div>
+              {(p.sl != null || p.tp != null) && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {p.sl != null && (
+                    <span className="text-[9px] text-red-400/60">SL: <span className="text-red-400/90 font-semibold">{Number(p.sl).toFixed(2)}</span></span>
+                  )}
+                  {p.tp != null && (
+                    <span className="text-[9px] text-green-400/60">TP: <span className="text-green-400/90 font-semibold">{Number(p.tp).toFixed(2)}</span></span>
+                  )}
+                  <SlBadge pos={p} breakevenOffset={0.1} />
+                </div>
+              )}
             </div>
 
             {/* P&L */}
