@@ -79,6 +79,8 @@ function makeBridgeCall(apiKey) {
     try { json = JSON.parse(raw); } catch { json = { raw }; }
     if (!res.ok) {
       const err = json?.error?.message || json?.error || json?.message || `HTTP ${res.status}`;
+      // Never logs the key — only path, status and server message.
+      console.warn(`[mt5Bridge] ${method} ${path} -> ${res.status} ${json?.message || err}`);
       return { ok: false, status: res.status, data: null, error: err };
     }
     return { ok: true, status: res.status, data: json?.data ?? json };
