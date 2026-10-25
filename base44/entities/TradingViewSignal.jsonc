@@ -50,8 +50,11 @@
       "description": "Base44-calculated total lot size across all 3 legs."
     },
     "legs": {
-      "type": "object",
-      "additionalProperties": true,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      },
       "description": "Per-leg execution details: [{lot, tp, status, order_id, error}, ...]"
     },
     "mode": {
