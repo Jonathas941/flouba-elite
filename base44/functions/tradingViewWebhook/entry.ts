@@ -64,11 +64,6 @@ export default async function(req) {
     // so a TradingView alert can carry it without changing the Pine script.
     let urlSecret = null;
     try { urlSecret = new URL(req.url).searchParams.get("secret"); } catch {}
-    if (!body.secret) {
-      let q = "";
-      try { q = new URL(req.url).search ? "query present" : "no query"; } catch { q = "bad url"; }
-      console.log(`[tradingViewWebhook] no body secret; url ${q}; url secret ${urlSecret ? "found" : "missing"}`);
-    }
     const secret = body.secret || urlSecret;
     if (!secret || secret.length < 8) {
       return Response.json({ success: false, status: "error", message: "Invalid or missing webhook secret" }, { status: 403 });
