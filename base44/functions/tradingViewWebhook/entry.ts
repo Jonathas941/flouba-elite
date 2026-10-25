@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
-import { postCommand, getAccount } from '../../shared/mt5Bridge.ts';
+import { postCommand, getAccount, resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 // ═══════════════════════════════════════════════════════════════
 // TradingView Webhook Receiver — 3-Trade Split Execution
@@ -84,6 +84,10 @@ export default async function(req) {
     }
 
     const userId = settings.created_by_id;
+    // Every trade from this webhook goes ONLY to the account of the user who
+    // owns the matching TradingViewSettings row (resolved lazily, cached).
+    let _ownerKey;
+    const ownerKey = async () => (_ownerKey !== undefined ? _ownerKey : (_ownerKey = await resolveUserApiKey(base44, userId)));
 
     // ── Parse fields ──
     const alertId = body.alert_id || `tv-${Date.now()}`;
@@ -201,7 +205,7 @@ export default async function(req) {
 
       // Execute close via Replit
       const route = ROUTE_MAP[action];
-      const execRes = await postCommand("", { action: route === "close-all" ? "close_all" : "close", symbol }, `tv-close-${alertId}`);
+      const execRes = await postCommand("", { action: route === "close-all" ? "close_all" : "close", symbol }, `tv-close-${alertId}`, await ownerKey());
 
       if (execRes.ok) {
         const orderId = execRes?.data?.commandId || execRes?.data?.id || `tv-close-${alertId}`;
@@ -275,7 +279,7 @@ export default async function(req) {
     const maxOpenGroups = bot.tv_max_open_signal_groups ?? 1;
 
     // ── Get live balance from Replit server ──
-    const acctRes = await getAccount(robotId);
+    const acctRes = await getAccount(robotId, await ownerKey());
     const balance = acctRes?.balance;
     if (!acctRes?.ok || balance == null || balance <= 0) {
       return await reject(`Cannot get live account balance: ${acctRes?.error || "balance unavailable"}`, 503);
@@ -403,7 +407,7 @@ export default async function(req) {
         comment,
       };
 
-      const execRes = await postCommand(robotId, command, idemKey);
+      const execRes = await postCommand(robotId, command, idemKey, await ownerKey());
 
       if (execRes.ok) {
         const orderId = execRes?.data?.commandId || execRes?.data?.id || idemKey;
