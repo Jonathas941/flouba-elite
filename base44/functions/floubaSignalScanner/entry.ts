@@ -17,7 +17,7 @@ function stripSuffix(sym) {
   return { base: sym, suffix: "" };
 }
 
-import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
+import { bridgeHeaders, resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -271,7 +271,8 @@ async function scanAndStore(base44, config, user, sa) {
 
   // 6. If broker_pending_order_mode + full_auto, place the pending order now
   if (entryStyle === "broker_pending" && sa.execution_mode === "full_auto" && sa.auto_trading_enabled) {
-    const authHeaders = bridgeHeaders(config?.mt5_account);
+    const ownerKey = await resolveUserApiKey(base44, config?.created_by_id);
+    const authHeaders = bridgeHeaders(config?.mt5_account, ownerKey);
     const { base: baseSym, suffix } = stripSuffix(symbol);
     const orderType = determinePendingOrderType(trade.direction, trade.entry, decision?.account?.bid, decision?.account?.ask);
     const pendingBody = {
