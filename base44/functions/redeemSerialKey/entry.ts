@@ -23,12 +23,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: "This serial key has already been used or is no longer valid." }, { status: 400 });
     }
 
-    // Mark the key as used by this user
-    await base44.asServiceRole.entities.SerialKey.update(key.id, {
-      status: "Used",
-      redeemed_by_id: user.id,
-      redeemed_at: new Date().toISOString(),
-    });
+    // Atomically claim the key: only update if status is still "Available".
+    // This prevents race conditions where two concurrent requests both pass
+    // the check above before either writes.
+    await base44.asServiceRole.entities.SerialKey.updateMany(
+      { _id: key.id, status: "Available" },
+      { $set: { status: "Used", redeemed_by_id: user.id, redeemed_at: new Date().toISOString() } }
+    );
+    const claimed = await base44.asServiceRole.entities.SerialKey.get(key.id);
+    if (!claimed || claimed.redeemed_by_id !== user.id) {
+      return Response.json({ error: "This serial key was just redeemed — please try a different key." }, { status: 409 });
+    }
 
     // Activate / extend the user's subscription
     const durationDays = key.duration_days || 30;

@@ -245,7 +245,7 @@ export default function ConnectMT5() {
           if (list[0].broker_name) setBroker(list[0].broker_name);
           if (list[0].mt5_account) setLogin(list[0].mt5_account);
           if (list[0].mt5_server)  setServer(list[0].mt5_server);
-          if (list[0].mt5_password) setPassword(list[0].mt5_password);
+          // Password is never prefilled from the database — it is write-only.
         }
 
         // ── Auto-detect account info from the EA (no manual credentials needed) ──

@@ -24,9 +24,15 @@ Deno.serve(async (req) => {
     const eaUrl = Deno.env.get("EA_FILE_URL");
     if (!eaUrl) return Response.json({ error: "EA_FILE_URL secret not set" }, { status: 500 });
 
-    const robotApiKey = Deno.env.get("FLOUBA_ACCOUNT_API_KEY");
     if (!BRIDGE_BASE_URL) return Response.json({ error: "FLOUBA_BACKEND_URL secret not set" }, { status: 500 });
-    if (!robotApiKey) return Response.json({ error: "FLOUBA_ACCOUNT_API_KEY secret not set" }, { status: 500 });
+
+    // Require an active subscription before serving the EA preset
+    const subs = await base44.entities.Subscription.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
+    const sub = subs?.[0];
+    const now = new Date();
+    if (!sub || sub.status !== "Active" || (sub.expires_date && new Date(sub.expires_date) < now)) {
+      return Response.json({ error: "An active subscription is required to download the EA." }, { status: 403 });
+    }
 
     // Resolve Robot_Id: passed in body (current login field) > saved BotSettings
     const settingsRecords = await base44.entities.BotSettings.filter({ created_by_id: user.id }, "-created_date", 1).catch(() => []);
@@ -39,7 +45,7 @@ Deno.serve(async (req) => {
       robotId ? `; Robot_Id: ${robotId}` : `; Robot_Id: <enter your MT5 account number>`,
       `; Do not share. This links your EA to your bridge account.`,
       `Backend_URL=${BRIDGE_BASE_URL}`,
-      `MT5_Robot_Api_Key=${robotApiKey}`,
+      `; MT5_Robot_Api_Key is provisioned server-side — do not hardcode.`,
       `Robot_Id=${robotId}`,
       `Timer_Seconds=5`,
       ``,
