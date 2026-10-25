@@ -175,7 +175,7 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
     sl: trade.stop_loss != null ? Number(trade.stop_loss) : undefined,
     tp: trade.take_profit != null ? Number(trade.take_profit) : undefined,
     comment: bestStrategy ? String(bestStrategy).slice(0, 31) : undefined,
-  }, idemKey);
+  }, idemKey, ownerKey);
 
   const cmdData = tradeRes?.data ?? {};
   const execSuccess = !!tradeRes?.ok;
