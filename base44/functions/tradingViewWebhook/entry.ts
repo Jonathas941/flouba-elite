@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 import { postCommand, getAccount } from '../../shared/mt5Bridge.ts';
 
 // ═══════════════════════════════════════════════════════════════
@@ -51,14 +51,13 @@ const ROUTE_MAP = {
   CLOSE_SELL: "close",
 };
 
-Deno.serve(async (req) => {
+export default async function(req) {
   try {
     const bodyText = await req.text().catch(() => "{}");
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
 
-    const headersReq = new Request(req.url, { method: "GET", headers: req.headers });
-    const base44 = createClientFromRequest(headersReq);
+    const base44 = createClientFromRequest(req);
 
     // ── Look up settings by webhook secret ──
     const secret = body.secret;
@@ -66,10 +65,10 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, status: "error", message: "Invalid or missing webhook secret" }, { status: 403 });
     }
 
-    const settingsList = await base44.asServiceRole.entities.TradingViewSettings.filter(
-      { webhook_secret: secret }, "-created_date", 1
+    const settingsPage = await base44.asServiceRole.entities.TradingViewSettings.filter(
+      { webhook_secret: secret }, { sort: "-created_date", limit: 1 }
     );
-    let settings = settingsList?.[0];
+    const settings = settingsPage?.items?.[0] || settingsPage?.[0];
     if (!settings) {
       console.warn("[tradingViewWebhook] rejected: no TradingViewSettings matches the supplied webhook secret");
       return Response.json({ success: false, status: "error", message: "Invalid webhook secret" }, { status: 403 });
@@ -146,10 +145,11 @@ Deno.serve(async (req) => {
     }
 
     // ── Dedup by alert_id ──
-    const existing = await base44.asServiceRole.entities.TradingViewSignal.filter(
-      { created_by_id: userId, alert_id: alertId }, "-created_date", 1
+    const existingPage = await base44.asServiceRole.entities.TradingViewSignal.filter(
+      { created_by_id: userId, alert_id: alertId }, { sort: "-created_date", limit: 1 }
     );
-    if (existing?.length > 0) {
+    const existing = existingPage?.items?.[0] || existingPage?.[0];
+    if (existing) {
       return Response.json({
         success: false,
         status: "duplicate",
@@ -247,10 +247,10 @@ Deno.serve(async (req) => {
     }
 
     // ── Load BotSettings for lot calculation ──
-    const botList = await base44.asServiceRole.entities.BotSettings.filter(
-      { created_by_id: userId }, "-created_date", 1
-    ).catch(() => []);
-    const bot = botList?.[0] || {};
+    const botPage = await base44.asServiceRole.entities.BotSettings.filter(
+      { created_by_id: userId }, { sort: "-created_date", limit: 1 }
+    ).catch(() => ({}));
+    const bot = botPage?.items?.[0] || botPage?.[0] || {};
     const robotId = String(bot.mt5_account || "");
 
     if (!robotId && mode === "live") {
@@ -310,9 +310,10 @@ Deno.serve(async (req) => {
     }
 
     // ── Check max open signal groups ──
-    const openSignals = await base44.asServiceRole.entities.TradingViewSignal.filter(
-      { created_by_id: userId, status: { $in: ["Executed", "Partial"] } }, "-created_date", 50
-    ).catch(() => []);
+    const openSignalsPage = await base44.asServiceRole.entities.TradingViewSignal.filter(
+      { created_by_id: userId, status: { $in: ["Executed", "Partial"] } }, { sort: "-created_date", limit: 50 }
+    ).catch(() => ({}));
+    const openSignals = openSignalsPage?.items || openSignalsPage || [];
 
     // Count distinct alert_ids that have executed legs (each alert = 1 group)
     const openGroups = new Set();
@@ -457,4 +458,4 @@ Deno.serve(async (req) => {
   } catch (err) {
     return Response.json({ success: false, status: "error", message: err.message }, { status: 500 });
   }
-});
+}
