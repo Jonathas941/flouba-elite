@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, AreaChart, Area, YAxis, Tooltip, ReferenceLine,
 } from "recharts";
 import { mt5Api } from "@/lib/mt5Api";
+import { pollInterval } from "@/lib/visibleInterval";
 
 const PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "AUDJPY", "EURJPY", "AUDUSD", "NZDUSD", "NAS100", "US30", "BTCUSD"];
 const TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4"];
@@ -53,7 +54,7 @@ export default function MarketChartCard({ connected, account, activePair, setAct
       } catch { /* ignore transient quote errors */ }
     };
     pull();
-    const id = setInterval(pull, 3000);
+    const id = pollInterval(pull, 3000);
     return () => { alive = false; clearInterval(id); };
   }, [connected, activePair]);
 

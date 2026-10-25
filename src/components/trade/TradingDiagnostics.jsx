@@ -7,6 +7,7 @@ import {
   RefreshCw, Zap, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { computeAnalysis, getCurrentSession, MODE_THRESHOLD } from "@/lib/marketAnalysis";
+import { pollInterval } from "@/lib/visibleInterval";
 
 // ── MT5 Error Code Reference ──────────────────────────────────────────────────
 const MT5_ERRORS = {
@@ -181,7 +182,7 @@ export default function TradingDiagnostics() {
 
   // Auto-refresh every 2s while panel is open
   useEffect(() => {
-    const id = setInterval(runDiagnostics, 2000);
+    const id = pollInterval(runDiagnostics, 2000);
     return () => clearInterval(id);
   }, []);
 

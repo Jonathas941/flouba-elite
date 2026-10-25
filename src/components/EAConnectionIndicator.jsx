@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Cpu } from "lucide-react";
 import { mt5Api } from "@/lib/mt5Api";
+import { pollInterval } from "@/lib/visibleInterval";
 
 export default function EAConnectionIndicator() {
   const [status, setStatus] = useState(null); // null=loading, true=ok, false=error
@@ -30,7 +31,7 @@ export default function EAConnectionIndicator() {
       }
     };
     check();
-    const iv = setInterval(check, 10000);
+    const iv = pollInterval(check, 10000);
     return () => { cancelled = true; clearInterval(iv); };
   }, []);
 

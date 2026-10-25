@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { mt5Api } from "@/lib/mt5Api";
 import HudPanel from "@/components/dashboard/hud/HudPanel";
+import { pollInterval } from "@/lib/visibleInterval";
 
 const fmt = (v) => {
   if (v == null || isNaN(v)) return "--";
@@ -35,7 +36,7 @@ export default function EmaIndicatorPanel() {
       }
     };
     load();
-    const id = setInterval(load, 15000);
+    const id = pollInterval(load, 15000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 

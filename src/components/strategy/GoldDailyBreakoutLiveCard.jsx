@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import GlassCard from "@/components/GlassCard";
+import { pollInterval } from "@/lib/visibleInterval";
 import {
   Activity, ShieldAlert, Target,
   Layers, Gauge, Lock, CheckCircle2, XCircle, Loader2, Clock, Crosshair, Box, Link2,
@@ -90,7 +91,7 @@ export default function GoldDailyBreakoutLiveCard() {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 4000);
+    const id = pollInterval(load, 4000);
     const tick = setInterval(() => setNow(nowET()), 1000);
     return () => { clearInterval(id); clearInterval(tick); };
   }, []);

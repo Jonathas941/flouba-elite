@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
+import { pollInterval } from "@/lib/visibleInterval";
 
 // Generic status messages shown when no real indicator data is available
 const GENERIC_LINES = [
@@ -54,7 +55,7 @@ export default function TerminalScanner({ active, statusLabel, statusDesc, statu
   useEffect(() => {
     fetchEngineData();
     if (!active || !connected) return;
-    const interval = setInterval(fetchEngineData, 12000);
+    const interval = pollInterval(fetchEngineData, 12000);
     return () => clearInterval(interval);
   }, [fetchEngineData]);
 

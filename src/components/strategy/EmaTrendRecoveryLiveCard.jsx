@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import GlassCard from "@/components/GlassCard";
+import { pollInterval } from "@/lib/visibleInterval";
 import {
   Activity, TrendingUp, TrendingDown, Minus, ShieldAlert, Target,
   Layers, Gauge, Lock, Loader2, CheckCircle2, XCircle,
@@ -96,7 +97,7 @@ export default function EmaTrendRecoveryLiveCard() {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 4000);
+    const id = pollInterval(load, 4000);
     return () => clearInterval(id);
   }, []);
 

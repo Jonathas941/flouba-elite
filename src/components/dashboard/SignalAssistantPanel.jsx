@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { logNotification } from "@/lib/notifications";
+import { pollInterval } from "@/lib/visibleInterval";
 import {
   Radar, TrendingUp, TrendingDown, Clock, Target, Shield,
   Loader2, CheckCircle2, XCircle, Zap, RefreshCw,
@@ -65,7 +66,7 @@ export default function SignalAssistantPanel({ connected }) {
     } catch {}
   }, []);
 
-  useEffect(() => { loadData(); const t = setInterval(loadData, 30000); return () => clearInterval(t); }, [loadData]);
+  useEffect(() => { loadData(); const t = pollInterval(loadData, 30000); return () => clearInterval(t); }, [loadData]);
 
   const scanMarket = useCallback(async () => {
     if (!connected) { navigate("/connect-mt5"); return; }

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import GlassCard from "@/components/GlassCard";
+import { pollInterval } from "@/lib/visibleInterval";
 import {
   Activity, ShieldAlert, Target,
   Layers, Gauge, Lock, CheckCircle2, XCircle, Loader2, GitBranch, Crosshair,
@@ -101,7 +102,7 @@ export default function MsBosRetestLiveCard() {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 4000);
+    const id = pollInterval(load, 4000);
     return () => clearInterval(id);
   }, []);
 

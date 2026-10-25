@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Zap, AlertCircle } from "lucide-react";
 import { mt5Api } from "@/lib/mt5Api";
+import { pollInterval } from "@/lib/visibleInterval";
 
 export default function ScannerStatusPanel() {
   const [data, setData] = useState(null);
@@ -26,7 +27,7 @@ export default function ScannerStatusPanel() {
       if (!cancelled) setLoading(false);
     };
     fetch();
-    const interval = setInterval(fetch, 5000);
+    const interval = pollInterval(fetch, 5000);
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Target, Shield, Lock, Edit3, Check, Power, RotateCcw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import { pollInterval } from "@/lib/visibleInterval";
 
 const TIER_META = {
   pre_target:    { label: "PRE-TARGET",   color: "#00FF41", desc: "Normal risk — trade freely" },
@@ -77,7 +78,7 @@ export default function DynamicDailyTargetPanel() {
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 15000);
+    const interval = pollInterval(fetchStatus, 15000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 

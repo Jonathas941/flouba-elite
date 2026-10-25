@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Globe, AlertTriangle, CheckCircle2, Activity, Crosshair, Sun, Moon, Timer } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { pollInterval } from "@/lib/visibleInterval";
 
 function QualityBar({ score, max, minRequired }) {
   const pct = max && score != null ? (score / max) * 100 : 0;
@@ -36,7 +37,7 @@ export default function MarketSessionStatus() {
       setLoading(false);
     };
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
+    const interval = pollInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 

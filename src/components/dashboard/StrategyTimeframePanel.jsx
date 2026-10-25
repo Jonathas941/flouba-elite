@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import GlassCard from "@/components/GlassCard";
 import { getStrategyTimeframes, lastCandleCloseUTC, nextCandleCloseUTC } from "@/lib/strategyTimeframes";
 import { Clock, Layers, Gauge, Activity, Info } from "lucide-react";
+import { pollInterval } from "@/lib/visibleInterval";
 
 function fmtTime(d) {
   if (!d) return "--";
@@ -53,7 +54,7 @@ export default function StrategyTimeframePanel({ settings: propSettings }) {
       } catch { /* ignore */ }
     };
     load();
-    const id = setInterval(load, 20000);
+    const id = pollInterval(load, 20000);
     const tick = setInterval(() => setNow(new Date()), 1000);
     return () => { clearInterval(id); clearInterval(tick); };
   }, []);

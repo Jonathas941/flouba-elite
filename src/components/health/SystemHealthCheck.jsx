@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Activity } from "lucide
 import GlassCard from "@/components/GlassCard";
 import { mt5Api } from "@/lib/mt5Api";
 import { base44 } from "@/api/base44Client";
+import { pollInterval } from "@/lib/visibleInterval";
 
 const STATUS_STYLE = {
   ok:   { icon: CheckCircle,   color: "text-green-400",  bg: "bg-green-500/10 border-green-500/25" },
@@ -111,7 +112,7 @@ export default function SystemHealthCheck() {
   // Live auto-refresh — re-run all checks every 10s
   useEffect(() => {
     runCheck();
-    const id = setInterval(runCheck, 10000);
+    const id = pollInterval(runCheck, 10000);
     return () => clearInterval(id);
   }, [runCheck]);
 

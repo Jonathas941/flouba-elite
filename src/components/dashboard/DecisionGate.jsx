@@ -4,6 +4,7 @@ import { Shield, Brain, CheckCircle2, XCircle, AlertTriangle, Zap, Radio, Newspa
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";
 import { useToast } from "@/components/ui/use-toast";
+import { pollInterval } from "@/lib/visibleInterval";
 
 export default function DecisionGate() {
   const { toast } = useToast();
@@ -21,7 +22,7 @@ export default function DecisionGate() {
 
   useEffect(() => {
     evaluate();
-    const interval = setInterval(evaluate, 12000);
+    const interval = pollInterval(evaluate, 12000);
     return () => clearInterval(interval);
   }, [evaluate]);
 

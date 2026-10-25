@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import { pollInterval } from "@/lib/visibleInterval";
 import {
   Activity, TrendingUp, Waves, Layers, Target, Clock, Pause,
   ShieldAlert, ChevronDown, ChevronUp, Zap,
@@ -70,7 +71,7 @@ export default function AdaptiveStrategyPanel({ connected, settings: propSetting
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 30000);
+    const id = pollInterval(load, 30000);
     return () => clearInterval(id);
   }, [load]);
 
