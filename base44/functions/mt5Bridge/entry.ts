@@ -156,6 +156,25 @@ function normalizePosition(p) {
   };
 }
 
+// Per-isolate BotSettings cache. Settings change rarely; 60 s staleness is fine
+// for the fields used here (mt5_account, active_pair, strategy/session knobs).
+// On a read error (e.g. 429) the last good value is reused instead of failing.
+const CFG_TTL_MS = 60_000;
+const _cfgCache = new Map();
+async function loadCfg(base44, userId) {
+  const hit = _cfgCache.get(userId);
+  if (hit && Date.now() - hit.t < CFG_TTL_MS) return hit.v;
+  try {
+    const rows = await base44.entities.BotSettings.filter({ created_by_id: userId }, "-created_date", 1);
+    const v = rows?.[0] || null;
+    _cfgCache.set(userId, { t: Date.now(), v });
+    return v;
+  } catch (e) {
+    console.warn(`[mt5Bridge] BotSettings read failed, using cached: ${e?.status || ""} ${e?.message || e}`);
+    return hit?.v ?? null;
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const bodyText = await req.text().catch(() => "{}");
