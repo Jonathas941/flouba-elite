@@ -67,17 +67,13 @@ export default function Home() {
       // Verify the link with a fresh account read (also confirms bridge liveness)
       const verify = await mt5Api.account();
       if (verify?.ok && verify.data?.account?.connected === true) {
-        // Robot loop may have stalled — restart it if we have a configured pair
-        if (botSettings?.active_pair) {
-          await mt5Api.robotStart(botSettings.active_pair, {
-            lot_size: botSettings.lot_size ?? 0.01,
-            strategy: botSettings.trading_mode ?? "Balanced",
-          }).catch(() => {});
-        }
+        // Safety: never auto-START the server robot on reconnect. A failed
+        // dashboard request (e.g. rate limit) is not an MT5 disconnect, and
+        // starting the robot here could open trades nobody asked for.
         disconnectCountRef.current = 0;
         setConnected(true);
         setAccount(verify.data.account);
-        toast({ title: "Connection Restored", description: "MT5 link re-established and robot restarted.", duration: 3000 });
+        toast({ title: "Connection Restored", description: "MT5 link re-established.", duration: 3000 });
       }
     } catch {
       // keep the disconnect counter climbing — next poll retries
