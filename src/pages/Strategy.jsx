@@ -10,6 +10,7 @@ import MsBosRetestLiveCard from "@/components/strategy/MsBosRetestLiveCard";
 import OrderflowOpeningRangeLiveCard from "@/components/strategy/OrderflowOpeningRangeLiveCard";
 import GoldMorningRangeLiveCard from "@/components/strategy/GoldMorningRangeLiveCard";
 import GoldDailyBreakoutLiveCard from "@/components/strategy/GoldDailyBreakoutLiveCard";
+import GoldMeanReversionLiveCard from "@/components/strategy/GoldMeanReversionLiveCard";
 import {
   Activity, Brain, Layers, Boxes, Zap, GitBranch,
   TrendingUp, Gauge, ChevronDown, ChevronUp, CheckCircle, ScanLine, Crosshair, Waves, BarChart3, Box
@@ -266,6 +267,25 @@ const STRATEGY = [
     ],
   },
   {
+    icon: BarChart3,
+    title: "Gold Mean Reversion",
+    tag: "XAUUSD H1 RSI Scalper",
+    tagColor: "bg-amber-500/15 text-amber-300",
+    summary: "XAUUSD H1 RSI(2) mean-reversion scalper. Entries on RSI(2) < threshold and/or price touching the lower Bollinger Band (20, 2.5σ), filtered by H4 EMA200 trend. ATR-based TP/SL with time stop. Bi-directional (BUY oversold, SELL overbought). No grid, no martingale, no recovery.",
+    details: [
+      "MARKET: XAUUSD (Gold). Main timeframe H1, trend filter on H4 EMA200. Session window 07:00–20:00 UTC.",
+      "ENTRY (BUY): RSI(2) < threshold (default 10) and/or price touches/closes below the lower Bollinger Band (20, 2.5σ). H4 trend filter requires close > EMA200(H4).",
+      "ENTRY (SELL): RSI(2) > 100 - threshold and/or price touches/closes above the upper Bollinger Band. H4 trend filter requires close < EMA200(H4).",
+      "ENTRY MODE: rsi = RSI threshold only, bb = Bollinger Band touch only, both = both conditions required (default).",
+      "EXIT: TP = 0.7 × ATR(14) from entry. SL = 2.0 × ATR(14) from entry. Time stop: exit at market close after 10 bars if neither TP nor SL is hit.",
+      "COST: round-trip spread + slippage cost ($0.40/oz default) subtracted from each trade's P&L.",
+      "MANAGEMENT: break-even at 1R, optional 50% partial close at 1R. No trailing, no grid, no recovery positions.",
+      "RISK: lot 0.01, max 1 open trade, max 3/day, 2% daily loss, 3% equity stop, stop after 2 consecutive losses (8h cooldown). Max spread 30 points.",
+      "MENTALITY: high win-rate / low RR mean-reversion scalper. Profits from short-term oversold/overboughtsnap-backs in the direction of the H4 trend. No trade when the H4 trend is flat or ambiguous.",
+      "ADAPTIVE: highest score in ranging or mean-reverting regimes with healthy ATR. Never selected in strong trending markets where momentum dominates reversion.",
+    ],
+  },
+  {
     icon: ScanLine,
     title: "Hybrid Confluence Mode",
     tag: "Multi-Strategy Merge",
@@ -448,10 +468,10 @@ export default function Strategy() {
 
       {/* Tab Switch */}
       <div className="glass rounded-2xl p-1 flex gap-1 overflow-x-auto no-scrollbar">
-        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor", "gmr", "gdb"].map((t) => (
+        {["strategy", "patterns", "swing2026", "tpr", "hybrid", "nqkz", "msbos", "ofor", "gmr", "gdb", "gmrv"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`shrink-0 px-3 py-2.5 rounded-xl font-heading text-[11px] uppercase tracking-widest font-bold transition-all whitespace-nowrap ${tab === t ? "bg-red-600 text-white neon-red" : "text-muted-foreground"}`}>
-            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : t === "ofor" ? "Orderflow" : t === "gmr" ? "Gold Range" : "Gold Daily"}
+            {t === "strategy" ? "Layers" : t === "patterns" ? "Patterns" : t === "swing2026" ? "Swing 2026" : t === "tpr" ? "EMA Recovery" : t === "hybrid" ? "Hybrid" : t === "nqkz" ? "NQ KillZone" : t === "msbos" ? "BOS Retest" : t === "ofor" ? "Orderflow" : t === "gmr" ? "Gold Range" : t === "gdb" ? "Gold Daily" : "Mean Reversion"}
           </button>
         ))}
       </div>
@@ -487,6 +507,10 @@ export default function Strategy() {
       ) : tab === "gdb" ? (
         <div className="space-y-4">
           <GoldDailyBreakoutLiveCard />
+        </div>
+      ) : tab === "gmrv" ? (
+        <div className="space-y-4">
+          <GoldMeanReversionLiveCard />
         </div>
       ) : tab === "strategy" ? (
         <div className="space-y-3">

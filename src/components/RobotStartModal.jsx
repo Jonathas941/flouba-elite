@@ -16,6 +16,7 @@ import MsBosRetestSettings from "@/components/robotstart/MsBosRetestSettings";
 import OrderflowOpeningRangeSettings from "@/components/robotstart/OrderflowOpeningRangeSettings";
 import GoldMorningRangeSettings from "@/components/robotstart/GoldMorningRangeSettings";
 import GoldDailyBreakoutSettings from "@/components/robotstart/GoldDailyBreakoutSettings";
+import GoldMeanReversionSettings from "@/components/robotstart/GoldMeanReversionSettings";
 import PyramidingSettings from "@/components/robotstart/PyramidingSettings";
 import WinCompoundingSettings from "@/components/robotstart/WinCompoundingSettings";
 import AiAutoExecuteSettings from "@/components/robotstart/AiAutoExecuteSettings";
@@ -40,6 +41,7 @@ const strategyFlags = (s) => ({
   isOfOr: s === "Orderflow Opening Range Breakout",
   isGmr: s === "Gold Morning Range Breakout",
   isGdb: s === "Gold Daily Breakout",
+  isGmrv: s === "Gold Mean Reversion",
 });
 
 // Merge saved BotSettings record into the form default — generic loop over DEFAULT keys.
@@ -510,6 +512,15 @@ export default function RobotStartModal({ open, onClose, onStart }) {
 
               <GoldDailyBreakoutSettings
                 visible={flags.isGdb}
+                form={form}
+                set={set}
+                Field={Field}
+                NumberInput={NumberInput}
+                Toggle={Toggle}
+              />
+
+              <GoldMeanReversionSettings
+                visible={flags.isGmrv}
                 form={form}
                 set={set}
                 Field={Field}

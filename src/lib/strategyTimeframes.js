@@ -22,6 +22,7 @@ export const STRATEGY_TIMEFRAMES = {
   "Orderflow Opening Range Breakout":        { main: "M5",  htf: "M15", note: "Range + breakout + entry on M5, optional trend M15." },
   "Gold Morning Range Breakout":             { main: "M5",  htf: "M15", note: "Morning range + breakout + entry on M5, optional trend M15." },
   "Gold Daily Breakout":                      { main: "D1",  htf: "H1",  note: "Levels from closed D1 candle; breakout trigger intraday, volatility confirmed on H1." },
+  "Gold Mean Reversion":                      { main: "H1",  htf: "H4",  note: "RSI(2) + Bollinger Band mean-reversion on H1, trend filter on H4 EMA200." },
   "Auto (AI Select)":                         { main: "M5",  htf: "M15", note: "Adaptive — timeframes follow the AI-selected strategy. Robot default timeframe is M5." },
 };
 

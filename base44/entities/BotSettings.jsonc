@@ -1083,6 +1083,128 @@
       "type": "number",
       "default": 8
     },
+    "gmrv_lot_size": {
+      "type": "number",
+      "default": 0.01,
+      "description": "Gold Mean Reversion \u2014 default lot size."
+    },
+    "gmrv_max_open_trades": {
+      "type": "number",
+      "default": 1,
+      "description": "Gold Mean Reversion \u2014 max open trades at once."
+    },
+    "gmrv_max_trades_per_day": {
+      "type": "number",
+      "default": 3,
+      "description": "Gold Mean Reversion \u2014 max trades per day."
+    },
+    "gmrv_rsi_period": {
+      "type": "number",
+      "default": 2,
+      "description": "Gold Mean Reversion \u2014 RSI period (2 = fast mean-reversion)."
+    },
+    "gmrv_rsi_threshold": {
+      "type": "number",
+      "default": 10,
+      "description": "Gold Mean Reversion \u2014 RSI threshold for BUY entry (RSI < threshold). SELL uses 100 - threshold."
+    },
+    "gmrv_bb_period": {
+      "type": "number",
+      "default": 20,
+      "description": "Gold Mean Reversion \u2014 Bollinger Band period."
+    },
+    "gmrv_bb_std": {
+      "type": "number",
+      "default": 2.5,
+      "description": "Gold Mean Reversion \u2014 Bollinger Band standard deviation multiplier."
+    },
+    "gmrv_entry_mode": {
+      "type": "string",
+      "enum": [
+        "rsi",
+        "bb",
+        "both"
+      ],
+      "default": "both",
+      "description": "Gold Mean Reversion \u2014 entry signal mode. rsi = RSI threshold only, bb = Bollinger Band touch only, both = both conditions required."
+    },
+    "gmrv_tp_atr_mult": {
+      "type": "number",
+      "default": 0.7,
+      "description": "Gold Mean Reversion \u2014 take profit as a multiple of ATR."
+    },
+    "gmrv_sl_atr_mult": {
+      "type": "number",
+      "default": 2.0,
+      "description": "Gold Mean Reversion \u2014 stop loss as a multiple of ATR."
+    },
+    "gmrv_max_bars": {
+      "type": "number",
+      "default": 10,
+      "description": "Gold Mean Reversion \u2014 time stop: exit at market close after this many bars if neither TP nor SL is hit."
+    },
+    "gmrv_atr_period": {
+      "type": "number",
+      "default": 14,
+      "description": "Gold Mean Reversion \u2014 ATR period for volatility-based SL/TP."
+    },
+    "gmrv_trend_filter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Mean Reversion \u2014 H4 EMA200 trend filter. BUY only when close > EMA200(H4); SELL only when close < EMA200(H4)."
+    },
+    "gmrv_ema200_h4_period": {
+      "type": "number",
+      "default": 200,
+      "description": "Gold Mean Reversion \u2014 EMA period on H4 for trend filter."
+    },
+    "gmrv_session_start_hour": {
+      "type": "number",
+      "default": 7,
+      "description": "Gold Mean Reversion \u2014 session start hour (UTC). No trades outside this window."
+    },
+    "gmrv_session_end_hour": {
+      "type": "number",
+      "default": 20,
+      "description": "Gold Mean Reversion \u2014 session end hour (UTC). No trades outside this window."
+    },
+    "gmrv_round_trip_cost": {
+      "type": "number",
+      "default": 0.4,
+      "description": "Gold Mean Reversion \u2014 round-trip spread + slippage cost in USD per ounce, subtracted from each trade P&L."
+    },
+    "gmrv_use_break_even": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Mean Reversion \u2014 move stop loss to break-even at 1R."
+    },
+    "gmrv_partial_close_50": {
+      "type": "boolean",
+      "default": true,
+      "description": "Gold Mean Reversion \u2014 partial close 50% at 1R."
+    },
+    "gmrv_max_spread_points": {
+      "type": "number",
+      "default": 30
+    },
+    "gmrv_max_daily_loss_pct": {
+      "type": "number",
+      "default": 2,
+      "description": "Gold Mean Reversion \u2014 daily loss limit as a percentage of balance."
+    },
+    "gmrv_equity_stop_pct": {
+      "type": "number",
+      "default": 3,
+      "description": "Gold Mean Reversion \u2014 equity stop loss as a percentage of balance."
+    },
+    "gmrv_max_consecutive_losses": {
+      "type": "number",
+      "default": 2
+    },
+    "gmrv_cooldown_hours": {
+      "type": "number",
+      "default": 8
+    },
     "ms_htf_timeframe": {
       "type": "string",
       "enum": [
