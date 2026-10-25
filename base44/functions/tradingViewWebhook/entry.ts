@@ -87,7 +87,8 @@ export default async function(req) {
     // ── Parse fields ──
     const alertId = body.alert_id || `tv-${Date.now()}`;
     const mode = body.test === true ? "test" : (settings.trading_mode || "test");
-    const price = num(body.price);
+    // FLOUBA Gold Scalper sends the entry as "entry"; other alerts use "price".
+    const price = num(body.price ?? body.entry);
     const positionSize = num(body.position_size || body.strategy_position);
     const sl = num(body.sl);
     const tp1 = num(body.tp1);
