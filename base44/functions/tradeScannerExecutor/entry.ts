@@ -9,7 +9,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // an EXECUTED FloubaSignal. Designed to run from cron (CRON_SECRET) for all
 // eligible users, or manually for the current authenticated user.
 
-import { BRIDGE, B44, bridgeHeaders, postCommand } from "../../shared/mt5Bridge.ts";
+import { BRIDGE, B44, bridgeHeaders, postCommand, resolveUserApiKey } from "../../shared/mt5Bridge.ts";
 
 Deno.serve(async (req) => {
   try {
@@ -148,7 +148,9 @@ async function scanAndExecute(base44, cfg, forceExecute) {
     ...(trade.take_profit != null ? { takeProfit: Number(trade.take_profit) } : {}),
   };
   const idemKey = `${commandType}-${robotId}-${symbol}-${Date.now()}`;
-  const execRes = await postCommand(robotId, command, idemKey);
+  // Trade goes to the settings owner's own MT5 account only.
+  const ownerKey = await resolveUserApiKey(base44, cfg.created_by_id);
+  const execRes = await postCommand(robotId, command, idemKey, ownerKey);
   const queued = execRes.ok === true;
 
   // ── 6. Persist: Trade (Open) + FloubaSignal (EXECUTED) ──
