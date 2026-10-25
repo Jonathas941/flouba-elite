@@ -106,6 +106,18 @@ export default function ExecutionConnectionPanel({ connection, onSaved }) {
       toast({ title: "Missing fields", description: "Broker name, API base URL, and API key are required.", variant: "destructive" });
       return;
     }
+    // SSRF guard: only allow known OANDA API hosts over HTTPS
+    const ALLOWED_HOSTS = ["api-fxtrade.oanda.com", "api-fxpractice.oanda.com"];
+    try {
+      const parsed = new URL(oandaForm.api_base_url);
+      if (parsed.protocol !== "https:" || !ALLOWED_HOSTS.includes(parsed.hostname)) {
+        toast({ title: "Invalid URL", description: "Only https://api-fxtrade.oanda.com or https://api-fxpractice.oanda.com are allowed.", variant: "destructive" });
+        return;
+      }
+    } catch {
+      toast({ title: "Invalid URL", description: "Enter a valid HTTPS OANDA API URL.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {

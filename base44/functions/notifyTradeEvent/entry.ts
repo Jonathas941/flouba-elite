@@ -12,6 +12,11 @@ Deno.serve(async (req) => {
     let body = {};
     try { body = JSON.parse(bodyText); } catch { body = {}; }
 
+    const secret = Deno.env.get("CRON_SECRET");
+    if (!secret) return Response.json({ success: false, error: "notification endpoint not configured" }, { status: 403 });
+    const hasSecret = req.headers.get("X-Cron-Secret") === secret || body?.cron_secret === secret;
+    if (!hasSecret) return Response.json({ success: false, error: "unauthorized" }, { status: 401 });
+
     const base44 = createClientFromRequest(req);
     const event = body.event || {};
     const data = body.data || {};

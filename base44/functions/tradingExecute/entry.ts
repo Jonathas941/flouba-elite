@@ -213,7 +213,19 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, status: "error", message: "Trading execution API disconnected" });
     }
 
-    const apiBase = conn.api_base_url.replace(/\/+$/, "");
+    // ── SSRF guard: only allow known OANDA API hosts ──
+    const ALLOWED_HOSTS = ["api-fxtrade.oanda.com", "api-fxpractice.oanda.com"];
+    let apiBase: string;
+    try {
+      const parsed = new URL(conn.api_base_url);
+      if (parsed.protocol !== "https:" || !ALLOWED_HOSTS.includes(parsed.hostname)) {
+        console.warn(`[tradingExecute] rejected disallowed api_base_url: ${parsed.hostname}`);
+        return Response.json({ success: false, status: "error", message: "Invalid broker API configuration" });
+      }
+      apiBase = parsed.origin;
+    } catch {
+      return Response.json({ success: false, status: "error", message: "Invalid broker API configuration" });
+    }
     const orderTypeMap: Record<string, string> = {
       BUY: "market_buy",
       SELL: "market_sell",
@@ -247,7 +259,8 @@ Deno.serve(async (req) => {
 
     if (!brokerRes || !brokerRes.ok) {
       const errText = brokerRes ? await brokerRes.text().catch(() => "") : "no response";
-      return Response.json({ success: false, status: "error", message: `Broker API error: ${errText || "unreachable"}` });
+      console.warn(`[tradingExecute] broker error for ${conn.account_id}: ${errText}`);
+      return Response.json({ success: false, status: "error", message: "Broker API error" });
     }
 
     const brokerJson = await brokerRes.json().catch(() => ({}));
