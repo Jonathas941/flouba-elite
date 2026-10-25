@@ -663,6 +663,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
   } catch (err) {
+    console.error(`[mt5Bridge] unhandled: ${err?.status || ""} ${err?.message || err}`);
     return Response.json({ error: err.message }, { status: 500 });
   }
 });
