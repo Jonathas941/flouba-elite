@@ -149,7 +149,7 @@ export default function TradingView() {
     );
   }
 
-  const webhookUrl = `${window.location.origin}/api/apps/${settings.app_id || '6a437ad84dc8721fedd64296'}/functions/tradingViewWebhook`;
+  const webhookUrl = `https://flouba-elite-trade.base44.app/functions/tradingViewWebhook`;
   const execConnected = connection?.connection_status === "Connected";
   const lastSignal = signals?.[0]?.received_at || signals?.[0]?.created_date;
   const hasMt5 = !!botSettings?.mt5_account;
