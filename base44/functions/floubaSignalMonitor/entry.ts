@@ -17,7 +17,7 @@ function stripSuffix(sym) {
   return { base: sym, suffix: "" };
 }
 
-import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
+import { bridgeHeaders, resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -118,7 +118,10 @@ async function monitorSignal(base44, signal, config, user) {
   if (signal.execution_mode !== "full_auto") return null;
 
   // 3. Fetch live quotes
-  const authHeaders = bridgeHeaders(config?.mt5_account);
+  // Quotes and execution use the signal owner's own MT5 account only.
+  const ownerKey = await resolveUserApiKey(base44, signal.created_by_id);
+  if (!ownerKey) return null;
+  const authHeaders = bridgeHeaders(config?.mt5_account, ownerKey);
   const quotesRes = await fetch(`${BASE}/symbols`, { headers: authHeaders }).catch(() => null);
   if (!quotesRes?.ok) return null;
   const quotesJson = await quotesRes.json().catch(() => ({}));
