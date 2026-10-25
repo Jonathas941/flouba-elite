@@ -82,7 +82,7 @@ export default function Home() {
       reconnectingRef.current = false;
       setReconnecting(false);
     }
-  }, [toast, botSettings]);
+  }, [toast]);
 
   const loadFast = useCallback(async () => {
     try {
