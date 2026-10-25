@@ -60,7 +60,11 @@ export default async function(req) {
     const base44 = createClientFromRequest(req);
 
     // ── Look up settings by webhook secret ──
-    const secret = body.secret;
+    // Accepted in the JSON body ("secret") or in the webhook URL (?secret=...),
+    // so a TradingView alert can carry it without changing the Pine script.
+    let urlSecret = null;
+    try { urlSecret = new URL(req.url).searchParams.get("secret"); } catch {}
+    const secret = body.secret || urlSecret;
     if (!secret || secret.length < 8) {
       return Response.json({ success: false, status: "error", message: "Invalid or missing webhook secret" }, { status: 403 });
     }
