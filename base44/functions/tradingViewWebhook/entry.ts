@@ -78,7 +78,7 @@ export default async function(req) {
 
     // ── Parse fields ──
     const alertId = body.alert_id || `tv-${Date.now()}`;
-    const mode = settings.trading_mode || "test";
+    const mode = body.test === true ? "test" : (settings.trading_mode || "test");
     const price = num(body.price);
     const positionSize = num(body.position_size || body.strategy_position);
     const sl = num(body.sl);
