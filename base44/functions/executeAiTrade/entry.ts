@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { postCommand } from '../../shared/mt5Bridge.ts';
+import { postCommand, resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 // ── Strip broker suffix so the bridge accepts the base symbol ──
 const KNOWN_BASES = ["XAUUSD","XAUEUR","EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","NAS100","US30","US500","US2000","UK100","GER40","GER30","FRA40","JPN225","AUS200","HK50","CHINA50","SWI20","USOIL","UKOIL","NATGAS","BTCUSD","ETHUSD","LTCUSD","XRPUSD","BCHUSD","ADAUSD","DOTUSD","SOLUSD","DOGUSD","BNBUSD"];
@@ -167,6 +167,7 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
 
   const commandType = trade.direction === "BUY" ? "buy" : "sell";
   const idemKey = `${commandType}-${robotId}-${Date.now()}`;
+  const ownerKey = await resolveUserApiKey(base44, config.created_by_id);
   const tradeRes = await postCommand(robotId, {
     action: commandType,
     symbol,
