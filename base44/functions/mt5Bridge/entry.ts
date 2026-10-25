@@ -171,8 +171,9 @@ Deno.serve(async (req) => {
 
     // Load the user's MT5 account → robotId. There is no per-user provisioning
     // in the new bridge; the EA registers itself and Base44 addresses it by id.
-    const settings = await base44.entities.BotSettings.filter({ created_by_id: user.id }, "-created_date", 1);
-    const cfg = settings?.[0];
+    // Cached per user (see loadCfg): reading BotSettings on every call hit the
+    // 140/min entity_list rate limit and turned bridge calls into HTTP 500s.
+    const cfg = (await loadCfg(base44, user.id)) || {};
 
     // Per-request bridge transport (see makeBridgeCall for why this is a closure).
     const bridgeToken = await resolveBridgeToken(base44, user);
@@ -211,7 +212,7 @@ Deno.serve(async (req) => {
       const login = rawAcct.login ?? rawAcct.accountLogin ?? null;
       if (login != null) {
         robotId = String(login);
-        await base44.entities.BotSettings.update(cfg.id, {
+        if (cfg.id) await base44.entities.BotSettings.update(cfg.id, {
           mt5_account: robotId,
           broker_name: rawAcct.brokerName ?? rawAcct.name ?? cfg?.broker_name ?? null,
           mt5_server: rawAcct.brokerServer ?? rawAcct.server ?? cfg?.mt5_server ?? null,
