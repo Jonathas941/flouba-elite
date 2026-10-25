@@ -18,10 +18,9 @@ export default function AutoStartButton({ settings, onUpdate }) {
   const save = async (newEnabled, newTime) => {
     setToggling(true);
     try {
-      const records = await base44.entities.BotSettings.list();
       const patch = { auto_start_enabled: newEnabled, auto_start_time: newTime };
-      if (records?.length) {
-        await base44.entities.BotSettings.update(records[0].id, patch);
+      if (settings?.id) {
+        await base44.entities.BotSettings.update(settings.id, patch);
       }
       setEnabled(newEnabled);
       setStartTime(newTime);

@@ -91,9 +91,14 @@ export default function Settings() {
   };
 
   const reload = useCallback(async () => {
-    const list = await base44.entities.BotSettings.list();
-    if (list?.length) { setS(list[0]); setBotSettings(list[0]); }
-  }, []);
+    const id = s?.id;
+    if (!id) return;
+    try {
+      const rec = await base44.entities.BotSettings.get(id);
+      setS(rec);
+      setBotSettings(rec);
+    } catch {}
+  }, [s?.id]);
 
   if (!s) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" /></div>;
 

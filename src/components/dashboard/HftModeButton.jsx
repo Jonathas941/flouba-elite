@@ -17,11 +17,10 @@ export default function HftModeButton({ settings, onUpdate, onAutoStart }) {
     setToggling(true);
     const newVal = !enabled;
     try {
-      const records = await base44.entities.BotSettings.list();
-      if (records?.length) {
-        await base44.entities.BotSettings.update(records[0].id, {
+      if (settings?.id) {
+        await base44.entities.BotSettings.update(settings.id, {
           hft_mode_enabled: newVal,
-          ...(newVal ? { hft_current_lot: records[0].hft_base_lot ?? 0.01, hft_consecutive_profits: 0 } : {}),
+          ...(newVal ? { hft_current_lot: settings.hft_base_lot ?? 0.01, hft_consecutive_profits: 0 } : {}),
         });
       }
       setEnabled(newVal);
