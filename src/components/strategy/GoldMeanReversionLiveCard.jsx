@@ -95,14 +95,15 @@ export default function GoldMeanReversionLiveCard() {
   }, []);
 
   const s = settings || {};
-  const price = quote?.bid ?? null;
-  const spread = quote?.spread ?? null;
-  const atr = ind?.atr_14 ?? ind?.atr14 ?? null;
-  const rsi2 = ind?.rsi_2 ?? ind?.rsi2 ?? null;
-  const bbLower = ind?.bb_lower ?? ind?.bbLower ?? null;
+  const price = quote?.bid ?? ind?.bid ?? null;
+  const spread = quote?.spread ?? ind?.spread ?? null;
+  const atr = ind?.atr ?? ind?.atr_14 ?? null;
+  const rsi = ind?.rsi ?? ind?.rsi_14 ?? null;
+  const rsi2 = rsi; // EA publishes RSI(14); RSI(2) not available from scanner
+  const bbLower = ind?.bb_lower ?? ind?.bbLower ?? null; // EA does not publish BB
   const bbUpper = ind?.bb_upper ?? ind?.bbUpper ?? null;
-  const ema200H4 = ind?.ema200_h4 ?? ind?.ema200H4 ?? null;
-  const h4Close = ind?.h4_close ?? ind?.h4Close ?? null;
+  const ema200H4 = ind?.ema_200 ?? ind?.ema200 ?? null; // EA EMA200 (robot TF, not H4-specific)
+  const h4Close = ind?.bid ?? price; // no H4 close from scanner; use live bid as proxy
 
   // Session check (UTC)
   const sessionStart = s.gmrv_session_start_hour ?? 7;
@@ -198,10 +199,11 @@ export default function GoldMeanReversionLiveCard() {
   let msg = "Awaiting market data";
   if (connected) {
     if (blocked && modeStatus === "Blocked") msg = `Blocked: ${blocked.toLowerCase()}.`;
-    else if (planned) msg = `${planned.dir} signal — RSI(2) ${rsi2 != null ? rsi2.toFixed(1) : "--"}${buyAllowed ? " < " + rsiThresh : sellAllowed ? " > " + (100 - rsiThresh) : ""}, BB touch confirmed.`;
+    else if (planned) msg = `${planned.dir} signal — RSI ${rsi2 != null ? rsi2.toFixed(1) : "--"}${buyAllowed ? " < " + rsiThresh : sellAllowed ? " > " + (100 - rsiThresh) : ""}, BB touch confirmed.`;
     else if (trendFilterOn && trendUp === false) msg = "H4 trend is DOWN — only SELL signals active. Waiting for overbought.";
     else if (trendFilterOn && trendUp === true) msg = "H4 trend is UP — only BUY signals active. Waiting for oversold.";
-    else msg = "Scanning for RSI(2) + Bollinger Band mean-reversion entry.";
+    else if (rsi == null && bbLower == null) msg = "EA indicator feed incomplete — RSI/BB not published yet.";
+    else msg = "Scanning for RSI + Bollinger Band mean-reversion entry.";
   }
 
   const fmt = (v, d = 2) => (v == null ? "--" : Number(v).toFixed(d));
@@ -247,14 +249,14 @@ export default function GoldMeanReversionLiveCard() {
 
         {/* Indicators */}
         <div className="grid grid-cols-3 gap-2 px-4 pt-2">
-          <Chip label="RSI(2)" value={fmt(rsi2, 1)} tone={rsi2 != null && rsi2 < rsiThresh ? "up" : rsi2 != null && rsi2 > 100 - rsiThresh ? "down" : "neutral"} />
+          <Chip label="RSI(2)" value={rsi2 != null ? fmt(rsi2, 1) + " (14)" : "EA N/A"} tone={rsi2 != null && rsi2 < rsiThresh ? "up" : rsi2 != null && rsi2 > 100 - rsiThresh ? "down" : "neutral"} />
           <Chip label="ATR(14)" value={fmt(atr, 3)} tone="cool" />
           <Chip label="Price" value={fmt(price, 2)} tone="cool" />
         </div>
         <div className="grid grid-cols-3 gap-2 px-4 pt-2">
-          <Chip label="BB Lower" value={fmt(bbLower, 2)} tone="up" />
-          <Chip label="BB Upper" value={fmt(bbUpper, 2)} tone="down" />
-          <Chip label="EMA200 H4" value={fmt(ema200H4, 2)} tone={trendUp === true ? "up" : trendUp === false ? "down" : "neutral"} />
+          <Chip label="BB Lower" value={bbLower != null ? fmt(bbLower, 2) : "EA N/A"} tone="up" />
+          <Chip label="BB Upper" value={bbUpper != null ? fmt(bbUpper, 2) : "EA N/A"} tone="down" />
+          <Chip label="EMA200" value={fmt(ema200H4, 2)} tone={trendUp === true ? "up" : trendUp === false ? "down" : "neutral"} />
         </div>
 
         {/* Status rows */}
