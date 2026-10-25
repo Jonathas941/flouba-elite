@@ -22,6 +22,19 @@ export function setVisibleInterval(fn, ms) {
   };
 }
 
+/**
+ * pollInterval — drop-in replacement for setInterval(fn, ms) for any timer that
+ * calls a backend function. Returns a normal interval id (so existing
+ * clearInterval(id) cleanup keeps working), skips ticks while the tab is
+ * hidden, and never polls faster than minMs (default 30 s).
+ */
+export function pollInterval(fn, ms, minMs = 30000) {
+  return setInterval(() => {
+    if (typeof document !== "undefined" && document.hidden) return;
+    fn();
+  }, Math.max(ms || 0, minMs));
+}
+
 // Poll intervals for anything that invokes a backend function (mt5Bridge, scanners).
 // Raise these to save more credits; lower them for faster refresh.
 export const POLL_MS = {
