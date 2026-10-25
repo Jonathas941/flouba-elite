@@ -4,9 +4,38 @@
  */
 import { base44 } from "@/api/base44Client";
 
-async function call(action, params = {}) {
+// Read-only actions are shared: many widgets ask for the same account /
+// positions / scanner data at once. Identical requests in flight share one
+// call, and a result is reused for CACHE_MS. Each backend call costs credits
+// and bursts of parallel calls get rejected (HTTP 500) by the platform.
+// Trading actions (buy, sell, close, robot_start...) are NEVER cached.
+const READ_ACTIONS = new Set([
+  "account", "positions", "status", "robot_status", "symbols", "scanner_status",
+  "indicators", "history", "detect", "rates", "tv_feed",
+]);
+const CACHE_MS = 10000;
+const _inflight = new Map();
+const _cache = new Map();
+
+async function rawCall(action, params) {
   const res = await base44.functions.invoke("mt5Bridge", { action, ...params });
   return res.data; // { ok, status, data }
+}
+
+async function call(action, params = {}) {
+  if (!READ_ACTIONS.has(action)) {
+    _cache.clear(); // a trade changes account/positions: next reads are fresh
+    return rawCall(action, params);
+  }
+  const key = action + "|" + JSON.stringify(params);
+  const hit = _cache.get(key);
+  if (hit && Date.now() - hit.t < CACHE_MS) return hit.v;
+  if (_inflight.has(key)) return _inflight.get(key);
+  const p = rawCall(action, params)
+    .then((v) => { _cache.set(key, { t: Date.now(), v }); return v; })
+    .finally(() => _inflight.delete(key));
+  _inflight.set(key, p);
+  return p;
 }
 
 export const mt5Api = {
