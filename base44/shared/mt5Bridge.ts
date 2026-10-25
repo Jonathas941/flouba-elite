@@ -1,6 +1,13 @@
 // ── Shared MT5 bridge utilities ─────────────────────────────────────────────
-// Used by tradeScannerExecutor, tradingViewWebhook, and executeAiTrade to avoid
-// duplicating bridge URL construction, header building, and command posting.
+// Used by tradeScannerExecutor, tradingViewWebhook, executeAiTrade and the
+// signal functions to talk to the Replit Elite Server.
+//
+// MULTI-USER ISOLATION — every call must carry the API key of the user who
+// OWNS the trade / signal / settings row. There is deliberately NO fallback
+// to the shared FLOUBA_ACCOUNT_API_KEY: that key belongs to the app owner's
+// MT5 account and is only returned by resolveUserApiKey() for an admin.
+// Without a key the call fails (fail closed) instead of hitting someone
+// else's account.
 
 export const BRIDGE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -10,9 +17,41 @@ export const BRIDGE = (() => {
 
 export const B44 = `${BRIDGE}/api`;
 
-export function bridgeHeaders(robotId) {
+// userId -> { t, v } — keys change rarely; cache per isolate for 5 minutes.
+const KEY_TTL_MS = 5 * 60_000;
+const _keyCache = new Map();
+
+/**
+ * API key for the user who owns a trade / signal / settings row.
+ *   admin -> FLOUBA_ACCOUNT_API_KEY (owner account), else their own key
+ *   user  -> their own mt5_api_key only
+ *   unknown user / service account / no key -> null (caller must refuse)
+ */
+export async function resolveUserApiKey(base44, userId) {
+  if (!userId || String(userId).startsWith("service_")) return null;
+  const hit = _keyCache.get(userId);
+  if (hit && Date.now() - hit.t < KEY_TTL_MS) return hit.v;
+  let u = null;
+  try { u = await base44.asServiceRole.entities.User.get(userId); } catch { u = null; }
+  if (!u) {
+    try {
+      const rows = await base44.asServiceRole.entities.User.filter({ id: userId }, "-created_date", 1);
+      u = rows?.items?.[0] || rows?.[0] || null;
+    } catch { u = null; }
+  }
+  let v = null;
+  if (u) {
+    v = u.role === "admin"
+      ? (Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || u.mt5_api_key || null)
+      : (u.mt5_api_key || null);
+  }
+  _keyCache.set(userId, { t: Date.now(), v });
+  return v;
+}
+
+export function bridgeHeaders(robotId, apiKey) {
   return {
-    "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || "",
+    "X-Api-Key": apiKey || "",
     "x-request-id": crypto.randomUUID(),
     "x-timestamp": new Date().toISOString(),
     "Content-Type": "application/json",
@@ -20,17 +59,20 @@ export function bridgeHeaders(robotId) {
   };
 }
 
+const NO_KEY = "No MT5 bridge key for this user — their account is not set up yet (open the dashboard once to provision it).";
+
 // Get the live account balance from the Replit server.
-export async function getAccount(robotId) {
+export async function getAccount(robotId, apiKey) {
   if (!BRIDGE) return { ok: false, error: "FLOUBA_BACKEND_URL not set" };
+  if (!apiKey) return { ok: false, error: NO_KEY };
   try {
     const res = await fetch(`${B44}/account`, {
       method: "GET",
-      headers: bridgeHeaders(robotId),
+      headers: bridgeHeaders(robotId, apiKey),
     });
     const raw = await res.text();
     let json; try { json = JSON.parse(raw); } catch { json = { raw }; }
-    if (!res.ok) return { ok: false, error: json?.error?.message || json?.error || `HTTP ${res.status}` };
+    if (!res.ok) return { ok: false, error: json?.error?.message || json?.message || json?.error || `HTTP ${res.status}` };
     const acct = json?.data?.account ?? json?.account ?? json?.data ?? {};
     return {
       ok: true,
@@ -44,11 +86,11 @@ export async function getAccount(robotId) {
   }
 }
 
-// postCommand now sends trades directly to the Replit Elite Server routes
-// (POST /api/trade/buy, /api/trade/sell, /api/trade/close, /api/trade/close-all)
-// instead of the old command-queue path (/api/base44/robots/:id/commands).
-export async function postCommand(robotId, command, idemKey) {
+// Sends trades directly to the Replit Elite Server routes
+// (POST /api/trade/buy, /api/trade/sell, /api/trade/close, /api/trade/close-all).
+export async function postCommand(robotId, command, idemKey, apiKey) {
   if (!BRIDGE) return { ok: false, error: "FLOUBA_BACKEND_URL not set" };
+  if (!apiKey) return { ok: false, error: NO_KEY };
   try {
     const action = (command?.action || "").toLowerCase();
     const routeMap = {
@@ -72,7 +114,7 @@ export async function postCommand(robotId, command, idemKey) {
 
     const res = await fetch(`${B44}${route}`, {
       method: "POST",
-      headers: { ...bridgeHeaders(robotId), "x-idempotency-key": idemKey },
+      headers: { ...bridgeHeaders(robotId, apiKey), "x-idempotency-key": idemKey },
       body: JSON.stringify(body),
     });
     const raw = await res.text();
