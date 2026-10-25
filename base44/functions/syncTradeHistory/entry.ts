@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
+import { bridgeHeaders, resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -65,7 +65,10 @@ Deno.serve(async (req) => {
     let totalProcessed = 0;
 
     for (const config of targetConfigs) {
-      const authHeaders = bridgeHeaders(config?.mt5_account);
+      // Read history from this config owner's own MT5 account only.
+      const ownerKey = await resolveUserApiKey(base44, config?.created_by_id || config?._userId);
+      if (!ownerKey) continue;
+      const authHeaders = bridgeHeaders(config?.mt5_account, ownerKey);
 
       // Fetch closed trade history from MT5
       let mt5Trades = [];
