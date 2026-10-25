@@ -17,17 +17,14 @@ export default function TradingView() {
   const [connection, setConnection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [botSettings, setBotSettings] = useState(null);
   const creatingSettingsRef = useRef(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [tvList, sigList, connList, botList] = await Promise.all([
+      const [tvList, connList] = await Promise.all([
         base44.entities.TradingViewSettings.list("-created_date"),
-        base44.entities.TradingViewSignal.list("-created_date", 10),
         base44.entities.TradingExecutionConnection.list(),
-        base44.entities.BotSettings.list(),
       ]);
 
       let tv = tvList?.[0];
@@ -48,9 +45,7 @@ export default function TradingView() {
       }
 
       setSettings(tv);
-      setSignals(sigList || []);
       setConnection(connList?.[0] || null);
-      setBotSettings(botList?.[0] || null);
     } catch (err) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -151,7 +146,7 @@ export default function TradingView() {
       <SetupChecklist />
 
       {/* 3. Pipeline Status (auto-refreshes every 60s) */}
-      <PipelineStatusCard />
+      <PipelineStatusCard onSignals={setSignals} />
 
       {/* 4. Test Signal */}
       <TestSignalButton settings={settings} />

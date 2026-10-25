@@ -32,7 +32,7 @@ function StatusBadge({ status }) {
   return <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${cls}`}>{status}</span>;
 }
 
-export default function PipelineStatusCard() {
+export default function PipelineStatusCard({ onSignals }) {
   const [signals, setSignals] = useState([]);
   const [bridgeStatus, setBridgeStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,13 +44,14 @@ export default function PipelineStatusCard() {
         base44.functions.invoke("mt5Bridge", { action: "status" }).catch(() => null),
       ]);
       setSignals(sigList || []);
+      if (onSignals) onSignals(sigList || []);
       setBridgeStatus(statusRes?.data || null);
     } catch {
       // silent — will retry next tick
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onSignals]);
 
   useEffect(() => {
     fetchStatus();
