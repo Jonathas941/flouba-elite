@@ -65,8 +65,11 @@ Deno.serve(async (req) => {
     let totalProcessed = 0;
 
     for (const config of targetConfigs) {
-      // Read history from this config owner's own MT5 account only.
-      const ownerKey = await resolveUserApiKey(base44, config?.created_by_id || config?._userId);
+      // Read history from this config owner's own MT5 account only, and
+      // attribute/dedup trades to that same owner (userId was undefined before).
+      const userId = config?.created_by_id || config?._userId;
+      if (!userId) continue;
+      const ownerKey = await resolveUserApiKey(base44, userId);
       if (!ownerKey) continue;
       const authHeaders = bridgeHeaders(config?.mt5_account, ownerKey);
 
