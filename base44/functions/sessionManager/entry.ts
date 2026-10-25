@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -243,46 +244,11 @@ Deno.serve(async (req) => {
     const config = settings?.[0] || {};
     const activePair = config.active_pair ?? "XAUUSD";
 
-    // Use the stored flouba_token (provisioned on signup) directly; fall back to api_key exchange.
-    const provisionSecret = Deno.env.get("PROVISION_SECRET");
-    if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
-    let bridgeToken = user.flouba_token;
-    if (!bridgeToken) {
-      let apiKey = user.mt5_api_key;
-      if (!apiKey) {
-        const provisionRes = await fetch(`${BASE}/provision/user`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
-        });
-        const provisionJson = await provisionRes.json().catch(() => ({}));
-        if (!provisionJson?.success || !provisionJson?.api_key) {
-          return Response.json({ error: "Failed to provision bridge account" }, { status: 500 });
-        }
-        apiKey = provisionJson.api_key;
-        const updateData = { mt5_api_key: apiKey };
-        if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
-        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
-        if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
-        await base44.asServiceRole.entities.User.update(user.id, updateData);
-        bridgeToken = provisionJson.user_token || null;
-      }
-      if (!bridgeToken) {
-        const tokenRes = await fetch(`${BASE}/auth/token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: apiKey }),
-        });
-        const tokenJson = await tokenRes.json().catch(() => ({}));
-        if (!tokenJson?.token) {
-          return Response.json({ error: "Failed to authenticate with MT5 bridge" }, { status: 500 });
-        }
-        bridgeToken = tokenJson.token;
-      }
-    }
+    // Caller's own bridge key only (multi-user isolation; admin -> owner key).
+    let bridgeToken = await resolveUserApiKey(base44, user.id);
 
     const authHeaders = {
-      "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || bridgeToken || "",
+      "X-Api-Key": bridgeToken || "",
       "Content-Type": "application/json",
     };
 

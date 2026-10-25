@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -11,7 +12,7 @@ const BASE = (() => {
 const KNOWN_PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30", "BTCUSD"];
 
 function buildHeaders(token, config) {
-  const h = { "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || token || "", "Content-Type": "application/json" };
+  const h = { "X-Api-Key": token || "", // per-user key only (multi-user isolation) "Content-Type": "application/json" };
   return h;
 }
 
@@ -60,6 +61,7 @@ Deno.serve(async (req) => {
         bridgeToken = tokenJson?.token || null;
       }
     }
+    bridgeToken = await resolveUserApiKey(base44, user.id); // caller's own bridge key only
     if (!bridgeToken) return Response.json({ ok: false, error: "Bridge auth failed", pairs: [] });
 
     const authHeaders = buildHeaders(bridgeToken, cfg);

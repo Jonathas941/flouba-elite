@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -11,7 +12,7 @@ const BASE = (() => {
 function num(v) { return typeof v === "number" ? v : (v == null ? null : Number(v)); }
 
 function buildHeaders(token, config) {
-  const h = { "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || token || "", "Content-Type": "application/json" };
+  const h = { "X-Api-Key": token || "", // per-user key only (multi-user isolation) "Content-Type": "application/json" };
   return h;
 }
 
@@ -55,7 +56,7 @@ async function processHftUser(base44, user, cfg, useServiceRole) {
   if (!cfg.hft_mode_enabled) return { skipped: true, reason: "HFT disabled" };
   if (!cfg.mt5_account) return { ok: false, error: "MT5 not connected" };
 
-  const token = await resolveBridgeToken(base44, user, cfg, useServiceRole);
+  const token = await resolveUserApiKey(base44, cfg.created_by_id || user?.id); // owner's own bridge key
   if (!token) return { ok: false, error: "Bridge auth failed" };
   const headers = buildHeaders(token, cfg);
   const symbol = cfg.active_pair || "XAUUSD";

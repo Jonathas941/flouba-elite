@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -40,7 +41,7 @@ function nySessionStartUtc(now = new Date()) {
 }
 
 function buildHeaders(token, config) {
-  const h = { "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || token || "", "Content-Type": "application/json" };
+  const h = { "X-Api-Key": token || "", // per-user key only (multi-user isolation) "Content-Type": "application/json" };
   return h;
 }
 
@@ -149,7 +150,7 @@ async function evaluateUser(base44, userId, isCron, userMap) {
       const cfg = botSettings[0];
       if (cfg?.mt5_account) {
         const u = userMap?.get(userId);
-        const jwt = u?.flouba_token;
+        const jwt = await resolveUserApiKey(base44, userId); // owner's own bridge key
         if (jwt) {
           const headers = buildHeaders(jwt, cfg);
           const robotRes = await fetch(`${BASE}/robot/status`, { headers });

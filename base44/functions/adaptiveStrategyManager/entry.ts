@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -251,7 +252,7 @@ function scoreStrategy(key, stats, regime, cfg) {
 }
 
 function buildHeaders(token, config) {
-  const h = { "X-Api-Key": Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || token || "", "Content-Type": "application/json" };
+  const h = { "X-Api-Key": token || "", // per-user key only (multi-user isolation) "Content-Type": "application/json" };
   return h;
 }
 
@@ -408,7 +409,7 @@ Deno.serve(async (req) => {
       if (!cfg.mt5_account || !cfg.mt5_password || !cfg.mt5_server) { results.push({ user: userId, skipped: "No MT5 credentials" }); continue; }
 
       const userData = userMap.get(userId);
-      const jwt = await getJwt(userId, userData?.email, userData?.full_name);
+      const jwt = await resolveUserApiKey(base44, userId); // owner's own bridge key
       if (!jwt) { results.push({ user: userId, skipped: "Bridge auth failed" }); continue; }
       const authHeaders = buildHeaders(jwt, cfg);
       const isBasic = (cfg.bot_mentality || "Premium") === "Basic";
