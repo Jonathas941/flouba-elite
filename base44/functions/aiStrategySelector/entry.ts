@@ -89,9 +89,10 @@ Respond with the single best strategy and a concise reason (1-2 sentences) expla
     let reason = "Default trend-following strategy.";
     let confidence = 50;
 
+    // Only return strategies the Replit backend recognizes (others return HTTP 422).
     if (trending && bullishEma) {
-      strategy = "Swing Trend Pullback Continuation 2026";
-      reason = `ADX ${adx ?? "N/A"} > 25 with bullish EMA alignment — trend-following pullback strategy.`;
+      strategy = "Momentum Scalping";
+      reason = `ADX ${adx ?? "N/A"} > 25 with bullish EMA alignment — momentum scalping in trend direction.`;
       confidence = 80;
     } else if (trending && !bullishEma) {
       strategy = "Momentum Scalping";
@@ -99,11 +100,11 @@ Respond with the single best strategy and a concise reason (1-2 sentences) expla
       confidence = 75;
     } else if (!trending && (overbought || oversold)) {
       strategy = "Liquidity Sweep Scalping";
-      reason = `ADX < 25 with RSI ${overbought ? "overbought" : "oversold"} — potential liquidity sweep reversal.`;
+      reason = `ADX < 25 with RSI ${overbought ? "overbought" : "oversold"} — liquidity sweep for potential reversal.`;
       confidence = 65;
     } else if (!trending) {
-      strategy = "Grid Trading";
-      reason = `ADX ${adx ?? "N/A"} < 25 — ranging market, grid strategy for oscillation.`;
+      strategy = "Range Breakout";
+      reason = `ADX ${adx ?? "N/A"} < 25 — ranging market, range breakout for oscillation.`;
       confidence = 55;
     } else if (highVolatility) {
       strategy = "Volatility Spike";
@@ -112,8 +113,8 @@ Respond with the single best strategy and a concise reason (1-2 sentences) expla
     }
 
     if (highSpread) {
-      strategy = "Hedge Scalper";
-      reason = `Spread ${spread} > 5 pips — hedge scalper for high-cost conditions.`;
+      strategy = "Momentum Scalping";
+      reason = `Spread ${spread} > 5 pips — momentum scalping for high-cost conditions.`;
       confidence = 50;
     }
 
