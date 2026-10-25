@@ -17,7 +17,7 @@ function stripSuffix(sym) {
   return { base: sym, suffix: "" };
 }
 
-import { bridgeHeaders } from '../../shared/mt5Bridge.ts';
+import { bridgeHeaders, resolveUserApiKey } from '../../shared/mt5Bridge.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -51,7 +51,11 @@ Deno.serve(async (req) => {
     const config = settings?.[0];
     if (!config) return Response.json({ error: "No BotSettings found" }, { status: 400 });
 
-    const authHeaders = bridgeHeaders(config?.mt5_account);
+    // Execute on the SIGNAL OWNER's account (an admin acting on someone's
+    // signal must never route it to the admin's own account, or vice versa).
+    const ownerKey = await resolveUserApiKey(base44, signal.created_by_id);
+    if (!ownerKey) return Response.json({ ok: false, error: "The signal owner's MT5 bridge account is not set up." }, { status: 409 });
+    const authHeaders = bridgeHeaders(config?.mt5_account, ownerKey);
     const { base: baseSym, suffix } = stripSuffix(signal.symbol);
 
     // ═══ CANCEL ═══
