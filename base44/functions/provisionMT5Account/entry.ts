@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
         const updateData = {};
         if (provisionJson.api_key) updateData.mt5_api_key = provisionJson.api_key;
         if (provisionJson.slug) { updateData.mt5_slug = provisionJson.slug; updateData.flouba_slug = provisionJson.slug; }
-        if (provisionJson.user_token) updateData.flouba_token = provisionJson.user_token;
+        // flouba_token (legacy JWT) is no longer saved — the bridge uses X-Api-Key exclusively.
         if (provisionJson.ea_download_url) updateData.ea_download_url = provisionJson.ea_download_url;
 
         if (Object.keys(updateData).length) {

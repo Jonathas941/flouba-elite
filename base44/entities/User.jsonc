@@ -12,7 +12,7 @@
     },
     "mt5_api_key": {
       "type": "string",
-      "description": "API key returned by the MT5 server after account provisioning. Used to authenticate the user's MT5 EA with the bridge."
+      "description": "API key returned by the MT5 server after account provisioning. Used to authenticate the user's MT5 EA with the bridge. Only the owner and admins can read this."
     },
     "mt5_slug": {
       "type": "string",
@@ -20,7 +20,7 @@
     },
     "flouba_token": {
       "type": "string",
-      "description": "JWT returned by the provision endpoint on signup. Scoped to this user's MT5 account \u2014 sent as Authorization Bearer for all bridge API calls."
+      "description": "Legacy JWT \u2014 no longer used by the bridge (replaced by X-Api-Key). Kept for backward compatibility. Only the owner and admins can read this."
     },
     "flouba_slug": {
       "type": "string",
@@ -28,10 +28,41 @@
     },
     "ea_download_url": {
       "type": "string",
-      "description": "Download URL for the MT5 Expert Advisor file, shown to the user so they can install it in MetaTrader."
+      "description": "Download URL for the MT5 Expert Advisor file, shown to the user so they can install it in MetaTrader. Only the owner and admins can read this."
     }
   },
   "required": [
     "role"
-  ]
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
 }

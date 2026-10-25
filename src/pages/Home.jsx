@@ -47,6 +47,7 @@ export default function Home() {
   const [showStartModal, setShowStartModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [botSettings, setBotSettings] = useState(null);
+  const [riskKilled, setRiskKilled] = useState(false);
 
   const pollRef = useRef(null);
   const slowPollRef = useRef(null);
@@ -128,6 +129,9 @@ export default function Home() {
         base44.entities.BotSettings.list('-created_date', 1).catch(() => []),
       ]);
       base44.entities.Notification.filter({ read: false }).then((u) => setUnreadCount(u?.length || 0)).catch(() => {});
+      base44.functions.invoke("mt5Bridge", { action: "risk_status" }).then((r) => {
+        setRiskKilled(r?.data?.ok && (r.data.data?.killed === true || r.data.data?.status === "killed"));
+      }).catch(() => {});
       if (settingsRes?.length > 0) {
         settingsRef.current = settingsRes[0];
         setBotSettings(settingsRes[0]);
@@ -368,6 +372,26 @@ export default function Home() {
               transition={{ duration: 0.9, repeat: Infinity, delay: 0.45 }}
               style={{ boxShadow: "0 0 10px rgba(255,49,49,0.8)" }}
             />
+          </div>
+        </motion.div>
+      )}
+
+      {riskKilled && (
+        <motion.div
+          className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[60] px-4 pt-2"
+          initial={{ y: -60, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+        >
+          <div className="rounded-xl flex items-center justify-center gap-2 py-2"
+            style={{ background: "rgba(255,49,49,0.20)", border: "1px solid rgba(255,49,49,0.60)", backdropFilter: "blur(12px)" }}>
+            <motion.span className="w-2 h-2 rounded-full bg-[#FF3131]"
+              animate={{ opacity: [1, 0.2, 1], scale: [1, 1.4, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+            />
+            <span className="font-heading font-black text-[11px] tracking-[0.25em] text-[#FF3131]"
+              style={{ textShadow: "0 0 12px rgba(255,49,49,0.6)" }}>
+              KILL SWITCH ACTIVE
+            </span>
           </div>
         </motion.div>
       )}

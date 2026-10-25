@@ -28,6 +28,9 @@ export default function Settings() {
   const [botSettings, setBotSettings] = useState(null);
   const [downloadingDocs, setDownloadingDocs] = useState(false);
   const [downloadingExport, setDownloadingExport] = useState(false);
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramSaving, setTelegramSaving] = useState(false);
+  const [telegramTesting, setTelegramTesting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -80,6 +83,7 @@ export default function Settings() {
       setS(rec);
       setBotSettings(rec);
       setConnected(rec?.mt5_account != null);
+      setTelegramChatId(rec?.telegram_chat_id || "");
     })();
   }, []);
 
@@ -235,6 +239,52 @@ export default function Settings() {
 
         {/* Adaptive Strategy Manager */}
         <AdaptiveStrategyPanel connected={connected} settings={botSettings} />
+
+        {/* Telegram Notifications */}
+        <GlassCard>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Telegram Notifications</p>
+          <Label className="text-xs text-muted-foreground">Telegram Chat ID</Label>
+          <Input
+            value={telegramChatId}
+            onChange={(e) => setTelegramChatId(e.target.value)}
+            placeholder="e.g. 123456789"
+            className="bg-white/5 border-red-500/20 rounded-xl h-11 mt-1"
+          />
+          <div className="flex gap-2 mt-3">
+            <Button
+              onClick={async () => {
+                if (!telegramChatId.trim()) { toast({ title: "Enter a chat ID first", variant: "destructive" }); return; }
+                setTelegramSaving(true);
+                try {
+                  const res = await base44.functions.invoke("mt5Bridge", { action: "telegram_set", chat_id: telegramChatId.trim() });
+                  if (res?.data?.ok) toast({ title: "Saved", description: "Telegram chat ID synced to the server." });
+                  else toast({ title: "Save failed", description: res?.data?.error || "Unknown error", variant: "destructive" });
+                } catch (e) { toast({ title: "Save failed", description: e.message, variant: "destructive" }); }
+                finally { setTelegramSaving(false); }
+              }}
+              disabled={telegramSaving}
+              className="flex-1 h-11 rounded-xl bg-[#00FF41] hover:bg-[#00CC33] text-black"
+            >
+              {telegramSaving ? "Saving…" : "Save"}
+            </Button>
+            <Button
+              onClick={async () => {
+                setTelegramTesting(true);
+                try {
+                  const res = await base44.functions.invoke("mt5Bridge", { action: "telegram_test" });
+                  if (res?.data?.ok) toast({ title: "Test sent", description: "Check your Telegram for a test message." });
+                  else toast({ title: "Test failed", description: res?.data?.error || "Unknown error", variant: "destructive" });
+                } catch (e) { toast({ title: "Test failed", description: e.message, variant: "destructive" }); }
+                finally { setTelegramTesting(false); }
+              }}
+              disabled={telegramTesting}
+              variant="outline"
+              className="flex-1 h-11 rounded-xl"
+            >
+              {telegramTesting ? "Sending…" : "Send Test"}
+            </Button>
+          </div>
+        </GlassCard>
 
         {/* ── Tools & Resources (moved from Home) ── */}
         <GlassCard className="p-0 overflow-hidden">

@@ -685,6 +685,70 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── risk_get: GET /risk — current risk limits ──
+    if (action === "risk_get") {
+      const r = await bridgeCall("GET", "/risk");
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
+    // ── risk_set: POST /risk — update risk limits ──
+    if (action === "risk_set") {
+      const r = await bridgeCall("POST", "/risk", params);
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
+    // ── risk_status: GET /risk/status — today's risk status (killed / active / limits hit) ──
+    if (action === "risk_status") {
+      const r = await bridgeCall("GET", "/risk/status");
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
+    // ── risk_kill: POST /risk/kill — kill switch (close all positions, halt all trading) ──
+    if (action === "risk_kill") {
+      const r = await bridgeCall("POST", "/risk/kill", {});
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
+    // ── risk_resume: POST /risk/resume — resume trading after a kill ──
+    if (action === "risk_resume") {
+      const r = await bridgeCall("POST", "/risk/resume", {});
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
+    // ── telegram_set: POST /telegram — set Telegram chat id for notifications ──
+    if (action === "telegram_set") {
+      const chatId = String(params.chat_id || "").trim();
+      if (!chatId) return Response.json({ error: "Missing chat_id" }, { status: 400 });
+      const r = await bridgeCall("POST", "/telegram", { chat_id: chatId });
+      if (r.ok && cfg.id) {
+        await base44.entities.BotSettings.update(cfg.id, { telegram_chat_id: chatId }).catch(() => {});
+      }
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
+    // ── telegram_test: POST /telegram/test — send a test message ──
+    if (action === "telegram_test") {
+      const r = await bridgeCall("POST", "/telegram/test", {});
+      return Response.json({ ok: r.ok, status: r.status, data: r.data, error: r.error || null });
+    }
+
+    // ── reprovision: re-provision the user's bridge key (auto-recovery on 401 "Invalid X-Api-Key") ──
+    if (action === "reprovision") {
+      const provisionSecret = Deno.env.get("PROVISION_SECRET");
+      if (!provisionSecret) return Response.json({ error: "PROVISION_SECRET not set" }, { status: 500 });
+      const pr = await fetch(`${BASE}/provision/user`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${provisionSecret}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ base44_user_id: user.id, email: user.email, name: user.full_name || user.email }),
+      }).catch(() => null);
+      const pj = pr ? await pr.json().catch(() => ({})) : {};
+      if (!pj?.success || !pj?.api_key) {
+        return Response.json({ ok: false, error: pj?.message || pj?.error || "Re-provision failed" }, { status: 500 });
+      }
+      await base44.auth.updateMe({ mt5_api_key: pj.api_key }).catch(() => {});
+      return Response.json({ ok: true, data: { api_key: pj.api_key, slug: pj.slug ?? null } });
+    }
+
     return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
   } catch (err) {
     console.error(`[mt5Bridge] unhandled: ${err?.status || ""} ${err?.message || err}`);

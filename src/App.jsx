@@ -37,6 +37,8 @@ import TradeJournal from '@/pages/TradeJournal';
 import TradingView from '@/pages/TradingView';
 import MarketStructure from '@/pages/MarketStructure';
 import AIAnalyst from '@/pages/AIAnalyst';
+import Risk from '@/pages/Risk';
+import Onboarding from '@/pages/Onboarding';
 
 const PageSlide = ({ children }) => (
   <motion.div
@@ -101,6 +103,8 @@ const AuthenticatedApp = () => {
             <Route path="/tradingview" element={<PageSlide><TradingView /></PageSlide>} />
             <Route path="/market-structure" element={<PageSlide><MarketStructure /></PageSlide>} />
             <Route path="/ai-analyst" element={<PageSlide><AIAnalyst /></PageSlide>} />
+            <Route path="/risk" element={<PageSlide><Risk /></PageSlide>} />
+            <Route path="/onboarding" element={<PageSlide><Onboarding /></PageSlide>} />
           </Route>
         </Route>
         <Route path="*" element={<PageNotFound />} />

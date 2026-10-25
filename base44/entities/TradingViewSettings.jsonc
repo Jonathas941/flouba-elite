@@ -64,6 +64,11 @@
     "allow_close": {
       "type": "boolean",
       "default": true
+    },
+    "tv_alert_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the TradingView alert subscription expires. A warning is shown 5 days before this date."
     }
   },
   "required": [],

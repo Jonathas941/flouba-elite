@@ -16,6 +16,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
  *   { api_key, trades: [ { ticket, symbol, ... }, ... ] }
  */
 Deno.serve(async (req) => {
+  // ── DISABLED — return 410 Gone until explicitly re-enabled by the app owner ──
+  return Response.json({ error: "This endpoint is disabled (410 Gone)." }, { status: 410 });
   try {
     const bodyText = await req.text().catch(() => "{}");
     let body = {};

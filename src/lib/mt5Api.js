@@ -12,6 +12,7 @@ import { base44 } from "@/api/base44Client";
 const READ_ACTIONS = new Set([
   "account", "positions", "status", "robot_status", "symbols", "scanner_status",
   "indicators", "history", "detect", "rates", "tv_feed",
+  "risk_get", "risk_status",
 ]);
 const CACHE_MS = 10000;
 const _inflight = new Map();
@@ -89,4 +90,18 @@ export const mt5Api = {
 
   /** TradingView signal feed from the Replit server */
   tvFeed: () => call("tv_feed"),
+
+  /** Risk & Kill Switch */
+  riskGet: () => call("risk_get"),
+  riskSet: (limits) => call("risk_set", limits),
+  riskStatus: () => call("risk_status"),
+  riskKill: () => call("risk_kill"),
+  riskResume: () => call("risk_resume"),
+
+  /** Telegram notifications */
+  telegramSet: (chatId) => call("telegram_set", { chat_id: chatId }),
+  telegramTest: () => call("telegram_test"),
+
+  /** Re-provision the user's bridge key (auto-recovery on 401) */
+  reprovision: () => rawCall("reprovision"),
 };

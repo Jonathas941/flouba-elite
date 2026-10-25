@@ -8,7 +8,9 @@ import WebhookSetupCard from "@/components/tradingview/WebhookSetupCard";
 import SetupChecklist from "@/components/tradingview/SetupChecklist";
 import PipelineStatusCard from "@/components/tradingview/PipelineStatusCard";
 import TestSignalButton from "@/components/tradingview/TestSignalButton";
-import { Activity, Trash2 } from "lucide-react";
+import { Activity, Trash2, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function TradingView() {
   const { toast } = useToast();
@@ -44,6 +46,11 @@ export default function TradingView() {
         }).finally(() => { creatingSettingsRef.current = false; });
       }
 
+      // Disable any TradingViewSettings row created by a service account
+      if (tv && String(tv.created_by_id || "").startsWith("service_") && tv.auto_trading_enabled) {
+        await base44.entities.TradingViewSettings.update(tv.id, { auto_trading_enabled: false }).catch(() => {});
+        tv.auto_trading_enabled = false;
+      }
       setSettings(tv);
       setConnection(connList?.[0] || null);
     } catch (err) {
@@ -75,6 +82,7 @@ export default function TradingView() {
         allow_buy: settings.allow_buy ?? true,
         allow_sell: settings.allow_sell ?? true,
         allow_close: settings.allow_close ?? true,
+        tv_alert_expires_at: settings.tv_alert_expires_at || null,
       });
       toast({ title: "Saved", description: "TradingView settings updated." });
     } catch (err) {
@@ -132,6 +140,37 @@ export default function TradingView() {
         </div>
         <Activity className="w-6 h-6 text-[#FF3131]" />
       </div>
+
+      {/* Alert Expiry Warning */}
+      {settings.tv_alert_expires_at && (() => {
+        const expiry = new Date(settings.tv_alert_expires_at);
+        const daysLeft = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
+        if (daysLeft > 5) return null;
+        return (
+          <GlassCard className="p-3" >
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-amber-400">Alert Expiry Soon</p>
+                <p className="text-[10px] text-white/60">
+                  {daysLeft <= 0 ? "Your TradingView alert has expired!" : `Expires in ${daysLeft} day(s) — renew it soon.`}
+                </p>
+              </div>
+            </div>
+          </GlassCard>
+        );
+      })()}
+
+      {/* Alert Expiry Date Editor */}
+      <GlassCard className="p-3">
+        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Alert Expiry Date</Label>
+        <Input
+          type="date"
+          value={settings.tv_alert_expires_at ? settings.tv_alert_expires_at.slice(0, 10) : ""}
+          onChange={(e) => updateField("tv_alert_expires_at", e.target.value ? new Date(e.target.value).toISOString() : null)}
+          className="bg-white/5 border-red-500/20 rounded-xl h-11 mt-1"
+        />
+      </GlassCard>
 
       {/* 1. Webhook Setup */}
       <WebhookSetupCard
