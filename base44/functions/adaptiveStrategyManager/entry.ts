@@ -252,7 +252,7 @@ function scoreStrategy(key, stats, regime, cfg) {
 }
 
 function buildHeaders(token, config) {
-  const h = { "X-Api-Key": token || "", // per-user key only (multi-user isolation) "Content-Type": "application/json" };
+  const h = { "X-Api-Key": token || "" /* per-user key only (multi-user isolation) */, "Content-Type": "application/json" };
   return h;
 }
 

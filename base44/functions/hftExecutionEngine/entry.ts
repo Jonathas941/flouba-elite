@@ -12,7 +12,7 @@ const BASE = (() => {
 function num(v) { return typeof v === "number" ? v : (v == null ? null : Number(v)); }
 
 function buildHeaders(token, config) {
-  const h = { "X-Api-Key": token || "", // per-user key only (multi-user isolation) "Content-Type": "application/json" };
+  const h = { "X-Api-Key": token || "" /* per-user key only (multi-user isolation) */, "Content-Type": "application/json" };
   return h;
 }
 
