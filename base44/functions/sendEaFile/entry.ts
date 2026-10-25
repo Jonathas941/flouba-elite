@@ -29,8 +29,12 @@ Deno.serve(async (req) => {
     const eaUrl = Deno.env.get("EA_FILE_URL");
     if (!eaUrl) return Response.json({ error: "EA_FILE_URL secret not set" }, { status: 500 });
 
-    const robotApiKey = Deno.env.get("FLOUBA_ACCOUNT_API_KEY");
-    if (!robotApiKey) return Response.json({ error: "FLOUBA_ACCOUNT_API_KEY secret not set" }, { status: 500 });
+    // Each user's EA must carry THEIR OWN account key. The shared owner key is
+    // only ever given to an admin; other users get their provisioned key.
+    const robotApiKey = user.role === "admin"
+      ? (Deno.env.get("FLOUBA_ACCOUNT_API_KEY") || user.mt5_api_key)
+      : user.mt5_api_key;
+    if (!robotApiKey) return Response.json({ error: "Your MT5 bridge account is not set up yet. Open the dashboard once so your account is created, then try again." }, { status: 409 });
     if (!BRIDGE_BASE_URL) return Response.json({ error: "FLOUBA_BACKEND_URL secret not set" }, { status: 500 });
 
     // ── Resolve the user's Robot_Id (MT5 account number) ──
