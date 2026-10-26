@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { RefreshCw, TrendingUp, TrendingDown, Calendar, Clock, FileText } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, Calendar, Clock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import MobileHeader from "@/components/MobileHeader";
