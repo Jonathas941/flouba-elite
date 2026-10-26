@@ -98,7 +98,7 @@ export default function LSR3RAnalytics() {
   );
 }
 
-function MetricCard({ label, value, accent }) {
+function MetricCard({ label, value, accent = "#FFCC42" }) {
   return (
     <div className="rounded-2xl p-3" style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.06)" }}>
       <p className="text-[8px] text-white/30 uppercase tracking-wider font-heading mb-1">{label}</p>

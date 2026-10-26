@@ -216,7 +216,7 @@ export default function LSR3RScanner() {
   );
 }
 
-function Stat({ label, value, accent }) {
+function Stat({ label, value, accent = "#FFCC42" }) {
   return (
     <div>
       <p className="text-[8px] text-white/30 uppercase tracking-wider font-heading mb-0.5">{label}</p>

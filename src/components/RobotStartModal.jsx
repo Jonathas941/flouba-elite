@@ -466,7 +466,6 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                 set={set}
                 Field={Field}
                 NumberInput={NumberInput}
-                SelectInput={SelectInput}
                 Toggle={Toggle}
               />
 

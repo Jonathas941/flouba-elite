@@ -10,7 +10,7 @@ export function Field({ label, children }) {
   );
 }
 
-export function NumberInput({ value, onChange, min, max, step = 1 }) {
+export function NumberInput({ value, onChange, min, max = undefined, step = 1 }) {
   return (
     <input
       type="number"

@@ -8,7 +8,7 @@ export default function LSR3RWebhook() {
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(/** @type {any} */ ({}));
 
   const load = async () => {
     try {
@@ -176,7 +176,7 @@ function Field({ label, children }) {
   );
 }
 
-function Stat({ label, value, accent }) {
+function Stat({ label, value, accent = "#FFCC42" }) {
   return (
     <div>
       <p className="text-[8px] text-white/30 uppercase tracking-wider font-heading mb-0.5">{label}</p>

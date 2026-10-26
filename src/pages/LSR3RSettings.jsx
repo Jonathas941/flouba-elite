@@ -9,7 +9,7 @@ export default function LSR3RSettings() {
   const { toast } = useToast();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(/** @type {any} */ ({}));
 
   const load = async () => {
     try {
