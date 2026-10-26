@@ -36,7 +36,7 @@ export default function EmaIndicatorPanel() {
       }
     };
     load();
-    const id = pollInterval(load, 15000);
+    const id = pollInterval(load, 60000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
