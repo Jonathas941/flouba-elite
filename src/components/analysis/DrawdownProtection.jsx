@@ -9,7 +9,7 @@ const LIMITS = [
 ];
 
 export default function DrawdownProtection() {
-  const [limits, setLimits]     = useState({});
+  const [limits, setLimits]     = useState(/** @type {any} */ ({}));
   const [settingsId, setId]     = useState(null);
   const [saving, setSaving]     = useState(false);
 

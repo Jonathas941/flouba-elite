@@ -316,7 +316,7 @@ function ReasonRow({ label, text }) {
   );
 }
 
-function ActionButton({ onClick, disabled, loading, icon, label, color, full }) {
+function ActionButton({ onClick, disabled, loading, icon, label, color, full = false }) {
   return (
     <motion.button
       onClick={onClick}

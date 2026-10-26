@@ -46,13 +46,13 @@ function TierBar({ label, target, current, color, isLoss = false }) {
   );
 }
 
-function EditableField({ label, value, onChange, step, min, prefix = "" }) {
+function EditableField({ label, value, onChange, step, min, max = undefined, prefix = "" }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[8px] font-mono text-white/40 uppercase tracking-wider">{label}</span>
       <div className="flex items-center gap-1">
         {prefix && <span className="text-[10px] font-mono text-white/50">{prefix}</span>}
-        <input type="number" value={value} step={step} min={min}
+        <input type="number" value={value} step={step} min={min} max={max}
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-full bg-black/50 border border-[#00FF41]/20 rounded px-2 py-1 text-[12px] font-mono font-bold text-white focus:outline-none focus:border-[#00FF41]/50" />
       </div>

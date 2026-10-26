@@ -50,7 +50,7 @@ function getErrorInfo(code) {
 }
 
 // ── Diagnostic Row ────────────────────────────────────────────────────────────
-function DiagRow({ label, value, status, detail }) {
+function DiagRow({ label, value, status, detail = "" }) {
   const statusIcon = status === "ok"      ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 shrink-0" />
     : status === "error"   ? <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
     : status === "warn"    ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />

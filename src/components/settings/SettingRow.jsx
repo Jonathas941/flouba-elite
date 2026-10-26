@@ -13,7 +13,7 @@ export function ToggleRow({ label, desc, checked, onChange }) {
   );
 }
 
-export function SegmentRow({ label, options, value, onChange }) {
+export function SegmentRow({ label = "", options, value, onChange }) {
   return (
     <div className="py-3 border-b border-white/5 last:border-0">
       <p className="text-sm font-semibold text-white mb-2">{label}</p>

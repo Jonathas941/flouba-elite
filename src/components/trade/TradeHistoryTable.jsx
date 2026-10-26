@@ -6,14 +6,14 @@ import { mt5Api } from "@/lib/mt5Api";
 function fmtDate(ts) {
   if (!ts) return "--";
   const d = new Date(ts);
-  return isNaN(d) ? "--" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "--" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
 function fmtDuration(openTs, closeTs) {
   if (!openTs || !closeTs) return "--";
   const open = new Date(openTs), close = new Date(closeTs);
-  if (isNaN(open) || isNaN(close)) return "--";
-  const mins = Math.max(0, Math.round((close - open) / 60000));
+  if (Number.isNaN(open.getTime()) || Number.isNaN(close.getTime())) return "--";
+  const mins = Math.max(0, Math.round((close.getTime() - open.getTime()) / 60000));
   if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ${mins % 60}m`;

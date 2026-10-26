@@ -94,7 +94,7 @@ function Section({ title, children, defaultOpen = false }) {
   );
 }
 
-function NumberRow({ label, value, onChange, step = 1, min = 0, suffix }) {
+function NumberRow({ label, value, onChange, step = 1, min = 0, suffix = "" }) {
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-white/5">
       <span className="text-[10px] font-mono text-white/50 uppercase tracking-wider">{label}</span>
