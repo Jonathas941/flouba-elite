@@ -16,6 +16,13 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAppState();
+    // Safety: never let the auth check hang forever (causes black screen in
+    // the native app WebView when the API is unreachable).
+    const maxWait = setTimeout(() => {
+      setIsLoadingPublicSettings(false);
+      setIsLoadingAuth(false);
+    }, 10000);
+    return () => clearTimeout(maxWait);
   }, []);
 
   const checkAppState = async () => {
