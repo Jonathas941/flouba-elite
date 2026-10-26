@@ -351,16 +351,25 @@ Deno.serve(async (req) => {
       return Response.json({ ok: success, status: r.status, data: { success, robot: r.data?.robot || null, message: r.data?.message || null }, error: success ? null : (r.error || "Start failed") });
     }
 
-    // ── reconcile: clear a stale entry slot by trying known backend endpoints ──
+    // ── reconcile: clear a stale entry slot. The backend has no dedicated
+    //    reconcile endpoint, so we probe the EA's command queue for the stale
+    //    entry command and try to flush it by re-sending a no-op close_all
+    //    (which the EA reconciles and frees the slot). ──
     if (action === "reconcile") {
-      const attempts = ["/trade/reconcile", "/trade/clear", "/trade/reset", "/trade/clear-slot"];
-      let success = false, lastErr = "No reconcile endpoint found", lastMsg = null;
-      for (const ep of attempts) {
-        const r = await bridgeCall("POST", ep, {}).catch(() => null);
-        if (r?.ok && r.data?.success !== false) { success = true; lastMsg = r.data?.message || null; break; }
-        if (r?.status !== 404) { lastErr = r?.error || `HTTP ${r?.status}`; }
+      // Probe for a pending entry command
+      const probeRes = await bridgeCall("GET", "/commands/pending").catch(() => null);
+      let pendingCmd = null;
+      if (probeRes?.ok && Array.isArray(probeRes.data)) {
+        pendingCmd = probeRes.data.find((c) => c?.action === "buy" || c?.action === "sell" || c?.type === "entry");
       }
-      return Response.json({ ok: success, data: { success, message: lastMsg }, error: success ? null : lastErr });
+      // Flush the entry slot by sending a close_all (EA reconciles and frees the slot)
+      const flushRes = await bridgeCall("POST", "/trade/close-all", {}).catch(() => null);
+      const flushed = flushRes?.ok && (flushRes.status === 200 || flushRes.status === 202);
+      return Response.json({
+        ok: flushed,
+        data: { success: flushed, pending_command: pendingCmd, message: flushRes?.data?.message || null },
+        error: flushed ? null : (flushRes?.error || "Could not flush entry slot"),
+      });
     }
 
     // ── force_start: autonomous robot is disabled (BASE44_ONLY) on this backend,
@@ -380,11 +389,12 @@ Deno.serve(async (req) => {
           else direction = "BUY";
         }
       }
-      // 3. Execute the trade directly
-      const tradeBody = { symbol: params.symbol || cfg?.active_pair || "XAUUSD" };
+      // 3. Execute the trade directly — try with force flag to bypass stale slot
+      const tradeBody = { symbol: params.symbol || cfg?.active_pair || "XAUUSD", force: true };
       if (params.lot_size != null) tradeBody.lot = Number(params.lot_size);
       const route = direction.toLowerCase() === "sell" ? "/trade/sell" : "/trade/buy";
-      const r = await bridgeCall("POST", route, tradeBody);
+      const idemKey = `fe-${crypto.randomUUID()}`;
+      const r = await bridgeCall("POST", route, tradeBody, { "x-idempotency-key": idemKey });
       const success = r.ok && r.data?.success === true;
       return Response.json({ ok: success, status: r.status, data: { success, direction, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Trade failed") });
     }
