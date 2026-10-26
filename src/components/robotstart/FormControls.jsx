@@ -10,12 +10,13 @@ export function Field({ label, children }) {
   );
 }
 
-export function NumberInput({ value, onChange, min, step = 1 }) {
+export function NumberInput({ value, onChange, min, max, step = 1 }) {
   return (
     <input
       type="number"
       value={value}
       min={min ?? 0}
+      max={max}
       step={step}
       onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
       className="w-24 text-right px-2 py-1.5 rounded-lg font-heading font-bold text-xs text-white bg-white/5 border border-white/10 focus:border-[#00FF41]/40 focus:outline-none"

@@ -282,7 +282,7 @@ function ScoreRow({ label, short, metric, accent, active, pend, pendBars, barsCo
   );
 }
 
-function CooldownChip({ label, until, wide }) {
+function CooldownChip({ label, until, wide = false }) {
   const active = until && new Date(until).getTime() > Date.now();
   return (
     <div className={`rounded-xl px-3 py-2 ${wide ? "col-span-2" : ""}`} style={{ background: active ? "rgba(255,140,66,0.08)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "rgba(255,140,66,0.25)" : "rgba(255,255,255,0.08)"}` }}>

@@ -297,7 +297,7 @@ function ExpirationTimer({ expiration, now }) {
   );
 }
 
-function ParamCell({ label, value, color }) {
+function ParamCell({ label, value, color = "#FFCC42" }) {
   return (
     <div className="px-2 py-1.5 rounded-md" style={{ background: "rgba(255,255,255,0.02)" }}>
       <p className="text-[8px] text-white/30 font-mono uppercase tracking-wider">{label}</p>

@@ -19,7 +19,7 @@ const fmtMoney = (val) => {
   return (n >= 0 ? "+" : "-") + `$${Math.abs(n).toFixed(2)}`;
 };
 
-function TierBar({ label, target, current, color, isLoss }) {
+function TierBar({ label, target, current, color, isLoss = false }) {
   const pct = isLoss
     ? Math.min(100, Math.abs(Math.min(current, 0)) / target * 100)
     : Math.min(100, Math.max(0, current) / target * 100);
@@ -46,7 +46,7 @@ function TierBar({ label, target, current, color, isLoss }) {
   );
 }
 
-function EditableField({ label, value, onChange, step, min, prefix }) {
+function EditableField({ label, value, onChange, step, min, prefix = "" }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[8px] font-mono text-white/40 uppercase tracking-wider">{label}</span>
