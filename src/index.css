@@ -5,26 +5,26 @@
 
 @layer base {
   :root {
-    --background: 0 0% 3%;
-    --foreground: 0 0% 95%;
-    --card: 0 0% 5%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 95%;
+    --background: 220 14% 8%;
+    --foreground: 0 0% 97%;
+    --card: 220 13% 11%;
+    --card-foreground: 0 0% 97%;
+    --popover: 220 13% 10%;
+    --popover-foreground: 0 0% 97%;
     --primary: 120 100% 50%;
     --primary-foreground: 0 0% 4%;
-    --secondary: 0 0% 8%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 55%;
+    --secondary: 220 12% 15%;
+    --secondary-foreground: 0 0% 97%;
+    --muted: 220 11% 17%;
+    --muted-foreground: 0 0% 72%;
     --accent: 0 100% 48%;
     --accent-foreground: 0 0% 98%;
     --success: 120 100% 50%;
     --success-foreground: 0 0% 4%;
     --destructive: 0 100% 48%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 8%;
+    --border: 220 10% 25%;
+    --input: 220 12% 15%;
     --ring: 120 100% 50%;
     --radius: 1rem;
     --font-heading: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
@@ -40,12 +40,13 @@
   }
   body {
     @apply bg-background text-foreground font-body;
+    min-height: 100%;
     background:
-      radial-gradient(circle at 12% 0%, rgba(0,255,65,0.10), transparent 42%),
-      radial-gradient(circle at 88% 8%, rgba(255,49,49,0.06), transparent 40%),
-      radial-gradient(circle at 50% 100%, rgba(0,200,50,0.08), transparent 55%),
-      #050505;
-    background-attachment: fixed;
+      radial-gradient(circle at 12% 0%, rgba(0,255,65,0.13), transparent 42%),
+      radial-gradient(circle at 88% 8%, rgba(255,49,49,0.09), transparent 40%),
+      radial-gradient(circle at 50% 100%, rgba(0,200,50,0.10), transparent 55%),
+      #101318;
+    background-attachment: scroll;
   }
   h1, h2, h3, .font-heading { font-family: var(--font-heading); letter-spacing: 0.02em; }
 }
@@ -125,10 +126,31 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+html, body, #root {
+  min-height: 100%;
+  width: 100%;
+}
+
 html, body {
   overscroll-behavior: none;
   overscroll-behavior-y: none;
-  overflow-x: clip;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Android WebView / small-screen readability and viewport stability. */
+@media (max-width: 640px) {
+  body { background-attachment: scroll; }
+  .bg-black { background-color: #101318 !important; }
+  .bg-black\/40 { background-color: rgba(24, 29, 36, 0.88) !important; }
+  .text-white\/20, .text-white\/25, .text-white\/30 { color: rgba(255,255,255,0.58) !important; }
+  .text-white\/35, .text-white\/40 { color: rgba(255,255,255,0.68) !important; }
+  .text-white\/50 { color: rgba(255,255,255,0.76) !important; }
+  input, select, textarea, button { font-size: max(16px, 1em); }
+}
+
+@supports (height: 100dvh) {
+  .min-h-screen { min-height: 100dvh; }
 }
 
 button, a, nav, nav * {
