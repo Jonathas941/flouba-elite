@@ -22,7 +22,7 @@ export default function DecisionGate() {
 
   useEffect(() => {
     evaluate();
-    const interval = pollInterval(evaluate, 12000);
+    const interval = pollInterval(evaluate, 60000);
     return () => clearInterval(interval);
   }, [evaluate]);
 
