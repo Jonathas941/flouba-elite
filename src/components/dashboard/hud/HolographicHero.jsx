@@ -95,7 +95,7 @@ export default function HolographicHero({ connected, account, openPnl, active, r
           {/* Inner glass circle with robot */}
           <div className="absolute rounded-full overflow-hidden"
             style={{ inset: 22, border: "1px solid rgba(0,255,65,0.3)", boxShadow: "inset 0 0 18px rgba(0,255,65,0.08), 0 0 18px rgba(0,255,65,0.15)" }}>
-            <img src={ROBOT_IMG} alt="Flouba Elite AI" className="w-full h-full object-cover object-top" style={{ opacity: 0.9 }} />
+            <img src={ROBOT_IMG} alt="Flouba Elite AI" className="w-full h-full object-contain" style={{ opacity: 0.9 }} />
             <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 50% 35%, transparent 35%, rgba(0,255,65,0.06) 68%, rgba(5,5,5,0.55) 100%)" }} />
             {/* Horizontal scan line */}
             <motion.div className="absolute left-0 right-0 h-px"
