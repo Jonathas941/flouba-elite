@@ -72,17 +72,25 @@ Deno.serve(async (req) => {
       const tradeAction = signal.direction === "BUY" ? "buy" : "sell";
       const orderBody = {
         symbol: baseSym,
-        volume: signal.lot_size,
-        sl: signal.stop_loss,
-        tp: signal.take_profit,
+        lot: Number(signal.lot_size),
+        sl: Number(signal.stop_loss),
+        tp: Number(signal.take_profit),
         magic: signal.magic_number ?? 20260001,
         comment: signal.comment || "Flouba Gold HFT",
       };
       if (suffix) { orderBody.broker_symbol = signal.symbol; orderBody.symbol_suffix = suffix; }
 
+      // Validate lot, sl, tp are finite positive numbers before serialization.
+      for (const field of ["lot", "sl", "tp"]) {
+        const value = orderBody[field];
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          return Response.json({ ok: false, action: "execute_failed", errorCode: "INVALID_SIGNAL_PAYLOAD", error: `Missing or invalid ${field}; order was not submitted` }, { status: 422 });
+        }
+      }
+
       const tradeRes = await fetch(`${BASE}/trade/${tradeAction}`, {
         method: "POST",
-        headers: authHeaders,
+        headers: { ...authHeaders, "x-idempotency-key": `flouba-${signalId}` },
         body: JSON.stringify(orderBody),
       }).catch(() => null);
 

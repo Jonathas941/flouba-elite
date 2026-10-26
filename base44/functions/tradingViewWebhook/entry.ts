@@ -382,67 +382,47 @@ export default async function(req) {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LIVE MODE — Execute 3 legs via Replit server
+    // LIVE MODE — Submit ONE single-leg order via Replit server
     // ═══════════════════════════════════════════════════════════════
     const route = ROUTE_MAP[action]; // "buy" or "sell"
     const shortId = alertId.slice(-8);
-    const executedLegs = [];
-    let anyFailed = false;
+    const selectedTp = tp2; // middle TP as the single-leg take-profit
+    const idemKey = `tv-${route}-${robotId}-${symbol}-${alertId}`;
+    const comment = `FGS|${shortId}`.slice(0, 31);
 
-    for (let i = 0; i < legs.length; i++) {
-      const leg = legs[i];
-      const comment = `FGS|${shortId}|${leg.label}`.slice(0, 31);
-      const idemKey = `tv-${route}-${robotId}-${symbol}-${alertId}-${leg.label}`;
+    const command = {
+      action: route,
+      symbol,
+      lot: totalLot,
+      sl: Number(sl),
+      tp: Number(selectedTp),
+      comment,
+    };
 
-      const command = {
-        action: route,
-        symbol,
-        lot: leg.lot,
-        sl: sl != null ? Number(sl) : undefined,
-        tp: leg.tp != null ? Number(leg.tp) : undefined,
-        comment,
-      };
+    const execRes = await postCommand(robotId, command, idemKey, await ownerKey());
 
-      const execRes = await postCommand(robotId, command, idemKey, await ownerKey());
-
-      if (execRes.ok) {
-        const orderId = execRes?.data?.commandId || execRes?.data?.id || idemKey;
-        executedLegs.push({ ...leg, status: "opened", order_id: String(orderId), error: null });
-      } else {
-        executedLegs.push({ ...leg, status: "failed", order_id: null, error: execRes.error || "Unknown error" });
-        anyFailed = true;
-      }
-    }
-
-    // ── Update signal record ──
-    const openedCount = executedLegs.filter(l => l.status === "opened").length;
-    const failedCount = executedLegs.filter(l => l.status === "failed").length;
-    const finalStatus = openedCount === 0 ? "Error" : (failedCount > 0 ? "Partial" : "Executed");
+    const finalStatus = execRes.ok ? "Executed" : "Rejected";
+    const orderId = execRes?.data?.commandId || execRes?.data?.id || (execRes.ok ? idemKey : null);
 
     await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
       status: finalStatus,
-      legs: executedLegs,
-      message: `${openedCount}/${executedLegs.length} leg(s) opened${failedCount > 0 ? ` — ${failedCount} failed` : ""}`,
+      legs: [{ lot: totalLot, tp: selectedTp, label: "TP2", status: execRes.ok ? "opened" : "failed", order_id: orderId ? String(orderId) : null, error: execRes.ok ? null : (execRes.error || "Unknown error") }],
+      rejection_reason: execRes.ok ? null : (execRes.error || "Execution failed"),
+      message: execRes.ok
+        ? `1 leg opened — ${totalLot.toFixed(2)} lot, SL ${sl}, TP ${selectedTp}`
+        : `Order rejected: ${execRes.error || execRes.errorCode || "Unknown error"}`,
+      order_id: orderId ? String(orderId) : null,
       executed_at: new Date().toISOString(),
     });
 
-    // ── Notification ──
-    const notifCategory = openedCount === 0 ? "danger" : (failedCount > 0 ? "warning" : "success");
-    const notifTitle = openedCount === 0
-      ? "Trade Failed (TV Signal)"
-      : failedCount > 0
-        ? "Partial Execution (TV Signal)"
-        : "Trade Executed (TV Signal)";
-
-    const legSummary = executedLegs.map(l =>
-      `${l.label}: ${l.lot} lot ${l.status}${l.error ? ` (${l.error})` : ""}`
-    ).join(" | ");
+    const notifCategory = execRes.ok ? "success" : "danger";
+    const notifTitle = execRes.ok ? "Trade Executed (TV Signal)" : "Trade Rejected (TV Signal)";
 
     await base44.asServiceRole.entities.Notification.create({
       created_by_id: userId,
       type: "trade",
       title: notifTitle,
-      message: `${action} ${symbol} • ${legSummary}`,
+      message: `${action} ${symbol} • ${totalLot.toFixed(2)} lot${execRes.ok ? "" : ` — ${execRes.error || execRes.errorCode || "rejected"}`}`,
       category: notifCategory,
       read: false,
       meta: {
@@ -450,19 +430,22 @@ export default async function(req) {
         alert_id: alertId,
         symbol, action,
         total_lot: totalLot,
-        legs: executedLegs,
+        sl, tp: selectedTp,
       },
     }).catch(() => {});
 
     return Response.json({
-      success: openedCount > 0,
+      success: execRes.ok,
       status: finalStatus.toLowerCase(),
       alert_id: alertId,
       symbol, action,
       total_lot: totalLot,
-      legs: executedLegs,
+      sl, tp: selectedTp,
+      order_id: orderId,
       balance,
-      message: `${openedCount}/${executedLegs.length} leg(s) opened successfully`,
+      message: execRes.ok
+        ? "Order submitted successfully"
+        : `Order rejected: ${execRes.error || execRes.errorCode || "Unknown error"}`,
     });
   } catch (err) {
     return Response.json({ success: false, status: "error", message: err.message }, { status: 500 });

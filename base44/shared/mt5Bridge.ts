@@ -112,6 +112,17 @@ export async function postCommand(robotId, command, idemKey, apiKey) {
     if (command.ticket != null) body.ticket = Number(command.ticket);
     if (command.comment) body.comment = String(command.comment).slice(0, 31);
 
+    // Validate lot, sl, tp for entry orders (buy/sell) before serialization.
+    // NaN/Infinity otherwise become null in JSON and slip through silently.
+    if (action === "buy" || action === "sell") {
+      for (const field of ["lot", "sl", "tp"]) {
+        const value = body[field];
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          return { ok: false, status: 422, errorCode: "INVALID_SIGNAL_PAYLOAD", error: `Missing or invalid ${field}; order was not submitted` };
+        }
+      }
+    }
+
     const res = await fetch(`${B44}${route}`, {
       method: "POST",
       headers: { ...bridgeHeaders(robotId, apiKey), "x-idempotency-key": idemKey },

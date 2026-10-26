@@ -430,7 +430,14 @@ Deno.serve(async (req) => {
       if (params.volume != null) body.lot = Number(params.volume);
       if (params.stop_loss != null) body.sl = Number(params.stop_loss);
       if (params.take_profit != null) body.tp = Number(params.take_profit);
-      const r = await bridgeCall("POST", `/trade/${action}`, body);
+      // Validate lot, sl, tp are finite positive numbers before serialization.
+      for (const field of ["lot", "sl", "tp"]) {
+        const value = body[field];
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          return Response.json({ ok: false, status: 422, errorCode: "INVALID_SIGNAL_PAYLOAD", error: `Missing or invalid ${field}; order was not submitted` }, { status: 422 });
+        }
+      }
+      const r = await bridgeCall("POST", `/trade/${action}`, body, { "x-idempotency-key": `fe-${crypto.randomUUID()}` });
       const success = r.ok && r.data?.success === true;
       return Response.json({ ok: success, status: r.status, data: { success, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Trade failed") });
     }
