@@ -34,8 +34,11 @@ const PAIR_META = {
 const ROBOT_IMG = "https://media.base44.com/images/public/6a437ad84dc8721fedd64296/586a57cc0_generated_image.png";
 
 function isCreditLimitError(error) {
-  const message = typeof error === "string" ? error : error?.message || error?.error || error?.data?.message || error?.data?.error || "";
-  return /credit|quota|rate.?limit|too many requests|\\b429\\b|\\b402\\b|payment required|insufficient quota/i.test(String(message));
+  const message = typeof error === "string"
+    ? error
+    : [error?.message, error?.error, error?.data?.message, error?.data?.error, error?.code, error?.status, error?.response?.status]
+      .filter(Boolean).join(" ");
+  return /credit|quota|rate.?limit|too many requests|429|402|payment required|insufficient/i.test(String(message));
 }
 
 export default function Home() {
@@ -387,7 +390,14 @@ export default function Home() {
         toast({ title: "Auto-Start Failed", description: res?.error || res?.data?.message || "Could not start robot.", variant: "destructive", duration: 4000 });
       }
     } catch (e) {
-      toast({ title: "Auto-Start Failed", description: e.message, variant: "destructive", duration: 4000 });
+      toast({
+        title: isCreditLimitError(e) ? "Base44 Credit Limit Reached" : "Auto-Start Failed",
+        description: isCreditLimitError(e)
+          ? "Danger Mode was not started. Restore/reset the platform quota before retrying."
+          : e.message,
+        variant: "destructive",
+        duration: 7000,
+      });
     }
   };
 
