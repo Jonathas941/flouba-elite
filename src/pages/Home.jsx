@@ -269,6 +269,18 @@ export default function Home() {
         toast({ title: "Robot Started", description: `${strategy} is active and will auto-trade when the session window opens (03:00–06:00 or 08:00–13:00 ET).`, duration: 5000 });
         logNotification({ type: "bot_action", title: "Robot Started (Pending Session)", message: `${strategy} engine launched. Trading resumes at next session window.`, category: "success", meta: { strategy, symbol: launchFormWithTF.symbol } });
         setUnreadCount((c) => c + 1);
+      } else if (msg.includes("RISK_INVALID_ENTRY") || msg.includes("RISK_")) {
+        // Risk engine rejected the entry — start in monitoring mode so the
+        // auto-execute workflow retries when risk conditions allow.
+        setActivePair(launchFormWithTF.symbol || form.symbol);
+        setRobotStatus("Scanning Market");
+        setShowStartModal(false);
+        if (botSettings?.id) {
+          await base44.entities.BotSettings.update(botSettings.id, { ai_auto_execute_enabled: true, robot_status: "Running" }).catch(() => {});
+        }
+        toast({ title: "Robot Started", description: `${strategy} is active but the risk engine blocked the entry. It will auto-trade when risk conditions clear.`, duration: 5000 });
+        logNotification({ type: "bot_action", title: "Robot Started (Risk Pending)", message: `${strategy} engine launched. Entry blocked by risk engine — will retry when conditions allow.`, category: "warning", meta: { strategy, symbol: launchFormWithTF.symbol } });
+        setUnreadCount((c) => c + 1);
       } else if (msg.includes("ENTRY_SLOT_OCCUPIED") || msg.includes("reconciliation")) {
         toast({ title: "Entry Slot Locked", description: "A stale trade command is blocking new entries. Reconciling… Press START again in a few seconds.", variant: "destructive", duration: 6000 });
         mt5Api.reconcile().catch(() => null);
