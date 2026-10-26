@@ -26,31 +26,16 @@ export function setVisibleInterval(fn, ms) {
 }
 
 /**
- * pollInterval — drop-in replacement for setInterval(fn, ms) for any timer that
- * calls a backend function. Returns a normal interval id (so existing
- * clearInterval(id) cleanup keeps working), skips ticks while the tab is
- * hidden, and never polls faster than minMs (default 30 s).
+ * pollInterval — credit-conscious backend polling. Returns a normal interval
+ * id so existing clearInterval cleanup keeps working. Skips hidden tabs and
+ * enforces a 60-second minimum between backend polls by default.
  */
 export function pollInterval(fn, ms, minMs = 60000) {
-  let lastRun = 0;
-  const tick = () => {
+  const intervalMs = Math.max(ms || 0, minMs);
+  return setInterval(() => {
     if (typeof document !== "undefined" && document.hidden) return;
-    if (Date.now() - lastRun < Math.max(ms || 0, minMs) - 250) return;
-    lastRun = Date.now();
     fn();
-  };
-  const id = setInterval(tick, Math.max(ms || 0, minMs));
-  if (typeof document !== "undefined") {
-    const onVisible = () => {
-      if (!document.hidden) tick();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    // Keep cleanup compatible with existing clearInterval callers.
-    const originalClear = clearInterval;
-    // The listener is also removed when the page unloads.
-    window.addEventListener("pagehide", () => document.removeEventListener("visibilitychange", onVisible), { once: true });
-  }
-  return id;
+  }, intervalMs);
 }
 
 // Poll intervals for anything that invokes a backend function (mt5Bridge, scanners).
