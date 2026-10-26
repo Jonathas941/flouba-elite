@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { clamp, num, nyParts, sessionInfo } from '../../shared/tradingUtils.ts';
-import { loadDdt, resolveRiskPolicy } from '../../shared/riskPolicy.ts';
+import { clampRiskPercentage, loadDdt, resolveRiskPolicy } from '../../shared/riskPolicy.ts';
 
 function nyDateKey(d) {
   const p = nyParts(d);
@@ -455,7 +455,8 @@ function computeTradeParams(args) {
   const baseLot = cfg.lot_size ?? 0.01;
   let lot;
   if (cfg.lot_size_mode === "Auto Risk") {
-    const riskPct = cfg.risk_percentage ?? 1;
+    // Enforce the server-side hard ceiling even if a saved profile contains an unsafe value.
+    const riskPct = clampRiskPercentage(cfg.risk_percentage ?? 1);
     const riskAmount = balance * (riskPct / 100);
     // Approximate: SL distance in price units → dollar risk per lot
     // XAUUSD: 1 lot = 100 oz → $1 move = $100. Indices: $1 move = $1. FX: ~$10.
@@ -948,8 +949,7 @@ Deno.serve(async (req) => {
         daily_profit_target: riskPolicy.dailyProfitTarget ?? (cfg.daily_profit_target_amount ?? 200),
       },
       // Effective limits after applying the DDT hard ceiling, with provenance so the UI
-      // can show WHICH layer bound each number. `uncapped_risk_percentage` is the one
-      // dimension DDT cannot constrain — it has no risk_percentage field.
+      // can show which layer bound each number, including the server-enforced per-trade risk cap.
       risk_policy: riskPolicy,
       session: p8Session.sess,
       news_safe: p9News.pass,
