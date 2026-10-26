@@ -18,6 +18,28 @@ const NAV = [
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [navHidden, setNavHidden] = React.useState(false);
+
+  React.useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          const scrollingDown = currentY > lastScrollY && currentY > 80;
+          setNavHidden(scrollingDown);
+          lastScrollY = currentY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div
@@ -26,7 +48,12 @@ export default function Layout() {
     >
       <Outlet />
 
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 px-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <nav
+        className={cn(
+          "fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 px-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out",
+          navHidden && "translate-y-[calc(100%+env(safe-area-inset-bottom)+0.75rem)]"
+        )}
+      >
         <div className="flex items-stretch justify-between gap-0.5 py-1.5 px-1 rounded-2xl"
           style={{
             background: "rgba(22,26,32,0.98)",
