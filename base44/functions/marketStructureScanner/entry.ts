@@ -5,6 +5,7 @@ import {
   detectPremiumDiscount,
 } from '../../shared/marketStructure.ts';
 import { clamp, num, nyParts, sessionInfo } from '../../shared/tradingUtils.ts';
+import { clampRiskPercentage } from '../../shared/riskPolicy.ts';
 
 // ═══════════════════════════════════════════════════════════════
 // Market Structure Scanner — Multi-Timeframe SMC Analysis + MT5 Pending Orders
@@ -147,7 +148,7 @@ async function _aiScanFallback_DISABLED(symbol, cfg, base44, userId, quote) {
     // Lot size
     const account = await fetchAccount(base44);
     const balance = account?.balance || 0;
-    let lotSize = cfg.lot_size_mode === "Fixed" ? (cfg.fixed_lot_size || 0.01) : calculateLotSize(balance, cfg.risk_percentage || 1, entryPrice, stopLoss, symbol);
+    let lotSize = cfg.lot_size_mode === "Fixed" ? (cfg.fixed_lot_size || 0.01) : calculateLotSize(balance, clampRiskPercentage(cfg.risk_percentage || 1), entryPrice, stopLoss, symbol);
     lotSize = Math.min(lotSize, cfg.max_lot_size || 0.5);
 
     // Expiration
@@ -192,7 +193,7 @@ async function _aiScanFallback_DISABLED(symbol, cfg, base44, userId, quote) {
       entry_method: "ai_web_scan",
       risk_reward: Math.round(actualRR * 100) / 100,
       lot_size: lotSize,
-      risk_percent: cfg.risk_percentage || 1,
+      risk_percent: clampRiskPercentage(cfg.risk_percentage || 1),
       expiration_time: expirationTime,
       zone_high: res.zone_high ? Math.round(res.zone_high * 100000) / 100000 : null,
       zone_low: res.zone_low ? Math.round(res.zone_low * 100000) / 100000 : null,
@@ -500,7 +501,7 @@ async function scanSymbol(symbol, cfg, base44, userId) {
   if (cfg.lot_size_mode === "Fixed") {
     lotSize = cfg.fixed_lot_size || 0.01;
   } else {
-    lotSize = calculateLotSize(balance, cfg.risk_percentage || 1, entryPrice, stopLoss, symbol);
+    lotSize = calculateLotSize(balance, clampRiskPercentage(cfg.risk_percentage || 1), entryPrice, stopLoss, symbol);
   }
   lotSize = Math.min(lotSize, cfg.max_lot_size || 0.5);
 
@@ -541,7 +542,7 @@ async function scanSymbol(symbol, cfg, base44, userId) {
     entry_method: cfg.entry_method,
     risk_reward: Math.round(actualRR * 100) / 100,
     lot_size: lotSize,
-    risk_percent: cfg.risk_percentage || 1,
+    risk_percent: clampRiskPercentage(cfg.risk_percentage || 1),
     expiration_time: expirationTime,
     bos_time: bosTime ? new Date(bosTime * 1000).toISOString() : null,
     bos_level: structBOS?.level || null,
