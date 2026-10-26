@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Play, Square, Check, X, Activity, Settings as SettingsIcon, Radar, Zap } from "lucide-react";
+import { Check, X, Activity, Radar, Zap } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { mt5Api } from "@/lib/mt5Api";

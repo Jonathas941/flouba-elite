@@ -1,5 +1,4 @@
 import React from "react";
-import GlassCard from "@/components/GlassCard";
 import { mapStatus, statusColor } from "@/lib/tradingViewStatus";
 
 function LegRow({ leg, label, fallbackTp }) {

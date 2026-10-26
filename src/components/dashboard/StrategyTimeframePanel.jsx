@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { mt5Api } from "@/lib/mt5Api";
-import { base44 } from "@/api/base44Client";
 import GlassCard from "@/components/GlassCard";
 import { getStrategyTimeframes, lastCandleCloseUTC, nextCandleCloseUTC } from "@/lib/strategyTimeframes";
 import { Clock, Layers, Gauge, Activity, Info } from "lucide-react";

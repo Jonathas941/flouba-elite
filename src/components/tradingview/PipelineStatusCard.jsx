@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 import GlassCard from "@/components/GlassCard";
-import { Activity, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { mapStatus, statusColor, isAcceptedToday, isRejected as isRejectedStatus } from "@/lib/tradingViewStatus";
 
 function isToday(iso) {
