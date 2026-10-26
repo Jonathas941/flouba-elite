@@ -97,7 +97,7 @@ export default function AIAnalyst() {
 
       await poll(); // immediate first check
       if (loading) {
-        pollingRef.current = setInterval(poll, 5000);
+        pollingRef.current = setInterval(poll, 15000);
       }
     } catch (e) {
       setMessages((prev) => prev.map((m) => m._id === pendingId
