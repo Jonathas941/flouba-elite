@@ -28,8 +28,9 @@ export default function Layout() {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
-          const scrollingDown = currentY > lastScrollY && currentY > 80;
-          setNavHidden(scrollingDown);
+          const delta = currentY - lastScrollY;
+          if (delta > 4 && currentY > 80) setNavHidden(true);
+          else if (delta < -4) setNavHidden(false);
           lastScrollY = currentY;
           ticking = false;
         });
