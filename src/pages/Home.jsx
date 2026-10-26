@@ -33,6 +33,11 @@ const PAIR_META = {
 
 const ROBOT_IMG = "https://media.base44.com/images/public/6a437ad84dc8721fedd64296/586a57cc0_generated_image.png";
 
+function isCreditLimitError(error) {
+  const message = typeof error === "string" ? error : error?.message || error?.error || error?.data?.message || error?.data?.error || "";
+  return /credit|quota|rate.?limit|too many requests|\\b429\\b|\\b402\\b|payment required|insufficient quota/i.test(String(message));
+}
+
 export default function Home() {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -236,17 +241,35 @@ export default function Home() {
       }
     }
 
-    // ── Try autonomous robot_start; always fall back to direct trade execution
-    //    when it fails (BASE44_ONLY, entry window, stale slot, etc.). ──
-    let res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
+    // Start through the robot endpoint first. Never spend another backend call
+    // or attempt direct execution when the platform reports exhausted credits.
+    let res;
+    try {
+      res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
+    } catch (error) {
+      if (isCreditLimitError(error)) {
+        toast({ title: "Base44 Credit Limit Reached", description: "The robot cannot reach its backend until the platform credit/quota limit resets. Polling has been reduced; avoid repeated launch attempts.", variant: "destructive", duration: 7000 });
+        setShowStartModal(false);
+        return;
+      }
+      res = { ok: false, error: error?.message || "Robot start failed." };
+    }
     let usedForceStart = false;
-    if (!res?.ok || res?.data?.success !== true) {
-      // Robot start failed for any reason — route through direct trade API
-      res = await mt5Api.forceStart(launchFormWithTF.symbol, {
-        ...launchFormWithTF,
-        direction: launchFormWithTF.trade_direction === "sell" ? "SELL" : "BUY",
-      });
-      usedForceStart = true;
+    const startErrorText = res?.error || res?.data?.error || res?.data?.message || "";
+    if ((!res?.ok || res?.data?.success !== true) && !isCreditLimitError(startErrorText)) {
+      try {
+        res = await mt5Api.forceStart(launchFormWithTF.symbol, {
+          ...launchFormWithTF,
+          direction: launchFormWithTF.trade_direction === "sell" ? "SELL" : "BUY",
+        });
+        usedForceStart = true;
+      } catch (error) {
+        res = { ok: false, error: error?.message || "Robot fallback failed." };
+      }
+    } else if (isCreditLimitError(startErrorText)) {
+      toast({ title: "Base44 Credit Limit Reached", description: "No direct-trade fallback was attempted, to avoid wasting more calls or placing an unintended order.", variant: "destructive", duration: 7000 });
+      setShowStartModal(false);
+      return;
     }
 
     // ── Determine start success (robot or force_start both return success) ──
@@ -342,7 +365,8 @@ export default function Home() {
         lot_size: botSettings?.hft_base_lot ?? 0.01,
         hft_mode_enabled: true,
       });
-      if (!res?.ok || res?.data?.success !== true) {
+      // Do not bypass platform credit limits or safety checks with a direct order.
+      if ((!res?.ok || res?.data?.success !== true) && !isCreditLimitError(res?.error || res?.data?.error || res?.data?.message || "")) {
         res = await mt5Api.forceStart(pair, {
           symbol: pair,
           strategy: "HFT Scalper",
@@ -350,6 +374,9 @@ export default function Home() {
           hft_mode_enabled: true,
           direction: "BUY",
         });
+      } else if (isCreditLimitError(res?.error || res?.data?.error || res?.data?.message || "")) {
+        toast({ title: "Base44 Credit Limit Reached", description: "Danger Mode did not send a direct order because backend credits are unavailable.", variant: "destructive", duration: 7000 });
+        return;
       }
       if (res?.ok && res?.data?.success === true) {
         setRobotStatus("Running");
