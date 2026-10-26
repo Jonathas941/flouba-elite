@@ -31,7 +31,7 @@ export default function EAConnectionIndicator() {
       }
     };
     check();
-    const iv = pollInterval(check, 10000);
+    const iv = pollInterval(check, 60000);
     return () => { cancelled = true; clearInterval(iv); };
   }, []);
 
