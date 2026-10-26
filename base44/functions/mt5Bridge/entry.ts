@@ -375,6 +375,7 @@ Deno.serve(async (req) => {
     // ── force_start: autonomous robot is disabled (BASE44_ONLY) on this backend,
     //    so route through the direct trade API instead. Reconciles any stale entry
     //    slot, then executes a buy or sell based on the AI confluence direction. ──
+    //    Requires explicit positive SL and TP — never sends an entry without them.
     if (action === "force_start") {
       // 1. Reconcile any stale entry slot
       await bridgeCall("POST", "/trade/reconcile", {}).catch(() => null);
@@ -389,14 +390,21 @@ Deno.serve(async (req) => {
           else direction = "BUY";
         }
       }
-      // 3. Execute the trade directly — try with force flag to bypass stale slot
-      const tradeBody = { symbol: params.symbol || cfg?.active_pair || "XAUUSD", force: true, skip_session: true };
-      if (params.lot_size != null) tradeBody.lot = Number(params.lot_size);
+      // 3. Validate SL/TP through the shared payload builder before sending.
+      const fsSymbol = params.symbol || cfg?.active_pair || "XAUUSD";
+      const fsLot = params.lot_size != null ? Number(params.lot_size) : (cfg?.lot_size ?? 0.01);
+      const fsSl = params.stop_loss != null ? Number(params.stop_loss) : null;
+      const fsTp = params.take_profit != null ? Number(params.take_profit) : null;
+      if (!fsSl || !Number.isFinite(fsSl) || fsSl <= 0 || !fsTp || !Number.isFinite(fsTp) || fsTp <= 0) {
+        return Response.json({ ok: false, status: 422, errorCode: "INVALID_SIGNAL_PAYLOAD", error: "force_start requires explicit positive sl and tp; order was not submitted" }, { status: 422 });
+      }
+      const tradeBody = { symbol: fsSymbol, lot: fsLot, sl: fsSl, tp: fsTp, force: true, skip_session: true };
       const route = direction.toLowerCase() === "sell" ? "/trade/sell" : "/trade/buy";
       const idemKey = `fe-${crypto.randomUUID()}`;
+      console.log(`[trade] mt5Bridge:force_start req=${idemKey} ${direction} ${fsSymbol} lot=${fsLot} sl=${fsSl} tp=${fsTp}`);
       const r = await bridgeCall("POST", route, tradeBody, { "x-idempotency-key": idemKey });
       const success = r.ok && r.data?.success === true;
-      return Response.json({ ok: success, status: r.status, data: { success, direction, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Trade failed") });
+      return Response.json({ ok: success, status: r.status, data: { success, direction, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || r.data?.message || "Trade failed") });
     }
 
     // ── robot_stop: POST /robot/stop ──
@@ -423,34 +431,39 @@ Deno.serve(async (req) => {
     }
 
     // ── buy / sell: POST /trade/buy or /trade/sell ──
+    //    Validates symbol, positive lot, and finite positive SL/TP before sending.
     if (action === "buy" || action === "sell") {
-      const body = {};
-      if (params.symbol) body.symbol = params.symbol;
-      if (params.lot_size != null) body.lot = Number(params.lot_size);
-      if (params.volume != null) body.lot = Number(params.volume);
-      if (params.stop_loss != null) body.sl = Number(params.stop_loss);
-      if (params.take_profit != null) body.tp = Number(params.take_profit);
-      // Validate lot, sl, tp are finite positive numbers before serialization.
-      for (const field of ["lot", "sl", "tp"]) {
-        const value = body[field];
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-          return Response.json({ ok: false, status: 422, errorCode: "INVALID_SIGNAL_PAYLOAD", error: `Missing or invalid ${field}; order was not submitted` }, { status: 422 });
-        }
+      const lot = params.lot_size != null ? Number(params.lot_size) : (params.volume != null ? Number(params.volume) : null);
+      const sl = params.stop_loss != null ? Number(params.stop_loss) : null;
+      const tp = params.take_profit != null ? Number(params.take_profit) : null;
+      const sym = params.symbol || cfg?.active_pair || null;
+      if (!sym || lot == null || !Number.isFinite(lot) || lot <= 0 || sl == null || !Number.isFinite(sl) || sl <= 0 || tp == null || !Number.isFinite(tp) || tp <= 0) {
+        const field = !sym ? "symbol" : (lot == null || !Number.isFinite(lot) || lot <= 0) ? "lot" : (sl == null || !Number.isFinite(sl) || sl <= 0) ? "sl" : "tp";
+        return Response.json({ ok: false, status: 422, errorCode: "INVALID_SIGNAL_PAYLOAD", error: `Missing or invalid ${field}; order was not submitted` }, { status: 422 });
       }
-      const r = await bridgeCall("POST", `/trade/${action}`, body, { "x-idempotency-key": `fe-${crypto.randomUUID()}` });
+      const body = { symbol: sym, lot, sl, tp };
+      if (params.comment) body.comment = String(params.comment).slice(0, 31);
+      const idemKey = `fe-${crypto.randomUUID()}`;
+      console.log(`[trade] mt5Bridge:buy/sell req=${idemKey} ${action} ${sym} lot=${lot} sl=${sl} tp=${tp}`);
+      const r = await bridgeCall("POST", `/trade/${action}`, body, { "x-idempotency-key": idemKey });
       const success = r.ok && r.data?.success === true;
-      return Response.json({ ok: success, status: r.status, data: { success, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Trade failed") });
+      return Response.json({ ok: success, status: r.status, data: { success, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || r.data?.message || "Trade failed") });
     }
 
     // ── pending_order: POST /trade/pending (BUY_LIMIT, SELL_LIMIT, BUY_STOP, SELL_STOP) ──
+    //    Validates symbol, positive lot, and finite positive SL/TP before sending.
     if (action === "pending_order") {
-      const body = {};
-      if (params.symbol) body.symbol = params.symbol;
+      const lot = params.lot_size != null ? Number(params.lot_size) : null;
+      const sl = params.stop_loss != null ? Number(params.stop_loss) : null;
+      const tp = params.take_profit != null ? Number(params.take_profit) : null;
+      const sym = params.symbol || null;
+      if (!sym || lot == null || !Number.isFinite(lot) || lot <= 0 || sl == null || !Number.isFinite(sl) || sl <= 0 || tp == null || !Number.isFinite(tp) || tp <= 0) {
+        const field = !sym ? "symbol" : (lot == null || !Number.isFinite(lot) || lot <= 0) ? "lot" : (sl == null || !Number.isFinite(sl) || sl <= 0) ? "sl" : "tp";
+        return Response.json({ ok: false, status: 422, errorCode: "INVALID_SIGNAL_PAYLOAD", error: `Missing or invalid ${field}; order was not submitted` }, { status: 422 });
+      }
+      const body = { symbol: sym, lot, sl, tp };
       if (params.order_type) body.order_type = params.order_type;
       if (params.entry_price != null) body.price = Number(params.entry_price);
-      if (params.lot_size != null) body.lot = Number(params.lot_size);
-      if (params.stop_loss != null) body.sl = Number(params.stop_loss);
-      if (params.take_profit != null) body.tp = Number(params.take_profit);
       if (params.expiration != null) body.expiration = params.expiration;
       const r = await bridgeCall("POST", "/trade/pending", body);
       const success = r.ok && r.data?.success === true;

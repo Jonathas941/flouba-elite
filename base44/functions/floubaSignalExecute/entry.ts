@@ -17,7 +17,7 @@ function stripSuffix(sym) {
   return { base: sym, suffix: "" };
 }
 
-import { bridgeHeaders, resolveUserApiKey } from '../../shared/mt5Bridge.ts';
+import { bridgeHeaders, resolveUserApiKey, buildTradePayload, logTradeSubmission } from '../../shared/mt5Bridge.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -141,19 +141,28 @@ Deno.serve(async (req) => {
         orderType = signal.entry_price < bid ? "SELL_STOP" : "SELL_LIMIT";
       }
 
-      const pendingBody = {
+      const pendingBuilt = buildTradePayload({
+        direction: signal.direction,
         symbol: baseSym,
-        order_type: orderType,
-        volume: signal.lot_size,
-        price: signal.entry_price,
+        lot: signal.lot_size,
         sl: signal.stop_loss,
         tp: signal.take_profit,
-        magic: signal.magic_number ?? 20260001,
         comment: signal.comment || "Flouba Gold HFT",
+      });
+      if (!pendingBuilt.ok) {
+        logTradeSubmission("floubaSignalExecute:place_pending", signalId, `flouba-${signalId}`, pendingBuilt);
+        return Response.json({ ok: false, action: "pending_failed", errorCode: pendingBuilt.errorCode, error: pendingBuilt.error }, { status: 422 });
+      }
+      const pendingBody = {
+        ...pendingBuilt.payload,
+        order_type: orderType,
+        price: Number(signal.entry_price),
+        magic: signal.magic_number ?? 20260001,
         expiration: signal.expiration_time,
       };
       if (suffix) { pendingBody.broker_symbol = signal.symbol; pendingBody.symbol_suffix = suffix; }
 
+      logTradeSubmission("floubaSignalExecute:place_pending", signalId, `flouba-${signalId}`, pendingBuilt);
       const pendingRes = await fetch(`${BASE}/trade/pending`, {
         method: "POST",
         headers: authHeaders,

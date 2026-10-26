@@ -86,9 +86,52 @@ export async function getAccount(robotId, apiKey) {
   }
 }
 
+/**
+ * Build and validate a single-leg entry payload for the Replit Elite Server.
+ * EVERY entry path (tradeScannerExecutor, executeAiTrade, tradingViewWebhook,
+ * hftExecutionEngine, trailingTpMonitor, multiPairOrchestrator,
+ * floubaSignalExecute, mt5Bridge buy/sell/force_start) must route through this.
+ *
+ * Guarantees: symbol is a non-empty string, lot/sl/tp are finite positive numbers.
+ * Never serializes NaN, null, or Infinity — the order is rejected before fetch.
+ *
+ * Returns { ok: true, action, payload } or { ok: false, errorCode, error }.
+ */
+export function buildTradePayload(opts) {
+  const { direction, symbol, lot, sl, tp, comment } = opts || {};
+  const action = String(direction || "").toLowerCase() === "sell" ? "sell" : "buy";
+
+  const sym = typeof symbol === "string" ? symbol.trim() : "";
+  if (!sym) return { ok: false, errorCode: "INVALID_SIGNAL_PAYLOAD", error: "Missing symbol; order was not submitted" };
+
+  const nLot = Number(lot);
+  const nSl = Number(sl);
+  const nTp = Number(tp);
+
+  if (typeof nLot !== "number" || !Number.isFinite(nLot) || nLot <= 0)
+    return { ok: false, errorCode: "INVALID_SIGNAL_PAYLOAD", error: "Missing or invalid lot; order was not submitted" };
+  if (typeof nSl !== "number" || !Number.isFinite(nSl) || nSl <= 0)
+    return { ok: false, errorCode: "INVALID_SIGNAL_PAYLOAD", error: "Missing or invalid sl; order was not submitted" };
+  if (typeof nTp !== "number" || !Number.isFinite(nTp) || nTp <= 0)
+    return { ok: false, errorCode: "INVALID_SIGNAL_PAYLOAD", error: "Missing or invalid tp; order was not submitted" };
+
+  const payload = { symbol: sym, lot: nLot, sl: nSl, tp: nTp };
+  if (comment) payload.comment = String(comment).slice(0, 31);
+  return { ok: true, action, payload };
+}
+
+/**
+ * Log a trade submission — function name, signal ID, request ID, sanitized fields.
+ * Never logs API keys.
+ */
+export function logTradeSubmission(sourceFn, signalId, requestId, built) {
+  const p = built?.payload || {};
+  console.log(`[trade] ${sourceFn} sig=${signalId || "-"} req=${requestId || "-"} ${built?.action || "?"} ${p.symbol || "?"} lot=${p.lot} sl=${p.sl} tp=${p.tp}`);
+}
+
 // Sends trades directly to the Replit Elite Server routes
 // (POST /api/trade/buy, /api/trade/sell, /api/trade/close, /api/trade/close-all).
-export async function postCommand(robotId, command, idemKey, apiKey) {
+export async function postCommand(robotId, command, idemKey, apiKey, sourceFn, signalId) {
   if (!BRIDGE) return { ok: false, error: "FLOUBA_BACKEND_URL not set" };
   if (!apiKey) return { ok: false, error: NO_KEY };
   try {
@@ -103,34 +146,47 @@ export async function postCommand(robotId, command, idemKey, apiKey) {
     const route = routeMap[action];
     if (!route) return { ok: false, error: `Unknown trade action: ${action}` };
 
-    const body = {};
-    if (command.symbol) body.symbol = command.symbol;
-    if (command.volume != null) body.lot = Number(command.volume);
-    if (command.lot != null) body.lot = Number(command.lot);
-    if (command.sl != null) body.sl = Number(command.sl);
-    if (command.tp != null) body.tp = Number(command.tp);
-    if (command.ticket != null) body.ticket = Number(command.ticket);
-    if (command.comment) body.comment = String(command.comment).slice(0, 31);
-
-    // Validate lot, sl, tp for entry orders (buy/sell) before serialization.
-    // NaN/Infinity otherwise become null in JSON and slip through silently.
-    if (action === "buy" || action === "sell") {
-      for (const field of ["lot", "sl", "tp"]) {
-        const value = body[field];
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-          return { ok: false, status: 422, errorCode: "INVALID_SIGNAL_PAYLOAD", error: `Missing or invalid ${field}; order was not submitted` };
-        }
-      }
+    // Close / close-all: no lot/sl/tp validation needed.
+    if (action === "close" || action === "close_all" || action === "closeall") {
+      const body = {};
+      if (command.symbol) body.symbol = command.symbol;
+      if (command.ticket != null) body.ticket = Number(command.ticket);
+      const res = await fetch(`${B44}${route}`, {
+        method: "POST",
+        headers: { ...bridgeHeaders(robotId, apiKey), "x-idempotency-key": idemKey },
+        body: JSON.stringify(body),
+      });
+      const raw = await res.text();
+      let json; try { json = JSON.parse(raw); } catch { json = { raw }; }
+      if (!res.ok) return { ok: false, status: res.status, error: json?.error?.message || json?.error || json?.message || `HTTP ${res.status}` };
+      return { ok: true, status: res.status, data: json?.data ?? json };
     }
+
+    // Entry orders (buy/sell): validate through the shared payload builder.
+    const built = buildTradePayload({
+      direction: action,
+      symbol: command.symbol,
+      lot: command.lot ?? command.volume,
+      sl: command.sl,
+      tp: command.tp,
+      comment: command.comment,
+    });
+    if (!built.ok) {
+      if (sourceFn || signalId) logTradeSubmission(sourceFn || "postCommand", signalId, idemKey, built);
+      return { ok: false, status: 422, errorCode: built.errorCode, error: built.error };
+    }
+
+    const reqId = idemKey || crypto.randomUUID();
+    logTradeSubmission(sourceFn || "postCommand", signalId, reqId, built);
 
     const res = await fetch(`${B44}${route}`, {
       method: "POST",
-      headers: { ...bridgeHeaders(robotId, apiKey), "x-idempotency-key": idemKey },
-      body: JSON.stringify(body),
+      headers: { ...bridgeHeaders(robotId, apiKey), "x-idempotency-key": reqId },
+      body: JSON.stringify(built.payload),
     });
     const raw = await res.text();
     let json; try { json = JSON.parse(raw); } catch { json = { raw }; }
-    if (!res.ok) return { ok: false, status: res.status, error: json?.error?.message || json?.error || json?.message || `HTTP ${res.status}` };
+    if (!res.ok) return { ok: false, status: res.status, errorCode: json?.error?.code, error: json?.error?.message || json?.error || json?.message || `HTTP ${res.status}` };
     return { ok: true, status: res.status, data: json?.data ?? json };
   } catch (e) {
     return { ok: false, error: e.message };

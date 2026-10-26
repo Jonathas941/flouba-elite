@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
+import { resolveUserApiKey, postCommand } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -155,17 +155,23 @@ async function processHftUser(base44, user, cfg, useServiceRole) {
     }
     if (!direction) direction = "BUY"; // HFT doesn't care — just trade
 
-    const endpoint = direction === "BUY" ? "trade/buy" : "trade/sell";
-    const tradeRes = await fetch(`${BASE}/${endpoint}`, {
-      method: "POST", headers,
-      body: JSON.stringify({ symbol, volume: currentLot }),
-    }).catch(() => null);
-
-    const tradeJson = tradeRes?.ok ? await tradeRes.json().catch(() => ({})) : {};
+    // Route through the shared payload builder — validates symbol, positive lot,
+    // and finite positive SL/TP before sending. HFT scalp has no strategy SL/TP,
+    // so the order is rejected with INVALID_SIGNAL_PAYLOAD rather than sent with nulls.
+    const hftIdemKey = `hft-${direction.toLowerCase()}-${cfg.mt5_account}-${symbol}-${Date.now()}`;
+    const tradeRes = await postCommand(String(cfg.mt5_account), {
+      action: direction.toLowerCase(),
+      symbol,
+      lot: currentLot,
+      sl: null,
+      tp: null,
+    }, hftIdemKey, token, "hftExecutionEngine", null);
+    const tradeJson = tradeRes?.data || {};
     actions.push({
       action: "open_scalp",
       direction, lot: currentLot, symbol,
-      success: tradeRes?.ok && tradeJson?.success !== false,
+      success: tradeRes?.ok === true,
+      error: tradeRes?.ok ? null : (tradeRes?.error || tradeRes?.errorCode),
     });
   }
 

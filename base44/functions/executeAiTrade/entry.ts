@@ -166,16 +166,16 @@ async function analyzeAndExecute(base44, config, user, forceExecute) {
   }
 
   const commandType = trade.direction === "BUY" ? "buy" : "sell";
-  const idemKey = `${commandType}-${robotId}-${Date.now()}`;
+  const idemKey = `ait-${commandType}-${robotId}-${Date.now()}`;
   const ownerKey = await resolveUserApiKey(base44, config.created_by_id);
   const tradeRes = await postCommand(robotId, {
     action: commandType,
     symbol,
-    volume: Number(trade.lot_size),
-    sl: trade.stop_loss != null ? Number(trade.stop_loss) : undefined,
-    tp: trade.take_profit != null ? Number(trade.take_profit) : undefined,
+    lot: Number(trade.lot_size),
+    sl: Number(trade.stop_loss),
+    tp: Number(trade.take_profit),
     comment: bestStrategy ? String(bestStrategy).slice(0, 31) : undefined,
-  }, idemKey, ownerKey);
+  }, idemKey, ownerKey, "executeAiTrade", null);
 
   const cmdData = tradeRes?.data ?? {};
   const execSuccess = !!tradeRes?.ok;

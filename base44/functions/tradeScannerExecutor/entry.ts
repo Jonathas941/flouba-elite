@@ -136,21 +136,21 @@ async function scanAndExecute(base44, cfg, forceExecute) {
     return { executed: false, dedup: true, reason: `A ${trade.direction} ${symbol} order was already queued recently — skipping to avoid duplicate entry.`, score };
   }
 
-  // ── 5. Execute via the Flouba Lite command-queue bridge ──
+  // ── 5. Execute via the shared bridge payload builder ──
   const robotId = String(cfg.mt5_account);
-  const commandType = trade.direction === "BUY" ? "OPEN_BUY" : "OPEN_SELL";
+  const action = trade.direction === "BUY" ? "buy" : "sell";
   const command = {
-    commandType,
-    direction: trade.direction,
+    action,
     symbol,
-    lotSize: Number(trade.lot_size),
-    ...(trade.stop_loss != null ? { stopLoss: Number(trade.stop_loss) } : {}),
-    ...(trade.take_profit != null ? { takeProfit: Number(trade.take_profit) } : {}),
+    lot: Number(trade.lot_size),
+    sl: Number(trade.stop_loss),
+    tp: Number(trade.take_profit),
+    comment: (cfg.adaptive_active_strategy || "Trade Decision Engine").slice(0, 31),
   };
-  const idemKey = `${commandType}-${robotId}-${symbol}-${Date.now()}`;
+  const idemKey = `tde-${action}-${robotId}-${symbol}-${Date.now()}`;
   // Trade goes to the settings owner's own MT5 account only.
   const ownerKey = await resolveUserApiKey(base44, cfg.created_by_id);
-  const execRes = await postCommand(robotId, command, idemKey, ownerKey);
+  const execRes = await postCommand(robotId, command, idemKey, ownerKey, "tradeScannerExecutor", null);
   const queued = execRes.ok === true;
 
   // ── 6. Persist: Trade (Open) + FloubaSignal (EXECUTED) ──

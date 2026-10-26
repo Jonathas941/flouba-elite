@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
+import { resolveUserApiKey, postCommand } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -215,21 +215,24 @@ Deno.serve(async (req) => {
             }
 
             if (trendValid) {
-              // Execute scale-in entry
+              // Execute scale-in entry — route through the shared payload builder.
+              // Uses the existing position's SL and the first position's TP as
+              // the strategy's actual absolute SL/TP prices.
               const tradeAction = isBuy ? "buy" : "sell";
-              const tradeRes = await fetch(`${BASE}/trade/${tradeAction}`, {
-                method: "POST",
-                headers: authHeaders,
-                body: JSON.stringify({
-                  symbol,
-                  lot_size: pyrLot,
-                  sl: 0,
-                  tp: 0,
-                }),
-              }).catch(() => null);
+              const firstPos = symbolPositions[0];
+              const posSl = Number(firstPos?.sl ?? firstPos?.stop_loss ?? 0);
+              const posTp = Number(firstPos?.tp ?? firstPos?.take_profit ?? 0);
+              const pyrIdemKey = `pyr-${tradeAction}-${config.mt5_account}-${symbol}-${Date.now()}`;
+              const tradeRes = await postCommand(String(config.mt5_account), {
+                action: tradeAction,
+                symbol,
+                lot: pyrLot,
+                sl: posSl,
+                tp: posTp,
+              }, pyrIdemKey, jwt, "trailingTpMonitor", null);
 
-              const tradeJson = tradeRes?.ok ? await tradeRes.json().catch(() => ({})) : {};
-              const tradeSuccess = tradeJson?.success === true || tradeRes?.ok;
+              const tradeJson = tradeRes?.data || {};
+              const tradeSuccess = tradeRes?.ok === true;
 
               pyramidingAction = {
                 action: "scale_in",

@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { resolveUserApiKey } from '../../shared/mt5Bridge.ts';
+import { resolveUserApiKey, postCommand } from '../../shared/mt5Bridge.ts';
 
 const BASE = (() => {
   let v = (Deno.env.get("FLOUBA_BACKEND_URL") || "").trim().replace(/\/+$/, "");
@@ -177,23 +177,22 @@ Deno.serve(async (req) => {
       const lotSize = config.lot_size ?? 0.01;
 
       for (const rec of tradeRecs) {
-        const route = rec.direction === "BUY" ? "/trade/buy" : "/trade/sell";
-        const { base, suffix } = stripSuffix(rec.symbol);
-        const tradeBody = {
-          symbol: rec.symbol, // bridge will strip suffix and pass broker_symbol
-          volume: lotSize,
-          strategy: config.adaptive_active_strategy || "Multi-Pair",
-          lot_size: lotSize,
-        };
+        const route = rec.direction === "BUY" ? "buy" : "sell";
+        // Route through the shared payload builder — validates symbol, positive
+        // lot, and finite positive SL/TP before sending. Multi-pair has no
+        // strategy SL/TP, so the order is rejected with INVALID_SIGNAL_PAYLOAD
+        // rather than sent with nulls.
+        const mpIdemKey = `mp-${route}-${config.mt5_account}-${rec.symbol}-${Date.now()}`;
+        const tradeRes = await postCommand(String(config.mt5_account), {
+          action: route,
+          symbol: rec.symbol,
+          lot: lotSize,
+          sl: null,
+          tp: null,
+        }, mpIdemKey, jwt, "multiPairOrchestrator", null);
 
-        const tradeRes = await fetch(`${BASE}${route}`, {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify(tradeBody),
-        }).catch(() => null);
-
-        const tradeJson = await tradeRes?.json().catch(() => ({})) ?? {};
-        const queued = tradeJson?.success === true || tradeJson?.status === "queued_pending_ea" || tradeJson?.status === 202;
+        const tradeJson = tradeRes?.data || {};
+        const queued = tradeRes?.ok === true;
 
         executed.push({
           symbol: rec.symbol,

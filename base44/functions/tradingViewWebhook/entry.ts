@@ -399,7 +399,7 @@ export default async function(req) {
       comment,
     };
 
-    const execRes = await postCommand(robotId, command, idemKey, await ownerKey());
+    const execRes = await postCommand(robotId, command, idemKey, await ownerKey(), "tradingViewWebhook", signal.id);
 
     const finalStatus = execRes.ok ? "Executed" : "Rejected";
     const orderId = execRes?.data?.commandId || execRes?.data?.id || (execRes.ok ? idemKey : null);
