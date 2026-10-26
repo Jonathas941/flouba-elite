@@ -351,6 +351,44 @@ Deno.serve(async (req) => {
       return Response.json({ ok: success, status: r.status, data: { success, robot: r.data?.robot || null, message: r.data?.message || null }, error: success ? null : (r.error || "Start failed") });
     }
 
+    // ── reconcile: clear a stale entry slot by trying known backend endpoints ──
+    if (action === "reconcile") {
+      const attempts = ["/trade/reconcile", "/trade/clear", "/trade/reset", "/trade/clear-slot"];
+      let success = false, lastErr = "No reconcile endpoint found", lastMsg = null;
+      for (const ep of attempts) {
+        const r = await bridgeCall("POST", ep, {}).catch(() => null);
+        if (r?.ok && r.data?.success !== false) { success = true; lastMsg = r.data?.message || null; break; }
+        if (r?.status !== 404) { lastErr = r?.error || `HTTP ${r?.status}`; }
+      }
+      return Response.json({ ok: success, data: { success, message: lastMsg }, error: success ? null : lastErr });
+    }
+
+    // ── force_start: autonomous robot is disabled (BASE44_ONLY) on this backend,
+    //    so route through the direct trade API instead. Reconciles any stale entry
+    //    slot, then executes a buy or sell based on the AI confluence direction. ──
+    if (action === "force_start") {
+      // 1. Reconcile any stale entry slot
+      await bridgeCall("POST", "/trade/reconcile", {}).catch(() => null);
+      // 2. Determine direction from the scanner confluence score
+      const scanRes = await bridgeCall("GET", `${robotPath}/indicators`).catch(() => null);
+      let direction = params.direction || "BUY";
+      if (scanRes?.ok && scanRes.data) {
+        const ind = normalizeIndicators(scanRes.data) || {};
+        const price = ind.bid ?? ind.ask;
+        if (ind.ema20 != null && ind.ema50 != null && price != null) {
+          if (ind.ema20 < ind.ema50 && price < ind.ema20) direction = "SELL";
+          else direction = "BUY";
+        }
+      }
+      // 3. Execute the trade directly
+      const tradeBody = { symbol: params.symbol || cfg?.active_pair || "XAUUSD" };
+      if (params.lot_size != null) tradeBody.lot = Number(params.lot_size);
+      const route = direction.toLowerCase() === "sell" ? "/trade/sell" : "/trade/buy";
+      const r = await bridgeCall("POST", route, tradeBody);
+      const success = r.ok && r.data?.success === true;
+      return Response.json({ ok: success, status: r.status, data: { success, direction, commandId: r.data?.commandId || null, message: r.data?.message || null }, error: success ? null : (r.error || "Trade failed") });
+    }
+
     // ── robot_stop: POST /robot/stop ──
     if (action === "robot_stop") {
       const r = await bridgeCall("POST", "/robot/stop", {});
