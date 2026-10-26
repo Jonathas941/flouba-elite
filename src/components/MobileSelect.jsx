@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * Mobile-first select using Vaul Drawer instead of a Popover.
  * Props: value, onChange, options (string[] | {label, value}[]), placeholder, label
  */
-export default function MobileSelect({ value, onChange, options = [], placeholder = "Select…", label, className }) {
+export default function MobileSelect({ value, onChange, options = [], placeholder = "Select…", label, className = "" }) {
   const [open, setOpen] = useState(false);
 
   const normalized = options.map((o) =>

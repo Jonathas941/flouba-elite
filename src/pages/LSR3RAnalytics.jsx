@@ -116,7 +116,7 @@ function Section({ title, children }) {
   );
 }
 
-function BreakdownRow({ label, wins, losses, pnl, accent }) {
+function BreakdownRow({ label, wins, losses, pnl, accent = "#ffffff" }) {
   const total = wins + losses;
   const wr = total > 0 ? (wins / total) * 100 : 0;
   return (

@@ -1,7 +1,7 @@
 import React from "react";
 import GlassCard from "./GlassCard";
 
-export default function StatTile({ label, value, icon: Icon, accent = "text-white", sub }) {
+export default function StatTile({ label, value, icon: Icon, accent = "text-white", sub = "" }) {
   return (
     <GlassCard className="p-4">
       <div className="flex items-center justify-between">

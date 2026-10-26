@@ -339,7 +339,7 @@ export default function AISignals() {
   );
 }
 
-function Stat({ label, value, color }) {
+function Stat({ label, value, color = "white" }) {
   const colorClass = color === "green" ? "text-[#00FF41]" : color === "red" ? "text-[#FF3131]" : "text-white";
   return (
     <div>

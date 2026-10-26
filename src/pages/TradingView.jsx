@@ -146,7 +146,7 @@ export default function TradingView() {
       {/* Alert Expiry Warning */}
       {settings.tv_alert_expires_at && (() => {
         const expiry = new Date(settings.tv_alert_expires_at);
-        const daysLeft = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         if (daysLeft > 5) return null;
         return (
           <GlassCard className="p-3" >

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * Unified top header for sub-pages.
  * Handles safe-area-inset-top automatically.
  */
-export default function MobileHeader({ title, subtitle, onBack, className, children }) {
+export default function MobileHeader({ title, subtitle = "", onBack = null, className = "", children = null }) {
   const navigate = useNavigate();
 
   const handleBack = () => {

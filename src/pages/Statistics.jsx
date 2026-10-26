@@ -53,7 +53,7 @@ export default function Statistics() {
   const [tab, setTab] = useState("live");
   const [settings, setSettings] = useState(null);
   const [trades, setTrades] = useState([]);
-  const [stats, setStats] = useState({});
+  const [stats, setStats] = useState(/** @type {any} */ ({}));
   const { toast } = useToast();
   const tickRef = useRef(null);
   const drawdownAlertedRef = useRef(false);

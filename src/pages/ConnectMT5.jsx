@@ -229,7 +229,7 @@ export default function ConnectMT5() {
   const [broker, setBroker]                   = useState("");
   const [login, setLogin]                     = useState("");
   const [server, setServer]                   = useState("");
-  const [status, setStatus]                   = useState("idle");
+  const [status, setStatus]                   = useState(/** @type {string} */ ("idle"));
   const [errorMsg, setErrorMsg]               = useState("");
   const [settingsId, setSettingsId]           = useState(null);
   const [autoDetected, setAutoDetected]       = useState(false);
