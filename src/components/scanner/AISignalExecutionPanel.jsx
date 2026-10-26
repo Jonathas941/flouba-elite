@@ -36,7 +36,7 @@ export default function AISignalExecutionPanel() {
 
   useEffect(() => {
     load();
-    const poll = setInterval(load, 10000);
+    const poll = setInterval(load, 60000);
     return () => clearInterval(poll);
   }, [load]);
 
