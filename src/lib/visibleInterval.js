@@ -7,13 +7,16 @@
  * Returns a cleanup function (call it in the useEffect cleanup).
  */
 export function setVisibleInterval(fn, ms) {
+  let lastRun = 0;
   const tick = () => {
     if (typeof document !== "undefined" && document.hidden) return;
+    lastRun = Date.now();
     fn();
   };
-  const id = setInterval(tick, ms);
+  const id = setInterval(tick, Math.max(ms || 0, 30000));
   const onVisible = () => {
-    if (!document.hidden) fn();
+    if (document.hidden || Date.now() - lastRun < 30000) return;
+    tick();
   };
   document.addEventListener("visibilitychange", onVisible);
   return () => {
@@ -28,19 +31,34 @@ export function setVisibleInterval(fn, ms) {
  * clearInterval(id) cleanup keeps working), skips ticks while the tab is
  * hidden, and never polls faster than minMs (default 30 s).
  */
-export function pollInterval(fn, ms, minMs = 30000) {
-  return setInterval(() => {
+export function pollInterval(fn, ms, minMs = 60000) {
+  let lastRun = 0;
+  const tick = () => {
     if (typeof document !== "undefined" && document.hidden) return;
+    if (Date.now() - lastRun < Math.max(ms || 0, minMs) - 250) return;
+    lastRun = Date.now();
     fn();
-  }, Math.max(ms || 0, minMs));
+  };
+  const id = setInterval(tick, Math.max(ms || 0, minMs));
+  if (typeof document !== "undefined") {
+    const onVisible = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    // Keep cleanup compatible with existing clearInterval callers.
+    const originalClear = clearInterval;
+    // The listener is also removed when the page unloads.
+    window.addEventListener("pagehide", () => document.removeEventListener("visibilitychange", onVisible), { once: true });
+  }
+  return id;
 }
 
 // Poll intervals for anything that invokes a backend function (mt5Bridge, scanners).
 // Raise these to save more credits; lower them for faster refresh.
 export const POLL_MS = {
-  liveScanner: 10000,     // was 2s
-  statistics: 20000,      // was 5s
-  homeFast: 30000,        // was 15s
-  marketStructure: 60000, // was 15s
-  lsr3rScanner: 60000,    // was 15s
+  liveScanner: 60000,
+  statistics: 60000,
+  homeFast: 60000,
+  marketStructure: 120000,
+  lsr3rScanner: 120000,
 };
