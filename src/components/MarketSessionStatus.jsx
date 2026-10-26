@@ -37,7 +37,7 @@ export default function MarketSessionStatus() {
       setLoading(false);
     };
     fetchStatus();
-    const interval = pollInterval(fetchStatus, 5000);
+    const interval = pollInterval(fetchStatus, 60000);
     return () => clearInterval(interval);
   }, []);
 
