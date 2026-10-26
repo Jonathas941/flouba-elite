@@ -14,7 +14,7 @@ const READ_ACTIONS = new Set([
   "indicators", "history", "detect", "rates", "tv_feed",
   "risk_get", "risk_status",
 ]);
-const CACHE_MS = 10000;
+const CACHE_MS = 60000;
 const _inflight = new Map();
 const _cache = new Map();
 
