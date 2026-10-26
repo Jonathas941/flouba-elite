@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Save, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
+import MobileSelect from "@/components/MobileSelect";
 
 const TIMEFRAME_OPTIONS = {
   trend: ["M15", "M30", "H1", "H4", "D1"],
@@ -117,17 +118,12 @@ function SelectRow({ label, value, options, onChange }) {
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-white/5">
       <span className="text-[10px] font-mono text-white/50 uppercase tracking-wider">{label}</span>
-      <select
+      <MobileSelect
         value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-white/5 border border-white/10 rounded-md px-2 py-1 text-[10px] font-mono text-white focus:outline-none focus:border-[#00FF41]/50 max-w-[140px]"
-      >
-        {options.map((opt) => (
-          <option key={opt.value ?? opt} value={opt.value ?? opt} className="bg-black text-white">
-            {opt.label ?? opt}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        options={options}
+        className="flex-1 max-w-[140px] h-8 text-[10px]"
+      />
     </div>
   );
 }

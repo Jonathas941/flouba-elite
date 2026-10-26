@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import MobileSelect from "@/components/MobileSelect";
 
 export function Field({ label, children }) {
   return (
@@ -26,14 +27,12 @@ export function NumberInput({ value, onChange, min, max = undefined, step = 1 })
 
 export function SelectInput({ value, onChange, options }) {
   return (
-    <select
+    <MobileSelect
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="px-2 py-1.5 rounded-lg font-heading font-bold text-xs text-white bg-white/5 border border-white/10 focus:border-[#00FF41]/40 focus:outline-none appearance-none text-right"
-      style={{ background: "rgba(255,255,255,0.06)", minWidth: 96 }}
-    >
-      {options.map((o) => <option key={o} value={o} style={{ background: "#111" }}>{o}</option>)}
-    </select>
+      onChange={onChange}
+      options={options}
+      className="flex-1 max-w-[140px] h-9 text-xs"
+    />
   );
 }
 

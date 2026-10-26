@@ -106,7 +106,15 @@ export default function Account() {
               CANCEL
             </button>
             <button
-              onClick={() => base44.auth.logout("/")}
+              onClick={async () => {
+                try {
+                  await base44.functions.invoke("deleteUserAccount");
+                  await base44.auth.logout("/");
+                } catch (e) {
+                  // still log out even if the backend call fails
+                  await base44.auth.logout("/");
+                }
+              }}
               className="h-11 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-heading text-xs tracking-widest transition-colors"
             >
               CONFIRM

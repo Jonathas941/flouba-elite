@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Save, Radar, FileText, BookOpen, Download, ChevronRight } from "lucide-react";
+import { Save, Radar, FileText, BookOpen, Download, ChevronRight, LineChart, Network, Bot, ShieldAlert } from "lucide-react";
 import MobileHeader from "@/components/MobileHeader";
 import AutoStartButton from "@/components/dashboard/AutoStartButton";
 import HftModeButton from "@/components/dashboard/HftModeButton";
@@ -288,6 +288,50 @@ export default function Settings() {
 
         {/* ── Tools & Resources (moved from Home) ── */}
         <GlassCard className="p-0 overflow-hidden">
+          <button onClick={() => navigate("/tradingview")}
+            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/5 transition-colors border-b border-white/5">
+            <div className="w-9 h-9 rounded-xl bg-sky-500/10 flex items-center justify-center">
+              <LineChart className="w-4 h-4 text-sky-400" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-white">TradingView</p>
+              <p className="text-[10px] text-muted-foreground">Webhook signals & auto-execution</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button onClick={() => navigate("/market-structure")}
+            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/5 transition-colors border-b border-white/5">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center">
+              <Network className="w-4 h-4 text-violet-400" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-white">Market Structure</p>
+              <p className="text-[10px] text-muted-foreground">BOS, CHOCH, order blocks & FVG</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button onClick={() => navigate("/ai-analyst")}
+            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/5 transition-colors border-b border-white/5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-white">AI Analyst</p>
+              <p className="text-[10px] text-muted-foreground">Market analysis & performance review</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button onClick={() => navigate("/risk")}
+            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/5 transition-colors border-b border-white/5">
+            <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <ShieldAlert className="w-4 h-4 text-red-400" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-white">Risk Management</p>
+              <p className="text-[10px] text-muted-foreground">Drawdown, equity guard & kill switch</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
           <button onClick={() => navigate("/lsr3r")}
             className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/5 transition-colors border-b border-white/5">
             <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
