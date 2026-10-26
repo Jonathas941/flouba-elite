@@ -78,7 +78,7 @@ export default function DynamicDailyTargetPanel() {
 
   useEffect(() => {
     fetchStatus();
-    const interval = pollInterval(fetchStatus, 15000);
+    const interval = pollInterval(fetchStatus, 60000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
