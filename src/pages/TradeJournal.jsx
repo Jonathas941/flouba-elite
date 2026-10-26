@@ -168,7 +168,7 @@ export default function TradeJournal() {
   );
 }
 
-function SummaryCard({ label, value, accent }) {
+function SummaryCard({ label, value, accent = "#ffffff" }) {
   return (
     <div className="rounded-xl p-2.5" style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.06)" }}>
       <p className="text-[8px] text-white/30 uppercase tracking-wider font-heading mb-0.5">{label}</p>

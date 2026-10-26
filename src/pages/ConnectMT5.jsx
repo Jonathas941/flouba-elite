@@ -326,7 +326,7 @@ export default function ConnectMT5() {
   };
 
   const handleDisconnect = async () => {
-    setStatus("connecting");
+    setStatus("disconnecting");
     setErrorMsg("");
     try {
       // Stop the robot if it's running
@@ -521,7 +521,7 @@ export default function ConnectMT5() {
               {status === "error" && errorMsg && (
                 <p className="text-[11px] text-red-300/80 mt-1 leading-snug">{errorMsg}</p>
               )}
-              {status === "success" && (
+              {(status === "success" || status === "disconnecting") && (
                 <p className="text-[11px] text-green-300/70 mt-0.5">{broker} · {login}</p>
               )}
             </div>
@@ -537,7 +537,7 @@ export default function ConnectMT5() {
           <p className="text-[10px] text-center text-muted-foreground/70 -mt-1">
             Download the EA &amp; preset, install on MT5, then connect your account below.
           </p>
-          {status !== "success" && (
+          {status !== "success" && status !== "disconnecting" && (
             <>
               <Button variant="outline"
                 className="w-full h-12 border-red-500/30 text-red-400 font-heading font-bold tracking-widest text-xs uppercase rounded-xl hover:bg-red-500/10"
@@ -554,8 +554,8 @@ export default function ConnectMT5() {
           {status === "success" && (
             <Button
               className="w-full h-12 bg-white/10 hover:bg-white/15 text-white font-heading font-bold tracking-widest text-xs uppercase rounded-xl border border-white/20"
-              onClick={handleDisconnect} disabled={status === "connecting"}>
-              {status === "connecting" ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Disconnecting…</> : <><Unplug className="w-4 h-4 mr-2" />Disconnect</>}
+              onClick={handleDisconnect} disabled={status === "disconnecting"}>
+              {status === "disconnecting" ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Disconnecting…</> : <><Unplug className="w-4 h-4 mr-2" />Disconnect</>}
             </Button>
           )}
         </motion.div>

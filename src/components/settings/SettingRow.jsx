@@ -1,7 +1,7 @@
 import React from "react";
 import { Switch } from "@/components/ui/switch";
 
-export function ToggleRow({ label, desc, checked, onChange }) {
+export function ToggleRow({ label, desc = "", checked, onChange }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
       <div>
