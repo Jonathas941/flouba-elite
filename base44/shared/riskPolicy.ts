@@ -13,15 +13,20 @@
  * That is why the three layers openly disagreed (e.g. DDT capping 1 open position while
  * BotSettings permitted 13). Every gate should now resolve limits through this module.
  *
- * IMPORTANT GAP — per-trade risk sizing
- * -------------------------------------
- * DDT has NO risk_percentage field. It constrains position COUNT, trade COUNT, daily LOSS
- * and consecutive losses — but it cannot constrain how much is risked on any single trade.
- * So a profile carrying risk_percentage: 40 is NOT clamped by the DDT ceiling. That value
- * is deliberately passed through untouched here rather than silently capped; see
- * `uncapped_risk_percentage` on the returned policy, which surfaces it for the caller
- * (and the UI) to display. Changing it is a position-sizing decision for the account owner.
+ * Per-trade risk sizing is also bounded by a server-side hard ceiling. User settings
+ * are preferences, not permission to risk an unbounded share of account equity.
  */
+
+/** Hard ceiling for percentage-based risk sizing. This is server-side and is not user-overridable. */
+export const MAX_RISK_PERCENTAGE = 2;
+
+/** Normalize user-provided risk percentage to a safe finite range. */
+export function clampRiskPercentage(value, fallback = 1) {
+  const parsed = Number(value);
+  const safeFallback = Number.isFinite(Number(fallback)) && Number(fallback) > 0 ? Number(fallback) : 1;
+  if (!Number.isFinite(parsed) || parsed <= 0) return Math.min(safeFallback, MAX_RISK_PERCENTAGE);
+  return Math.min(parsed, MAX_RISK_PERCENTAGE);
+}
 
 /** Smallest positive number wins; ignores null/undefined/non-finite/non-positive. */
 function tightest(...values) {
@@ -113,8 +118,9 @@ export function resolveRiskPolicy(cfg = {}, ddt = null, opts = {}) {
     ddtTier: ddtActive ? (ddt.current_tier || "pre_target") : null,
     ddtRiskReductionPct: ddtActive ? (ddt.risk_reduction_pct ?? 50) : 0,
 
-    // NOT constrained by DDT — see module header. Surfaced so it can be displayed.
-    uncapped_risk_percentage: Number(cfg.risk_percentage) || 0,
+    // Server-enforced cap applied to percentage-based position sizing.
+    max_risk_percentage: MAX_RISK_PERCENTAGE,
+    effective_risk_percentage: clampRiskPercentage(cfg.risk_percentage ?? 1),
 
     // Provenance, for logging and for the UI to explain which layer bound each limit.
     sources: {
