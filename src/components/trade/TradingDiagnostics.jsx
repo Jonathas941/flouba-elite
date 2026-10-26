@@ -182,7 +182,7 @@ export default function TradingDiagnostics() {
 
   // Auto-refresh every 2s while panel is open
   useEffect(() => {
-    const id = pollInterval(runDiagnostics, 2000);
+    const id = pollInterval(runDiagnostics, 60000);
     return () => clearInterval(id);
   }, []);
 
