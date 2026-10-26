@@ -551,7 +551,7 @@ export default function ConnectMT5() {
               </Button>
             </>
           )}
-          {status === "success" && (
+          {(status === "success" || status === "disconnecting") && (
             <Button
               className="w-full h-12 bg-white/10 hover:bg-white/15 text-white font-heading font-bold tracking-widest text-xs uppercase rounded-xl border border-white/20"
               onClick={handleDisconnect} disabled={status === "disconnecting"}>
