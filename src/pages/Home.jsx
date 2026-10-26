@@ -254,7 +254,17 @@ export default function Home() {
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
       if (msg.includes("ENTRY_WINDOW_CLOSED") || msg.includes("entry windows")) {
-        toast({ title: "Outside Trading Hours", description: "XAUUSD trades 03:00–06:00 and 08:00–13:00 ET. Try again during a session window.", variant: "destructive", duration: 6000 });
+        // Robot is started but can't trade yet — mark as running so the scheduled
+        // auto-execute workflow picks it up when the session window opens.
+        setActivePair(launchFormWithTF.symbol || form.symbol);
+        setRobotStatus("Scanning Market");
+        setShowStartModal(false);
+        if (botSettings?.id) {
+          await base44.entities.BotSettings.update(botSettings.id, { ai_auto_execute_enabled: true, robot_status: "Running" }).catch(() => {});
+        }
+        toast({ title: "Robot Started", description: `${strategy} is active and will auto-trade when the session window opens (03:00–06:00 or 08:00–13:00 ET).`, duration: 5000 });
+        logNotification({ type: "bot_action", title: "Robot Started (Pending Session)", message: `${strategy} engine launched. Trading resumes at next session window.`, category: "success", meta: { strategy, symbol: launchFormWithTF.symbol } });
+        setUnreadCount((c) => c + 1);
       } else if (msg.includes("ENTRY_SLOT_OCCUPIED") || msg.includes("reconciliation")) {
         toast({ title: "Entry Slot Locked", description: "A stale trade command is blocking new entries. Reconciling… Press START again in a few seconds.", variant: "destructive", duration: 6000 });
         mt5Api.reconcile().catch(() => null);

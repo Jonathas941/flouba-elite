@@ -390,7 +390,7 @@ Deno.serve(async (req) => {
         }
       }
       // 3. Execute the trade directly — try with force flag to bypass stale slot
-      const tradeBody = { symbol: params.symbol || cfg?.active_pair || "XAUUSD", force: true };
+      const tradeBody = { symbol: params.symbol || cfg?.active_pair || "XAUUSD", force: true, skip_session: true };
       if (params.lot_size != null) tradeBody.lot = Number(params.lot_size);
       const route = direction.toLowerCase() === "sell" ? "/trade/sell" : "/trade/buy";
       const idemKey = `fe-${crypto.randomUUID()}`;
