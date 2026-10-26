@@ -55,7 +55,7 @@ export default function TerminalScanner({ active, statusLabel, statusDesc, statu
   useEffect(() => {
     fetchEngineData();
     if (!active || !connected) return;
-    const interval = pollInterval(fetchEngineData, 12000);
+    const interval = pollInterval(fetchEngineData, 60000);
     return () => clearInterval(interval);
   }, [fetchEngineData]);
 
