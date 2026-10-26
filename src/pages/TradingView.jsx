@@ -13,6 +13,7 @@ import SignalDetailCard from "@/components/tradingview/SignalDetailCard";
 import { Activity, Trash2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import MobileHeader from "@/components/MobileHeader";
 
 export default function TradingView() {
   const { toast } = useToast();
@@ -133,16 +134,11 @@ export default function TradingView() {
   }
 
   return (
-    <div className="min-h-screen px-4 pt-6 pb-28 space-y-4 max-w-md mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-heading font-bold text-white tracking-wider">TRADINGVIEW</h1>
-          <p className="text-[10px] text-white/40 uppercase tracking-widest">Signal Pipeline</p>
-        </div>
-        <Activity className="w-6 h-6 text-[#FF3131]" />
-      </div>
-
+    <div className="min-h-screen pb-28 max-w-md mx-auto">
+      <MobileHeader title="TradingView" subtitle="Signal Pipeline">
+        <Activity className="w-5 h-5 text-[#FF3131]" />
+      </MobileHeader>
+      <div className="px-4 space-y-4">
       {/* Alert Expiry Warning */}
       {settings.tv_alert_expires_at && (() => {
         const expiry = new Date(settings.tv_alert_expires_at);
@@ -218,6 +214,7 @@ export default function TradingView() {
           </div>
         )}
       </GlassCard>
+      </div>
     </div>
   );
 }

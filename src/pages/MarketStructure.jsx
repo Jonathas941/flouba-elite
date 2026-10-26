@@ -8,6 +8,7 @@ import HudPanel from "@/components/dashboard/hud/HudPanel";
 import MarketStructureSettingsEditor from "@/components/scanner/MarketStructureSettingsEditor";
 import MarketStructurePresetsBar from "@/components/scanner/MarketStructurePresetsBar";
 import { setVisibleInterval, POLL_MS } from "@/lib/visibleInterval";
+import MobileHeader from "@/components/MobileHeader";
 
 const STATUS_COLORS = {
   "Scanning": "text-cyan-400",
@@ -176,13 +177,8 @@ export default function MarketStructure() {
   const cfg = settings || {};
 
   return (
-    <div className="min-h-screen bg-black max-w-md mx-auto px-4 py-4 space-y-3">
-      {/* HEADER */}
-      <div className="flex items-center justify-between pt-2">
-        <div className="flex items-center gap-2">
-          <Radar className="w-5 h-5 text-[#00FF41]" />
-          <h1 className="font-heading text-sm tracking-[0.2em] text-white">MARKET STRUCTURE</h1>
-        </div>
+    <div className="min-h-screen bg-black max-w-md mx-auto">
+      <MobileHeader title="Market Structure" subtitle="Scanner & Setups">
         <button
           onClick={handleToggleScanner}
           className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider transition-all ${
@@ -193,7 +189,8 @@ export default function MarketStructure() {
         >
           {cfg.scanner_active ? "STOP" : "START"}
         </button>
-      </div>
+      </MobileHeader>
+      <div className="px-4 py-4 space-y-3">
 
       {/* A. SCANNER STATUS */}
       <HudPanel label="Scanner Status" accent={cfg.scanner_active ? "#00FF41" : "#FF3131"}>
@@ -352,6 +349,7 @@ export default function MarketStructure() {
         <p className="text-[9px] font-mono text-amber-400/70 leading-relaxed">
           ⚠ LIVE MODE — Real orders will be sent to MT5 when approved. Default is Manual Confirmation — you approve every order before it's sent.
         </p>
+      </div>
       </div>
     </div>
   );

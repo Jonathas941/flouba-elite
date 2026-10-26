@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Settings as Cog, Save } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import MobileSelect from "@/components/MobileSelect";
 
 const SYMBOLS = ["XAUUSD", "EURUSD", "GBPUSD"];
 
@@ -59,10 +60,12 @@ export default function LSR3RSettings() {
 
       <Card title="Symbols & Markets">
         <Field label="Active Symbol">
-          <select value={form.symbol || "XAUUSD"} onChange={set("symbol")}
-            className="w-full bg-transparent text-white text-sm font-mono outline-none">
-            {SYMBOLS.map((s) => <option key={s} value={s} className="bg-[#0d0d0d]">{s}</option>)}
-          </select>
+          <MobileSelect
+            value={form.symbol || "XAUUSD"}
+            onChange={(v) => set("symbol")({ target: { type: "text", value: v } })}
+            options={SYMBOLS}
+            label="Select Symbol"
+          />
         </Field>
       </Card>
 

@@ -6,6 +6,7 @@ import StatTile from "@/components/StatTile";
 import { Button } from "@/components/ui/button";
 import { Users, Activity, Crown, Shield, Plus } from "lucide-react";
 import MobileHeader from "@/components/MobileHeader";
+import MobileSelect from "@/components/MobileSelect";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -117,10 +118,7 @@ export default function Admin() {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Plan</label>
-            <select value={keyPlan} onChange={(e) => setKeyPlan(e.target.value)}
-              className="w-full h-11 px-3 rounded-xl bg-white/5 border border-red-500/20 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500/50">
-              {["Starter", "Pro", "Elite"].map((p) => <option key={p} value={p} className="bg-[#0d1117]">{p}</option>)}
-            </select>
+            <MobileSelect value={keyPlan} onChange={setKeyPlan} options={["Starter", "Pro", "Elite"]} label="Select Plan" />
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Duration (days)</label>

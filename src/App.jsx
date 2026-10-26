@@ -83,16 +83,11 @@ const AuthenticatedApp = () => {
           <Route path="/admin" element={<PageSlide><Admin /></PageSlide>} />
           <Route element={<Layout />}>
             <Route path="/" element={<PageSlide><Home /></PageSlide>} />
-            <Route path="/strategy" element={<PageSlide><Strategy /></PageSlide>} />
             <Route path="/settings" element={<PageSlide><Settings /></PageSlide>} />
             <Route path="/statistics" element={<PageSlide><Statistics /></PageSlide>} />
-            <Route path="/subscription" element={<PageSlide><Subscription /></PageSlide>} />
             <Route path="/ai-signals" element={<PageSlide><AISignals /></PageSlide>} />
             <Route path="/ai-scanner" element={<PageSlide><AIScanner /></PageSlide>} />
             <Route path="/account" element={<PageSlide><Account /></PageSlide>} />
-            <Route path="/connect-mt5" element={<PageSlide><ConnectMT5 /></PageSlide>} />
-            <Route path="/notifications" element={<PageSlide><Notifications /></PageSlide>} />
-            <Route path="/redeem" element={<PageSlide><Redeem /></PageSlide>} />
             <Route element={<LSR3RLayout />}>
               <Route path="/lsr3r" element={<PageSlide><LSR3RScanner /></PageSlide>} />
               <Route path="/lsr3r/history" element={<PageSlide><LSR3RHistory /></PageSlide>} />
@@ -100,13 +95,18 @@ const AuthenticatedApp = () => {
               <Route path="/lsr3r/settings" element={<PageSlide><LSR3RSettings /></PageSlide>} />
               <Route path="/lsr3r/webhook" element={<PageSlide><LSR3RWebhook /></PageSlide>} />
             </Route>
-            <Route path="/trade-journal" element={<PageSlide><TradeJournal /></PageSlide>} />
-            <Route path="/tradingview" element={<PageSlide><TradingView /></PageSlide>} />
-            <Route path="/market-structure" element={<PageSlide><MarketStructure /></PageSlide>} />
-            <Route path="/ai-analyst" element={<PageSlide><AIAnalyst /></PageSlide>} />
-            <Route path="/risk" element={<PageSlide><Risk /></PageSlide>} />
-            <Route path="/onboarding" element={<PageSlide><Onboarding /></PageSlide>} />
           </Route>
+          <Route path="/strategy" element={<PageSlide><Strategy /></PageSlide>} />
+          <Route path="/subscription" element={<PageSlide><Subscription /></PageSlide>} />
+          <Route path="/connect-mt5" element={<PageSlide><ConnectMT5 /></PageSlide>} />
+          <Route path="/notifications" element={<PageSlide><Notifications /></PageSlide>} />
+          <Route path="/redeem" element={<PageSlide><Redeem /></PageSlide>} />
+          <Route path="/trade-journal" element={<PageSlide><TradeJournal /></PageSlide>} />
+          <Route path="/tradingview" element={<PageSlide><TradingView /></PageSlide>} />
+          <Route path="/market-structure" element={<PageSlide><MarketStructure /></PageSlide>} />
+          <Route path="/ai-analyst" element={<PageSlide><AIAnalyst /></PageSlide>} />
+          <Route path="/risk" element={<PageSlide><Risk /></PageSlide>} />
+          <Route path="/onboarding" element={<PageSlide><Onboarding /></PageSlide>} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>

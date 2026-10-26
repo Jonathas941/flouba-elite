@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { RefreshCw, TrendingUp, TrendingDown, Calendar, Clock, FileText } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import MobileHeader from "@/components/MobileHeader";
 
 export default function TradeJournal() {
   const { toast } = useToast();
@@ -49,18 +50,14 @@ export default function TradeJournal() {
   const winRate = trades.length > 0 ? (wins / trades.length) * 100 : 0;
 
   return (
-    <div className="space-y-4 pb-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4" style={{ color: "#FF3131" }} />
-          <h2 className="text-sm font-heading font-bold tracking-wider text-white uppercase">Trade Journal</h2>
-        </div>
+    <div className="pb-4">
+      <MobileHeader title="Trade Journal" subtitle="Closed positions & P&L">
         <button onClick={sync} disabled={syncing}
           className="p-2 rounded-lg" style={{ background: "rgba(255,49,49,0.08)", border: "1px solid rgba(255,49,49,0.20)" }}>
           <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} style={{ color: "#FF3131" }} />
         </button>
-      </div>
+      </MobileHeader>
+      <div className="space-y-4 px-4">
 
       {/* Summary stats */}
       <div className="grid grid-cols-4 gap-2">
@@ -164,6 +161,7 @@ export default function TradeJournal() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }
