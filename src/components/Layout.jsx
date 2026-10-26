@@ -26,14 +26,14 @@ export default function Layout() {
     >
       <Outlet />
 
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 px-2 pb-4">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 px-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <div className="flex items-stretch justify-between gap-0.5 py-1.5 px-1 rounded-2xl"
           style={{
-            background: "rgba(12,12,12,0.97)",
+            background: "rgba(22,26,32,0.98)",
             backdropFilter: "blur(20px)",
-            border: "1px solid rgba(0,255,65,0.10)",
+            border: "1px solid rgba(0,255,65,0.22)",
             borderRadius: "22px",
-            boxShadow: "0 -4px 30px rgba(0,0,0,0.6)",
+            boxShadow: "0 -4px 24px rgba(0,0,0,0.38)",
           }}>
           {NAV.map((item) => {
             const active = location.pathname === item.to;
@@ -44,7 +44,7 @@ export default function Layout() {
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 rounded-xl transition-all",
                   "flex-1 min-w-0 h-12 px-0.5",
-                  active ? "text-[#00FF41]" : "text-white/30 hover:text-white/50"
+                  active ? "text-[#00FF41]" : "text-white/65 hover:text-white/85"
                 )}
                 style={active ? { filter: "drop-shadow(0 0 6px rgba(0,255,65,0.5))" } : undefined}
               >
