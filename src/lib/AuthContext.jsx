@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
     const maxWait = setTimeout(() => {
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
+      setAuthChecked(true);
     }, 10000);
     return () => clearTimeout(maxWait);
   }, []);
