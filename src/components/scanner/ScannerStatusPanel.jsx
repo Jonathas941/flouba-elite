@@ -27,7 +27,7 @@ export default function ScannerStatusPanel() {
       if (!cancelled) setLoading(false);
     };
     fetch();
-    const interval = pollInterval(fetch, 5000);
+    const interval = pollInterval(fetch, 60000);
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
