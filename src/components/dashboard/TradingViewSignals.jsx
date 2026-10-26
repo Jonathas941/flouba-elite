@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 import GlassCard from "@/components/GlassCard";
 import { Radio, CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
+import { mapStatus, statusColor, isAcceptedToday, isRejected as isRejectedStatus, isTradeOpen } from "@/lib/tradingViewStatus";
 
 const POLL_MS = 30000;
 
@@ -75,8 +76,8 @@ export default function TradingViewSignals() {
 
   const today = new Date().toISOString().slice(0, 10);
   const todaySignals = signals.filter(s => (s.received_at || "").slice(0, 10) === today);
-  const todayAccepted = todaySignals.filter(s => s.status === "Executed" || s.status === "Simulated" || s.status === "Partial").length;
-  const todayRejected = todaySignals.filter(s => s.status === "Rejected" || s.status === "Error").length;
+  const todayAccepted = todaySignals.filter(s => isAcceptedToday(s.status)).length;
+  const todayRejected = todaySignals.filter(s => isRejectedStatus(s.status)).length;
 
   return (
     <GlassCard>
@@ -134,10 +135,12 @@ export default function TradingViewSignals() {
             <p className="text-[10px] text-white/30 text-center py-6">No TradingView signals received yet.</p>
           ) : (
             signals.map((sig, i) => {
-              const accepted = sig.status === "Executed" || sig.status === "Simulated";
-              const partial = sig.status === "Partial";
-              const rejected = sig.status === "Rejected";
-              const errored = sig.status === "Error";
+              const mappedStatus = mapStatus(sig.status);
+              const accepted = mappedStatus === "Accepted";
+              const partial = mappedStatus === "Partially Open";
+              const rejected = mappedStatus === "Rejected";
+              const errored = false;
+              const tradeOpen = isTradeOpen(sig.status);
               const legs = Array.isArray(sig.legs) ? sig.legs : [];
               return (
                 <div key={i} className="px-2.5 py-2 rounded-lg bg-white/3 border border-white/5">
@@ -147,7 +150,8 @@ export default function TradingViewSignals() {
                       <span className="text-[10px] font-bold text-white/80">{sig.symbol || "--"}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      {accepted && <CheckCircle2 className="w-3 h-3 text-[#00FF41]" />}
+                      {tradeOpen && <CheckCircle2 className="w-3 h-3 text-[#00FF41]" />}
+                      {accepted && !tradeOpen && <Radio className="w-3 h-3 text-[#00FF41]" />}
                       {partial && <AlertTriangle className="w-3 h-3 text-[#FFCC42]" />}
                       {(rejected || errored) && <XCircle className="w-3 h-3 text-[#FF3131]" />}
                       <span className="text-[9px] text-white/30">{formatTime(sig.received_at)}</span>
@@ -175,12 +179,15 @@ export default function TradingViewSignals() {
                     </div>
                   )}
 
-                  {/* Status message */}
-                  {sig.message && (
-                    <p className={`text-[9px] mt-1 truncate ${partial ? "text-[#FFCC42]/80" : (rejected || errored) ? "text-[#FF3131]/80" : "text-white/30"}`}>
-                      {sig.message}
-                    </p>
-                  )}
+                  {/* Status badge + rejection reason */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${statusColor(sig.status)}`}>{mappedStatus}</span>
+                    {(sig.rejection_reason || sig.message) && (
+                      <p className={`text-[9px] truncate ${partial ? "text-[#FFCC42]/80" : (rejected || errored) ? "text-[#FF3131]/80" : "text-white/30"}`}>
+                        {sig.rejection_reason || sig.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })

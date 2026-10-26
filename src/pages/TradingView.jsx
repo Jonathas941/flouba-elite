@@ -8,6 +8,8 @@ import WebhookSetupCard from "@/components/tradingview/WebhookSetupCard";
 import SetupChecklist from "@/components/tradingview/SetupChecklist";
 import PipelineStatusCard from "@/components/tradingview/PipelineStatusCard";
 import TestSignalButton from "@/components/tradingview/TestSignalButton";
+import TradingHoursCard from "@/components/tradingview/TradingHoursCard";
+import SignalDetailCard from "@/components/tradingview/SignalDetailCard";
 import { Activity, Trash2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -184,10 +186,13 @@ export default function TradingView() {
       {/* 2. Setup Checklist */}
       <SetupChecklist />
 
-      {/* 3. Pipeline Status (auto-refreshes every 60s) */}
+      {/* 3. Trading Hours */}
+      <TradingHoursCard />
+
+      {/* 4. Pipeline Status (auto-refreshes every 60s) */}
       <PipelineStatusCard onSignals={setSignals} />
 
-      {/* 4. Test Signal */}
+      {/* 5. Test Signal */}
       <TestSignalButton settings={settings} />
 
       {/* Execution Connection */}
@@ -206,37 +211,10 @@ export default function TradingView() {
         {signals.length === 0 ? (
           <p className="text-xs text-white/30 text-center py-6">No signals received yet.</p>
         ) : (
-          <div className="space-y-2 max-h-80 overflow-y-auto no-scrollbar">
-            {signals.map((s) => {
-              const colors = {
-                Received: "text-blue-400 bg-blue-400/10",
-                Validated: "text-cyan-400 bg-cyan-400/10",
-                Executed: "text-[#00FF41] bg-[#00FF41]/10",
-                Simulated: "text-purple-400 bg-purple-400/10",
-                Rejected: "text-orange-400 bg-orange-400/10",
-                Duplicate: "text-yellow-400 bg-yellow-400/10",
-                Error: "text-[#FF3131] bg-[#FF3131]/10",
-                Partial: "text-amber-400 bg-amber-400/10",
-              };
-              const cls = colors[s.status] || "text-white/40 bg-white/5";
-              return (
-                <div key={s.id} className="bg-black/30 rounded-lg p-3 border border-white/5 text-[10px] space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/80 font-bold">{s.symbol || "—"}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${cls}`}>{s.status}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-white/40">
-                    <span>{s.action || "—"}</span>
-                    <span>{s.quantity ?? "—"}</span>
-                  </div>
-                  {s.price != null && <div className="text-white/30">Price: {s.price}</div>}
-                  <div className="text-white/30">
-                    {s.received_at ? new Date(s.received_at).toLocaleString() : "—"}
-                  </div>
-                  {s.message && <p className="text-white/40 italic truncate">{s.message}</p>}
-                </div>
-              );
-            })}
+          <div className="space-y-2 max-h-96 overflow-y-auto no-scrollbar">
+            {signals.map((s) => (
+              <SignalDetailCard key={s.id} signal={s} />
+            ))}
           </div>
         )}
       </GlassCard>

@@ -55,7 +55,7 @@
         "type": "object",
         "additionalProperties": true
       },
-      "description": "Per-leg execution details: [{lot, tp, status, order_id, error}, ...]"
+      "description": "Per-leg execution details: [{lot, tp, label, status, order_id, error}, ...]"
     },
     "mode": {
       "type": "string",
@@ -68,16 +68,26 @@
     "status": {
       "type": "string",
       "enum": [
+        "Accepted",
+        "Queued",
+        "Executing",
+        "Open",
+        "Partially Open",
+        "Rejected",
+        "Reconciliation Required",
         "Received",
         "Validated",
         "Executed",
-        "Rejected",
-        "Duplicate",
-        "Error",
         "Simulated",
-        "Partial"
+        "Partial",
+        "Error"
       ],
-      "default": "Received"
+      "default": "Received",
+      "description": "New lifecycle: Accepted, Queued, Executing, Open, Partially Open, Rejected, Reconciliation Required. Legacy values (Received, Validated, Executed, Simulated, Partial, Error) are mapped to new labels in the UI."
+    },
+    "rejection_reason": {
+      "type": "string",
+      "description": "Reason the signal was rejected (outside trading hours, risk exceeded, etc.)."
     },
     "order_id": {
       "type": "string",

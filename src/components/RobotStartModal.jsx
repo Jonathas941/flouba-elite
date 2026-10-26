@@ -232,11 +232,18 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                     <NumberInput value={form.lot_size} onChange={set("lot_size")} min={0.01} step={0.01} />
                   </Field>
                   <Field label="Max Concurrent Trades">
-                    <NumberInput value={form.max_concurrent_trades} onChange={set("max_concurrent_trades")} min={1} />
+                    <div className="bg-black/40 rounded-lg px-3 py-2 border border-white/5">
+                      <p className="text-[11px] text-white/60 font-bold">1 active signal basket — fixed</p>
+                    </div>
                   </Field>
                   <Field label="Risk %">
                     <NumberInput value={form.risk_percentage} onChange={set("risk_percentage")} min={0.1} step={0.1} />
                   </Field>
+                  <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-2.5">
+                    <p className="text-[9px] text-yellow-400/80 leading-relaxed">
+                      Max 2% planned risk per signal (all 3 TP orders combined). Signals above this are rejected, not resized.
+                    </p>
+                  </div>
                   <Field label="Lot Multiplier">
                     <NumberInput value={form.lot_multiplier} onChange={set("lot_multiplier")} min={1} step={0.1} />
                   </Field>
