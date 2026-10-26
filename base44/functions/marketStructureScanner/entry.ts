@@ -18,16 +18,37 @@ import { clampRiskPercentage } from '../../shared/riskPolicy.ts';
 // ═══════════════════════════════════════════════════════════════
 
 // ── Lot size calculation ──
+function riskPerLotForSymbol(entry, sl, symbol) {
+  const slDistance = Math.abs(Number(entry) - Number(sl));
+  if (!Number.isFinite(slDistance) || slDistance <= 0) return 0;
+  // Approximation only: broker contract/tick values can differ, especially for CFDs.
+  const normalizedSymbol = String(symbol || "").toUpperCase();
+  const contractSize = normalizedSymbol.startsWith("XAU") ? 100
+    : (normalizedSymbol.startsWith("NAS") || normalizedSymbol.startsWith("USTEC") || normalizedSymbol.startsWith("US30")) ? 1
+    : 100000;
+  return slDistance * contractSize;
+}
+
+function maxLotForRisk(balance, riskPct, entry, sl, symbol) {
+  const safeBalance = Number(balance);
+  const safeRiskPct = clampRiskPercentage(riskPct);
+  const riskPerLot = riskPerLotForSymbol(entry, sl, symbol);
+  if (!Number.isFinite(safeBalance) || safeBalance <= 0 || riskPerLot <= 0) return 0;
+  const rawLot = (safeBalance * safeRiskPct / 100) / riskPerLot;
+  // Never round upward beyond the risk ceiling. If broker minimum 0.01 is too risky,
+  // return 0 so the caller rejects the setup instead of silently exceeding the cap.
+  return Math.floor((rawLot + 1e-9) * 100) / 100;
+}
+
 function calculateLotSize(balance, riskPct, entry, sl, symbol) {
-  if (!balance || !entry || !sl || balance <= 0) return 0.01;
-  const riskAmount = balance * (riskPct / 100);
-  const slDistance = Math.abs(entry - sl);
-  if (slDistance <= 0) return 0.01;
-  // Contract size: XAUUSD=100oz, indices=1, FX=100,000
-  const contractSize = symbol.startsWith("XAU") ? 100 : (symbol.startsWith("NAS") || symbol.startsWith("US30")) ? 1 : 100000;
-  const riskPerLot = slDistance * contractSize;
-  const lot = riskAmount / riskPerLot;
-  return Math.max(0.01, Math.round(lot * 100) / 100);
+  return maxLotForRisk(balance, riskPct, entry, sl, symbol);
+}
+
+function capFixedLotByRisk(requestedLot, balance, riskPct, entry, sl, symbol) {
+  const requested = Number(requestedLot);
+  const maxSafeLot = maxLotForRisk(balance, riskPct, entry, sl, symbol);
+  if (!Number.isFinite(requested) || requested <= 0 || maxSafeLot < 0.01) return 0;
+  return Math.min(Math.floor(requested * 100) / 100, maxSafeLot);
 }
 
 // ── Generate unique setup ID ──
@@ -148,8 +169,15 @@ async function _aiScanFallback_DISABLED(symbol, cfg, base44, userId, quote) {
     // Lot size
     const account = await fetchAccount(base44);
     const balance = account?.balance || 0;
-    let lotSize = cfg.lot_size_mode === "Fixed" ? (cfg.fixed_lot_size || 0.01) : calculateLotSize(balance, clampRiskPercentage(cfg.risk_percentage || 1), entryPrice, stopLoss, symbol);
-    lotSize = Math.min(lotSize, cfg.max_lot_size || 0.5);
+    const riskPct = clampRiskPercentage(cfg.risk_percentage || 1);
+    let lotSize = cfg.lot_size_mode === "Fixed"
+      ? capFixedLotByRisk(cfg.fixed_lot_size || 0.01, balance, riskPct, entryPrice, stopLoss, symbol)
+      : calculateLotSize(balance, riskPct, entryPrice, stopLoss, symbol);
+    lotSize = Math.min(lotSize, Number(cfg.max_lot_size) > 0 ? Number(cfg.max_lot_size) : 0.5);
+    if (lotSize < 0.01) {
+      result.reason = `${symbol}: No trade — broker minimum lot would exceed the ${riskPct}% risk ceiling or account/stop data is invalid.`;
+      return result;
+    }
 
     // Expiration
     let expirationTime = null;
@@ -498,12 +526,17 @@ async function scanSymbol(symbol, cfg, base44, userId) {
   const account = await fetchAccount(base44);
   const balance = account?.balance || 0;
   let lotSize;
+  const riskPct = clampRiskPercentage(cfg.risk_percentage || 1);
   if (cfg.lot_size_mode === "Fixed") {
-    lotSize = cfg.fixed_lot_size || 0.01;
+    lotSize = capFixedLotByRisk(cfg.fixed_lot_size || 0.01, balance, riskPct, entryPrice, stopLoss, symbol);
   } else {
-    lotSize = calculateLotSize(balance, clampRiskPercentage(cfg.risk_percentage || 1), entryPrice, stopLoss, symbol);
+    lotSize = calculateLotSize(balance, riskPct, entryPrice, stopLoss, symbol);
   }
-  lotSize = Math.min(lotSize, cfg.max_lot_size || 0.5);
+  lotSize = Math.min(lotSize, Number(cfg.max_lot_size) > 0 ? Number(cfg.max_lot_size) : 0.5);
+  if (lotSize < 0.01) {
+    result.reason = `${symbol}: No trade — broker minimum lot would exceed the ${riskPct}% risk ceiling or account/stop data is invalid.`;
+    return result;
+  }
 
   // ── 12. Calculate expiration ──
   let expirationTime = null;

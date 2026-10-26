@@ -452,25 +452,26 @@ function computeTradeParams(args) {
   //   in the Start modal is exactly what gets traded.
   // Auto Risk mode: compute from risk % of balance (still never increases after
   //   a loss — fresh each call), floored at the broker minimum 0.01.
-  const baseLot = cfg.lot_size ?? 0.01;
-  let lot;
-  if (cfg.lot_size_mode === "Auto Risk") {
-    // Enforce the server-side hard ceiling even if a saved profile contains an unsafe value.
-    const riskPct = clampRiskPercentage(cfg.risk_percentage ?? 1);
-    const riskAmount = balance * (riskPct / 100);
-    // Approximate: SL distance in price units → dollar risk per lot
-    // XAUUSD: 1 lot = 100 oz → $1 move = $100. Indices: $1 move = $1. FX: ~$10.
-    const dollarsPerLotPerPrice = symbol === "XAUUSD" ? 100 : (symbol === "NAS100" || symbol === "US30" ? 1 : 10);
-    const riskPerLot = slDistance * dollarsPerLotPerPrice;
-    lot = riskPerLot > 0 ? riskAmount / riskPerLot : baseLot;
-    lot = Math.max(0.01, Math.round(lot * 100) / 100);
-  } else {
-    // Fixed — respect the user's entered lot exactly
-    lot = baseLot;
-  }
-  // Safety cap: never exceed baseLot × max concurrent (prevents runaway sizing)
-  const maxLot = baseLot * (cfg.max_concurrent_trades ?? 2);
+  const baseLot = Number(cfg.lot_size ?? 0.01);
+  const riskPct = clampRiskPercentage(cfg.risk_percentage ?? 1);
+  const riskAmount = balance * (riskPct / 100);
+  // Conservative symbol-family estimate. Broker tick-value metadata should replace
+  // this approximation before supporting additional CFD/FX contract specifications.
+  const normalizedSymbol = String(symbol || "").toUpperCase();
+  const dollarsPerLotPerPrice = normalizedSymbol.startsWith("XAU") ? 100
+    : (normalizedSymbol.startsWith("NAS") || normalizedSymbol.startsWith("USTEC") || normalizedSymbol.startsWith("US30")) ? 1
+    : 100000;
+  const riskPerLot = slDistance * dollarsPerLotPerPrice;
+  const maxRiskLot = riskPerLot > 0
+    ? Math.floor((riskAmount / riskPerLot + 1e-9) * 100) / 100
+    : 0;
+  if (!Number.isFinite(baseLot) || baseLot <= 0 || maxRiskLot < 0.01) return null;
+
+  let lot = cfg.lot_size_mode === "Auto Risk" ? maxRiskLot : Math.min(Math.floor(baseLot * 100) / 100, maxRiskLot);
+  // Preserve the existing concurrent-position sizing guard as an additional ceiling.
+  const maxLot = baseLot * Math.max(1, Number(cfg.max_concurrent_trades ?? 2));
   lot = Math.min(lot, maxLot);
+  if (!Number.isFinite(lot) || lot < 0.01) return null;
 
   return {
     direction,
@@ -617,39 +618,26 @@ Deno.serve(async (req) => {
     const floatingPnl = account?.profit ?? (equity - balance);
 
     // ── Fetch today's closed trades ──
-    // ── DANGER MODE BYPASS: HFT ignores ALL 8 pillars, all limits, all gates ──
+    // HFT mode previously returned an unconditional TRADE while bypassing all risk
+    // gates and without a stop-loss. Fail closed until it is routed through the same
+    // position-sizing, drawdown, session, and open-position checks as normal trades.
     if (cfg.hft_mode_enabled === true) {
-      const hftLot = cfg.hft_current_lot ?? cfg.hft_base_lot ?? 0.01;
-      const emaFast = num(ind?.ema_6 ?? ind?.ema_5);
-      const emaSlow = num(ind?.ema_20 ?? ind?.ema_25);
-      const rsi = num(ind?.rsi);
-      let hftDir = "BUY";
-      if (emaFast != null && emaSlow != null) hftDir = emaFast > emaSlow ? "BUY" : "SELL";
-      else if (rsi != null) hftDir = rsi > 50 ? "BUY" : "SELL";
       return Response.json({
         ok: true,
         connected: true,
-        decision: "TRADE",
-        reason: `DANGER MODE — all limits bypassed. Scalping ${hftDir} ${cfg.active_pair || "XAUUSD"} at ${hftLot} lot. No daily loss limit, no session gate, no cooldown.`,
-        score: 100,
-        min_score: 0,
-        regime: "HFT Danger",
-        regime_dir: hftDir === "BUY" ? "Bullish" : "Bearish",
-        direction: hftDir,
+        decision: "NO_TRADE",
+        reason: "HFT mode is paused for safety: its legacy path bypassed risk limits and did not provide a validated stop-loss. Disable HFT mode to use the standard guarded strategy, or update HFT to pass through the shared risk checks.",
+        score: 0,
+        min_score: cfg.min_signal_score ?? 70,
+        regime: "HFT Safety Hold",
         pillars: [],
-        danger_mode: true,
-        trade: {
-          direction: hftDir,
-          entry: quote?.bid,
-          lot_size: hftLot,
-          danger_mode: true,
-        },
+        danger_mode: false,
         account: {
           balance: Math.round(balance * 100) / 100,
           equity: Math.round(equity * 100) / 100,
           floating_pnl: Math.round(floatingPnl * 100) / 100,
         },
-        safety: { all_limits_bypassed: true },
+        safety: { all_limits_bypassed: false, hft_blocked: true },
         robot_running: robotRunning,
         checked_at: new Date().toISOString(),
       });
