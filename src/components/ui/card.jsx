@@ -2,7 +2,11 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Card = React.forwardRef(({ className, ...props }, ref) => (
+const Card = React.forwardRef(
+  /** @param {React.ComponentPropsWithoutRef<"div">} props
+   * @param {React.ForwardedRef<HTMLDivElement>} ref
+   */
+  ({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
