@@ -109,7 +109,11 @@ export default function Home() {
       } else setPositions([]);
       if (robotRes?.ok && robotRes.data?.robot) {
         const r = robotRes.data.robot;
-        setRobotStatus(r.running ? "Scanning Market" : "Paused");
+        // If the backend says the robot isn't running, but BotSettings says it
+        // should be (monitoring mode from RISK_INVALID_ENTRY / ENTRY_WINDOW_CLOSED),
+        // keep showing "Scanning Market" instead of resetting to "Paused".
+        const settingsRobotRunning = settingsRef.current?.robot_status === "Running" || settingsRef.current?.ai_auto_execute_enabled;
+        setRobotStatus(r.running ? "Scanning Market" : (settingsRobotRunning ? "Scanning Market" : "Paused"));
         if (r.config?.symbol) setActivePair(r.config.symbol);
       }
     } catch {
