@@ -150,10 +150,14 @@ export default function Home() {
     loadAll();
     const stopFast = setVisibleInterval(loadFast, POLL_MS.homeFast);
     const stopSlow = setVisibleInterval(loadSlow, 90000);
+    // Hard timeout: if the bridge hangs, stop showing the spinner so the
+    // dashboard renders in disconnected state instead of a black screen.
+    const maxLoad = setTimeout(() => setLoading(false), 8000);
     // setVisibleInterval already refreshes both when the tab becomes visible again
     return () => {
       stopFast();
       stopSlow();
+      clearTimeout(maxLoad);
     };
   }, [loadAll, loadFast, loadSlow]);
 
