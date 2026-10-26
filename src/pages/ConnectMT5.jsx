@@ -10,7 +10,7 @@ import MobileSelect from "@/components/MobileSelect";
 import { mt5Api } from "@/lib/mt5Api";
 import { logNotification } from "@/lib/notifications";
 import EaDownloadButton from "@/components/EaDownloadButton";
-import { WifiOff, ShieldCheck, Eye, EyeOff,
+import { WifiOff, ShieldCheck,
   Loader2, CheckCircle2, Bot, Unplug,
 } from "lucide-react";
 
@@ -228,9 +228,7 @@ export default function ConnectMT5() {
 
   const [broker, setBroker]                   = useState("");
   const [login, setLogin]                     = useState("");
-  const [password, setPassword]               = useState("");
   const [server, setServer]                   = useState("");
-  const [showPass, setShowPass]               = useState(false);
   const [status, setStatus]                   = useState("idle");
   const [errorMsg, setErrorMsg]               = useState("");
   const [settingsId, setSettingsId]           = useState(null);
@@ -285,7 +283,7 @@ export default function ConnectMT5() {
      
   }, []);
 
-  const isFormValid = autoDetected || (broker && login && password && server);
+  const isFormValid = autoDetected || (broker && login && server);
 
   const saveToDb = async (connectionStatus) => {
     const payload = {
@@ -293,7 +291,6 @@ export default function ConnectMT5() {
       mt5_account: login,
       mt5_server: server,
       connection_status: connectionStatus,
-      ...(password ? { mt5_password: password } : {}),
     };
     // Re-resolve the target row immediately before writing instead of trusting
     // `settingsId` from state. If the initial load hadn't resolved yet, settingsId is
@@ -316,9 +313,9 @@ export default function ConnectMT5() {
     try {
       const existing = await base44.entities.TradingAccount.filter({ account_number: login });
       if (existing?.length) {
-        await base44.entities.TradingAccount.update(existing[0].id, { broker_name: broker, server, ...(password ? { password } : {}), is_active: true });
+        await base44.entities.TradingAccount.update(existing[0].id, { broker_name: broker, server, is_active: true });
       } else {
-        await base44.entities.TradingAccount.create({ account_number: login, broker_name: broker, server, ...(password ? { password } : {}), is_active: true });
+        await base44.entities.TradingAccount.create({ account_number: login, broker_name: broker, server, is_active: true });
       }
       const all = await base44.entities.TradingAccount.list();
       const others = all.filter((a) => a.account_number !== login);
@@ -337,7 +334,6 @@ export default function ConnectMT5() {
       await saveToDb("Disconnected");
       setStatus("idle");
       setAutoDetected(false);
-      setPassword("");
       toast({ title: "MT5 Disconnected", description: "Your account has been disconnected.", duration: 3000 });
       logNotification({ type: "connection", title: "MT5 Disconnected", message: `Account ${login || ""} disconnected.`, category: "warning", meta: { broker, login } });
     } catch (err) {
@@ -483,23 +479,6 @@ export default function ConnectMT5() {
                 className="w-full h-11 px-3 glass rounded-xl text-sm text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-red-500/50 bg-transparent"
               />
             </div>
-
-            {!autoDetected && (
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground font-semibold">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPass ? "text" : "password"} value={password}
-                    onChange={(e) => setPassword(e.target.value)} placeholder="MT5 account password"
-                    className="w-full h-11 px-3 pr-11 glass rounded-xl text-sm text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-red-500/50 bg-transparent"
-                  />
-                  <button type="button" onClick={() => setShowPass(!showPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-            )}
 
             {autoDetected && (
               <p className="text-[11px] text-green-300/70 leading-relaxed">

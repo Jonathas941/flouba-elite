@@ -24,7 +24,6 @@ export default function AccountSwitcher({ botSettings, onSwitched }) {
           account_number: botSettings.mt5_account,
           broker_name: botSettings.broker_name || "Custom Broker",
           server: botSettings.mt5_server || "",
-          password: botSettings.mt5_password || "",
           nickname: "",
           is_active: true,
         }).catch(() => null);
@@ -68,7 +67,6 @@ export default function AccountSwitcher({ botSettings, onSwitched }) {
       if (settings?.length) {
         await base44.entities.BotSettings.update(settings[0].id, {
           mt5_account: account.account_number,
-          mt5_password: account.password,
           mt5_server: account.server,
           broker_name: account.broker_name,
           connection_status: "Disconnected",
