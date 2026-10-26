@@ -58,6 +58,12 @@ export const mt5Api = {
   /** Start the robot */
   robotStart: (symbol, settings = {}) => call("robot_start", { symbol, strategy: settings.strategy, ...settings }),
 
+  /** Force-start: bypass autonomous robot (BASE44_ONLY) and trade directly */
+  forceStart: (symbol, settings = {}) => call("force_start", { symbol, ...settings }),
+
+  /** Reconcile a stale entry slot on the backend */
+  reconcile: () => call("reconcile"),
+
   /** Stop the robot */
   robotStop: () => call("robot_stop"),
 

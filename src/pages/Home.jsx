@@ -228,17 +228,42 @@ export default function Home() {
       }
     }
 
-    const res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
+    // ── Try autonomous robot_start; fall back to direct trade execution
+    //    when the backend is in BASE44_ONLY mode (autonomous robot disabled). ──
+    let res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
+    let usedForceStart = false;
+    if (!res?.ok || res?.data?.success !== true) {
+      const errMsg = res?.error || res?.data?.message || "";
+      if (errMsg.includes("BASE44_ONLY") || res?.status === 403) {
+        // Backend disabled autonomous robot — route through direct trade API
+        toast({ title: "Direct Trade Mode", description: "Autonomous robot disabled — executing via Base44 signal path.", duration: 4000 });
+        res = await mt5Api.forceStart(launchFormWithTF.symbol, {
+          ...launchFormWithTF,
+          direction: launchFormWithTF.trade_direction === "sell" ? "SELL" : "BUY",
+        });
+        usedForceStart = true;
+      }
+    }
     if (res?.ok && res?.data?.success === true) {
       const activeSymbol = launchFormWithTF.symbol || form.symbol;
       const pairsLabel = launchFormWithTF.symbols?.length ? launchFormWithTF.symbols.join(", ") : activeSymbol;
       setActivePair(activeSymbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
-      toast({ title: "Robot Started", description: `${strategy} active on ${pairsLabel} • Lot ${launchFormWithTF.lot_size}`, duration: 3000 });
-      logNotification({ type: "bot_action", title: "Robot Started", message: `${strategy} engine launched on ${pairsLabel}.`, category: "success", meta: { strategy, symbol: activeSymbol, symbols: launchFormWithTF.symbols || undefined } });
+      // Enable AI auto-execute so the scheduled workflow keeps scanning & trading
+      if (usedForceStart && botSettings?.id) {
+        await base44.entities.BotSettings.update(botSettings.id, { ai_auto_execute_enabled: true, robot_status: "Running" }).catch(() => {});
+      }
+      toast({ title: "Robot Started", description: `${strategy} active on ${pairsLabel} • Lot ${launchFormWithTF.lot_size}${usedForceStart ? ` • ${res.data.direction || ""}` : ""}`, duration: 3000 });
+      logNotification({ type: "bot_action", title: "Robot Started", message: `${strategy} engine launched on ${pairsLabel}${usedForceStart ? " (direct trade mode)" : ""}.`, category: "success", meta: { strategy, symbol: activeSymbol, symbols: launchFormWithTF.symbols || undefined } });
       setUnreadCount((c) => c + 1);
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
-      toast({ title: "Start Failed", description: msg, variant: "destructive", duration: 4000 });
+      // If entry slot is occupied, try to reconcile and show actionable message
+      if (msg.includes("ENTRY_SLOT_OCCUPIED") || msg.includes("reconciliation")) {
+        toast({ title: "Entry Slot Locked", description: "A stale trade command is blocking new entries. Reconciling… Press START again in a few seconds.", variant: "destructive", duration: 6000 });
+        mt5Api.reconcile().catch(() => null);
+      } else {
+        toast({ title: "Start Failed", description: msg, variant: "destructive", duration: 4000 });
+      }
     }
   };
 
@@ -246,12 +271,24 @@ export default function Home() {
     if (!connected) return;
     try {
       const pair = activePair || "XAUUSD";
-      const res = await mt5Api.robotStart(pair, {
+      let res = await mt5Api.robotStart(pair, {
         symbol: pair,
         strategy: "HFT Scalper",
         lot_size: botSettings?.hft_base_lot ?? 0.01,
         hft_mode_enabled: true,
       });
+      if (!res?.ok || res?.data?.success !== true) {
+        const errMsg = res?.error || "";
+        if (errMsg.includes("BASE44_ONLY") || res?.status === 403) {
+          res = await mt5Api.forceStart(pair, {
+            symbol: pair,
+            strategy: "HFT Scalper",
+            lot_size: botSettings?.hft_base_lot ?? 0.01,
+            hft_mode_enabled: true,
+            direction: "BUY",
+          });
+        }
+      }
       if (res?.ok && res?.data?.success === true) {
         setRobotStatus("Running");
         toast({ title: "⚠ Robot Auto-Started", description: "Danger Mode is now trading live — no waiting.", duration: 4000 });
