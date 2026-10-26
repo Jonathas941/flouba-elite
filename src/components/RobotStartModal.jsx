@@ -233,7 +233,7 @@ export default function RobotStartModal({ open, onClose, onStart }) {
                   </Field>
                   <Field label="Max Concurrent Trades">
                     <div className="bg-black/40 rounded-lg px-3 py-2 border border-white/5">
-                      <p className="text-[11px] text-white/60 font-bold">1 active signal basket — fixed</p>
+                      <p className="text-[11px] text-[#00FF41] font-bold">1 active signal basket — fixed</p>
                     </div>
                   </Field>
                   <Field label="Risk %">

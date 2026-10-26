@@ -383,6 +383,10 @@ export default async function(req) {
 
     // ═══════════════════════════════════════════════════════════════
     // LIVE MODE — Submit ONE single-leg order via Replit server
+    // execution_target = "auto" always routes through the Replit bridge
+    // (postCommand → POST /api/trade/buy|sell). The autonomous robot
+    // route (/robot/start) is not used here — it was rejected by the
+    // backend with BASE44_ONLY. This is the only execution path.
     // ═══════════════════════════════════════════════════════════════
     const route = ROUTE_MAP[action]; // "buy" or "sell"
     const shortId = alertId.slice(-8);
@@ -401,28 +405,44 @@ export default async function(req) {
 
     const execRes = await postCommand(robotId, command, idemKey, await ownerKey(), "tradingViewWebhook", signal.id);
 
-    const finalStatus = execRes.ok ? "Executed" : "Rejected";
+    // ── Distinguish "Submitted" (queued, no MT5 ticket) from "Executed"
+    //    (confirmed EA execution with an MT5 ticket). The Replit server
+    //    returns 201 with a commandId when the order is queued — that is
+    //    NOT execution. The EA polls the command queue and executes
+    //    asynchronously, reporting back the MT5 ticket via sync.
+    //    Until an MT5 ticket is confirmed, the status is "Submitted". ──
+    const mt5Ticket = execRes?.data?.ticket || execRes?.data?.mt5_ticket || execRes?.data?.brokerTicket || null;
     const orderId = execRes?.data?.commandId || execRes?.data?.id || (execRes.ok ? idemKey : null);
+
+    // "Executed" only when we have a real MT5 ticket; otherwise "Submitted"
+    const finalStatus = !execRes.ok ? "Rejected" : (mt5Ticket ? "Executed" : "Submitted");
+    const legStatus = !execRes.ok ? "failed" : (mt5Ticket ? "opened" : "submitted");
 
     await base44.asServiceRole.entities.TradingViewSignal.update(signal.id, {
       status: finalStatus,
-      legs: [{ lot: totalLot, tp: selectedTp, label: "TP2", status: execRes.ok ? "opened" : "failed", order_id: orderId ? String(orderId) : null, error: execRes.ok ? null : (execRes.error || "Unknown error") }],
+      legs: [{ lot: totalLot, tp: selectedTp, label: "TP2", status: legStatus, order_id: orderId ? String(orderId) : null, error: execRes.ok ? null : (execRes.error || "Unknown error") }],
       rejection_reason: execRes.ok ? null : (execRes.error || "Execution failed"),
       message: execRes.ok
-        ? `1 leg opened — ${totalLot.toFixed(2)} lot, SL ${sl}, TP ${selectedTp}`
+        ? (mt5Ticket
+            ? `1 leg executed — ${totalLot.toFixed(2)} lot, SL ${sl}, TP ${selectedTp}, MT5 ticket ${mt5Ticket}`
+            : `1 leg submitted to Replit — ${totalLot.toFixed(2)} lot, SL ${sl}, TP ${selectedTp}. Awaiting EA execution (no MT5 ticket yet).`)
         : `Order rejected: ${execRes.error || execRes.errorCode || "Unknown error"}`,
       order_id: orderId ? String(orderId) : null,
-      executed_at: new Date().toISOString(),
+      executed_at: mt5Ticket ? new Date().toISOString() : (execRes.ok ? null : new Date().toISOString()),
     });
 
-    const notifCategory = execRes.ok ? "success" : "danger";
-    const notifTitle = execRes.ok ? "Trade Executed (TV Signal)" : "Trade Rejected (TV Signal)";
+    const notifCategory = execRes.ok ? (mt5Ticket ? "success" : "info") : "danger";
+    const notifTitle = !execRes.ok
+      ? "Trade Rejected (TV Signal)"
+      : mt5Ticket
+        ? "Trade Executed (TV Signal)"
+        : "Trade Submitted (TV Signal)";
 
     await base44.asServiceRole.entities.Notification.create({
       created_by_id: userId,
       type: "trade",
       title: notifTitle,
-      message: `${action} ${symbol} • ${totalLot.toFixed(2)} lot${execRes.ok ? "" : ` — ${execRes.error || execRes.errorCode || "rejected"}`}`,
+      message: `${action} ${symbol} • ${totalLot.toFixed(2)} lot${execRes.ok ? (mt5Ticket ? ` — ticket ${mt5Ticket}` : " — awaiting EA execution") : ` — ${execRes.error || execRes.errorCode || "rejected"}`}`,
       category: notifCategory,
       read: false,
       meta: {
@@ -431,6 +451,7 @@ export default async function(req) {
         symbol, action,
         total_lot: totalLot,
         sl, tp: selectedTp,
+        mt5_ticket: mt5Ticket || undefined,
       },
     }).catch(() => {});
 
@@ -442,9 +463,10 @@ export default async function(req) {
       total_lot: totalLot,
       sl, tp: selectedTp,
       order_id: orderId,
+      mt5_ticket: mt5Ticket,
       balance,
       message: execRes.ok
-        ? "Order submitted successfully"
+        ? (mt5Ticket ? "Order executed — MT5 ticket confirmed" : "Order submitted to Replit — awaiting EA execution")
         : `Order rejected: ${execRes.error || execRes.errorCode || "Unknown error"}`,
     });
   } catch (err) {

@@ -194,6 +194,28 @@ export default function WebhookSetupCard({ settings, onUpdateField, onSave, savi
         )}
       </div>
 
+      {/* Max Open Positions — read-only, locked to 1 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <Label className="text-sm text-white">Max Open Positions</Label>
+          <p className="text-[10px] text-white/30">Single-leg execution only</p>
+        </div>
+        <div className="bg-black/40 rounded-lg px-3 py-2 border border-white/5">
+          <p className="text-[11px] text-[#00FF41] font-mono font-bold">1</p>
+        </div>
+      </div>
+
+      {/* Execution Target — read-only */}
+      <div className="flex items-center justify-between">
+        <div>
+          <Label className="text-sm text-white">Execution Target</Label>
+          <p className="text-[10px] text-white/30">Auto = Replit bridge (MT5 robot if connected)</p>
+        </div>
+        <div className="bg-black/40 rounded-lg px-3 py-2 border border-white/5">
+          <p className="text-[11px] text-[#00FF41] font-mono font-bold">{settings.execution_target || "auto"}</p>
+        </div>
+      </div>
+
       {/* Action Permissions */}
       <div className="grid grid-cols-3 gap-2">
         {[

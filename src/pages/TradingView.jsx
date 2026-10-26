@@ -81,7 +81,7 @@ export default function TradingView() {
         fixed_order_size: Number(settings.fixed_order_size ?? settings.fixed_lot_size ?? 0.01),
         allowed_symbols: settings.allowed_symbols,
         max_order_size: Number(settings.max_order_size ?? settings.max_lot_size ?? 0.1),
-        max_open_positions: Number(settings.max_open_positions ?? settings.max_open_trades ?? 3),
+        max_open_positions: 1,
         allow_buy: settings.allow_buy ?? true,
         allow_sell: settings.allow_sell ?? true,
         allow_close: settings.allow_close ?? true,

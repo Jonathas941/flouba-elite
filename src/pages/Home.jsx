@@ -248,44 +248,82 @@ export default function Home() {
       });
       usedForceStart = true;
     }
-    if (res?.ok && res?.data?.success === true) {
+
+    // ── Determine start success (robot or force_start both return success) ──
+    const startOk = res?.ok && res?.data?.success === true;
+    const isSessionPending = !startOk && (res?.error || res?.data?.message || "").includes("ENTRY_WINDOW_CLOSED");
+
+    if (startOk || isSessionPending) {
+      const msg = res?.error || res?.data?.message || "";
       const activeSymbol = launchFormWithTF.symbol || form.symbol;
       const pairsLabel = launchFormWithTF.symbols?.length ? launchFormWithTF.symbols.join(", ") : activeSymbol;
-      setActivePair(activeSymbol); setRobotStatus("Scanning Market"); setShowStartModal(false);
-      // Enable AI auto-execute so the scheduled workflow keeps scanning & trading
-      if (usedForceStart && botSettings?.id) {
-        await base44.entities.BotSettings.update(botSettings.id, { ai_auto_execute_enabled: true, robot_status: "Running" }).catch(() => {});
+
+      // ── Enable Replit signal receipt (TradingViewSettings.auto_trading_enabled) ──
+      // This is the master switch that allows the webhook to accept and execute
+      // signals. Without it, all incoming alerts are rejected at line 123.
+      let tvEnabled = true;
+      try {
+        const tvList = await base44.entities.TradingViewSettings.list("-created_date");
+        const tv = tvList?.[0];
+        if (tv) {
+          await base44.entities.TradingViewSettings.update(tv.id, {
+            auto_trading_enabled: true,
+            max_open_positions: 1,
+          });
+        }
+      } catch (tvErr) {
+        tvEnabled = false;
+        toast({ title: "Signal Receipt Disabled", description: `Could not enable TradingView auto-trading: ${tvErr.message}. Robot is started but webhook signals will be rejected.`, variant: "destructive", duration: 6000 });
       }
-      toast({ title: "Robot Started", description: `${strategy} active on ${pairsLabel} • Lot ${launchFormWithTF.lot_size}${usedForceStart ? ` • ${res.data.direction || ""}` : ""}`, duration: 3000 });
-      logNotification({ type: "bot_action", title: "Robot Started", message: `${strategy} engine launched on ${pairsLabel}${usedForceStart ? " (direct trade mode)" : ""}.`, category: "success", meta: { strategy, symbol: activeSymbol, symbols: launchFormWithTF.symbols || undefined } });
-      setUnreadCount((c) => c + 1);
+
+      // ── Enable AI auto-execute in BotSettings (scheduled workflow picks it up) ──
+      let botEnabled = true;
+      if (botSettings?.id) {
+        try {
+          await base44.entities.BotSettings.update(botSettings.id, {
+            ai_auto_execute_enabled: true,
+            robot_status: "Running",
+            max_concurrent_trades: 1,
+          });
+        } catch (botErr) {
+          botEnabled = false;
+          toast({ title: "Bot Settings Update Failed", description: `Could not enable AI auto-execute: ${botErr.message}.`, variant: "destructive", duration: 6000 });
+        }
+      }
+
+      // ── Show "Running" only after BOTH succeed ──
+      if (tvEnabled && botEnabled) {
+        setActivePair(activeSymbol);
+        setRobotStatus("Scanning Market");
+        setShowStartModal(false);
+        toast({
+          title: "Robot Started",
+          description: isSessionPending
+            ? `${strategy} active on ${pairsLabel}. Will auto-trade when session window opens.`
+            : `${strategy} active on ${pairsLabel} • Lot ${launchFormWithTF.lot_size}${usedForceStart ? ` • ${res.data.direction || ""}` : ""}`,
+          duration: 3000,
+        });
+        logNotification({
+          type: "bot_action",
+          title: "Robot Started",
+          message: `${strategy} engine launched on ${pairsLabel}${usedForceStart ? " (direct trade mode)" : ""}. Signal receipt enabled.`,
+          category: "success",
+          meta: { strategy, symbol: activeSymbol, symbols: launchFormWithTF.symbols || undefined },
+        });
+        setUnreadCount((c) => c + 1);
+      } else {
+        // One or both failed — don't show Running
+        setShowStartModal(false);
+        toast({
+          title: "Start Incomplete",
+          description: `Robot started but ${!tvEnabled ? "signal receipt" : "bot settings"} could not be enabled. Check Settings.`,
+          variant: "destructive",
+          duration: 6000,
+        });
+      }
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
-      if (msg.includes("ENTRY_WINDOW_CLOSED") || msg.includes("entry windows")) {
-        // Robot is started but can't trade yet — mark as running so the scheduled
-        // auto-execute workflow picks it up when the session window opens.
-        setActivePair(launchFormWithTF.symbol || form.symbol);
-        setRobotStatus("Scanning Market");
-        setShowStartModal(false);
-        if (botSettings?.id) {
-          await base44.entities.BotSettings.update(botSettings.id, { ai_auto_execute_enabled: true, robot_status: "Running" }).catch(() => {});
-        }
-        toast({ title: "Robot Started", description: `${strategy} is active and will auto-trade when the session window opens (03:00–06:00 or 08:00–13:00 ET).`, duration: 5000 });
-        logNotification({ type: "bot_action", title: "Robot Started (Pending Session)", message: `${strategy} engine launched. Trading resumes at next session window.`, category: "success", meta: { strategy, symbol: launchFormWithTF.symbol } });
-        setUnreadCount((c) => c + 1);
-      } else if (msg.includes("RISK_INVALID_ENTRY") || msg.includes("RISK_")) {
-        // Risk engine rejected the entry — start in monitoring mode so the
-        // auto-execute workflow retries when risk conditions allow.
-        setActivePair(launchFormWithTF.symbol || form.symbol);
-        setRobotStatus("Scanning Market");
-        setShowStartModal(false);
-        if (botSettings?.id) {
-          await base44.entities.BotSettings.update(botSettings.id, { ai_auto_execute_enabled: true, robot_status: "Running" }).catch(() => {});
-        }
-        toast({ title: "Robot Started", description: `${strategy} is active but the risk engine blocked the entry. It will auto-trade when risk conditions clear.`, duration: 5000 });
-        logNotification({ type: "bot_action", title: "Robot Started (Risk Pending)", message: `${strategy} engine launched. Entry blocked by risk engine — will retry when conditions allow.`, category: "warning", meta: { strategy, symbol: launchFormWithTF.symbol } });
-        setUnreadCount((c) => c + 1);
-      } else if (msg.includes("ENTRY_SLOT_OCCUPIED") || msg.includes("reconciliation")) {
+      if (msg.includes("ENTRY_SLOT_OCCUPIED") || msg.includes("reconciliation")) {
         toast({ title: "Entry Slot Locked", description: "A stale trade command is blocking new entries. Reconciling… Press START again in a few seconds.", variant: "destructive", duration: 6000 });
         mt5Api.reconcile().catch(() => null);
       } else {
@@ -327,10 +365,43 @@ export default function Home() {
   };
 
   const handleStop = async () => {
-    try { await mt5Api.robotStop(); } catch {}
+    // ── Stop the Replit robot loop ──
+    let stopOk = true;
+    try { await mt5Api.robotStop(); } catch { stopOk = false; }
+
+    // ── Disable new signal submissions (TradingViewSettings.auto_trading_enabled) ──
+    // This is the master gate: when OFF, the webhook rejects ALL incoming alerts.
+    // A simulated test in test mode never touches this field, so it can't
+    // unexpectedly enable live trading.
+    let tvDisabled = true;
+    try {
+      const tvList = await base44.entities.TradingViewSettings.list("-created_date");
+      const tv = tvList?.[0];
+      if (tv && tv.auto_trading_enabled) {
+        await base44.entities.TradingViewSettings.update(tv.id, { auto_trading_enabled: false });
+      }
+    } catch { tvDisabled = false; }
+
+    // ── Disable AI auto-execute in BotSettings ──
+    let botDisabled = true;
+    if (botSettings?.id) {
+      try {
+        await base44.entities.BotSettings.update(botSettings.id, {
+          ai_auto_execute_enabled: false,
+          robot_status: "Paused",
+        });
+      } catch { botDisabled = false; }
+    }
+
     setRobotStatus("Paused");
-    toast({ title: "Robot Paused", duration: 3000 });
-    logNotification({ type: "bot_action", title: "Robot Paused", message: "Trading robot was paused by user.", category: "info" });
+    toast({
+      title: "Robot Paused",
+      description: stopOk && tvDisabled && botDisabled
+        ? "Trading stopped. New signals will be rejected."
+        : `Robot stopped, but ${!tvDisabled ? "signal receipt" : "bot settings"} could not be fully disabled — verify Settings.`,
+      duration: stopOk && tvDisabled && botDisabled ? 3000 : 6000,
+    });
+    logNotification({ type: "bot_action", title: "Robot Paused", message: "Trading robot was paused by user. Signal receipt disabled.", category: "info" });
   };
 
   if (loading) {
