@@ -228,21 +228,17 @@ export default function Home() {
       }
     }
 
-    // ── Try autonomous robot_start; fall back to direct trade execution
-    //    when the backend is in BASE44_ONLY mode (autonomous robot disabled). ──
+    // ── Try autonomous robot_start; always fall back to direct trade execution
+    //    when it fails (BASE44_ONLY, entry window, stale slot, etc.). ──
     let res = await mt5Api.robotStart(launchFormWithTF.symbol, launchFormWithTF);
     let usedForceStart = false;
     if (!res?.ok || res?.data?.success !== true) {
-      const errMsg = res?.error || res?.data?.message || "";
-      if (errMsg.includes("BASE44_ONLY") || res?.status === 403) {
-        // Backend disabled autonomous robot — route through direct trade API
-        toast({ title: "Direct Trade Mode", description: "Autonomous robot disabled — executing via Base44 signal path.", duration: 4000 });
-        res = await mt5Api.forceStart(launchFormWithTF.symbol, {
-          ...launchFormWithTF,
-          direction: launchFormWithTF.trade_direction === "sell" ? "SELL" : "BUY",
-        });
-        usedForceStart = true;
-      }
+      // Robot start failed for any reason — route through direct trade API
+      res = await mt5Api.forceStart(launchFormWithTF.symbol, {
+        ...launchFormWithTF,
+        direction: launchFormWithTF.trade_direction === "sell" ? "SELL" : "BUY",
+      });
+      usedForceStart = true;
     }
     if (res?.ok && res?.data?.success === true) {
       const activeSymbol = launchFormWithTF.symbol || form.symbol;
@@ -257,8 +253,9 @@ export default function Home() {
       setUnreadCount((c) => c + 1);
     } else {
       const msg = res?.error || res?.data?.message || res?.data?.detail || "Start failed";
-      // If entry slot is occupied, try to reconcile and show actionable message
-      if (msg.includes("ENTRY_SLOT_OCCUPIED") || msg.includes("reconciliation")) {
+      if (msg.includes("ENTRY_WINDOW_CLOSED") || msg.includes("entry windows")) {
+        toast({ title: "Outside Trading Hours", description: "XAUUSD trades 03:00–06:00 and 08:00–13:00 ET. Try again during a session window.", variant: "destructive", duration: 6000 });
+      } else if (msg.includes("ENTRY_SLOT_OCCUPIED") || msg.includes("reconciliation")) {
         toast({ title: "Entry Slot Locked", description: "A stale trade command is blocking new entries. Reconciling… Press START again in a few seconds.", variant: "destructive", duration: 6000 });
         mt5Api.reconcile().catch(() => null);
       } else {
@@ -278,16 +275,13 @@ export default function Home() {
         hft_mode_enabled: true,
       });
       if (!res?.ok || res?.data?.success !== true) {
-        const errMsg = res?.error || "";
-        if (errMsg.includes("BASE44_ONLY") || res?.status === 403) {
-          res = await mt5Api.forceStart(pair, {
-            symbol: pair,
-            strategy: "HFT Scalper",
-            lot_size: botSettings?.hft_base_lot ?? 0.01,
-            hft_mode_enabled: true,
-            direction: "BUY",
-          });
-        }
+        res = await mt5Api.forceStart(pair, {
+          symbol: pair,
+          strategy: "HFT Scalper",
+          lot_size: botSettings?.hft_base_lot ?? 0.01,
+          hft_mode_enabled: true,
+          direction: "BUY",
+        });
       }
       if (res?.ok && res?.data?.success === true) {
         setRobotStatus("Running");
