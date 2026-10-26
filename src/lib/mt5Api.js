@@ -56,7 +56,7 @@ export const mt5Api = {
   status: () => call("status"),
 
   /** Start the robot */
-  robotStart: (symbol, settings = {}) => call("robot_start", { symbol, ...settings }),
+  robotStart: (symbol, settings = {}) => call("robot_start", { symbol, strategy: settings.strategy, ...settings }),
 
   /** Stop the robot */
   robotStop: () => call("robot_stop"),
